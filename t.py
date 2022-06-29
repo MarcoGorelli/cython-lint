@@ -27,7 +27,7 @@ if exclude != -1:
 
 tree = parse_from_strings('algos', code)
 
-def visit_cvardefnode(node, prev):
+def visit_cvardefnode(node, *, block: bool = False):
     base_type = node.base_type
     cvardefs = [{
         'line': base_type.pos[1]-1,
@@ -35,9 +35,9 @@ def visit_cvardefnode(node, prev):
         'start': base_type.pos[2],
         'end': node.declarators[0].pos[2],
     }]
-    if prev is not None:
+    if not block:
         cdefs = [{
-            'line': prev.pos[1],
+            'line': node.pos[1]-1,
             'endline': node.pos[1],
             'start': node.pos[2],
         }]
@@ -53,7 +53,7 @@ def visit_statlistnode(node, prev):
     collects = collections.defaultdict(list)
     for _node in node.stats:
         if isinstance(_node, CVarDefNode):
-            collect = visit_cvardefnode(_node, prev=None)
+            collect = visit_cvardefnode(_node, block=True)
             for key, var in collect.items():
                 collects[key].extend(var)
     if collects['cvardefs']:
@@ -78,7 +78,7 @@ def main():
             for key, var in collect.items():
                 collects[key].extend(var)
         elif isinstance(node, CVarDefNode):
-            collect = visit_cvardefnode(node, prev)
+            collect = visit_cvardefnode(node)
             for key, var in collect.items():
                 collects[key].extend(var)
         prev = node
@@ -104,6 +104,7 @@ def main():
         before = ''.join(lines[:cdef['line']])
         during = ''.join(lines[cdef['line']:cdef['endline']])
         after = ''.join(lines[cdef['endline']:])
+        breakpoint()
         pycode = before + during[cdef['start']:] + after
         lines = pycode.splitlines(keepends=True)
 
