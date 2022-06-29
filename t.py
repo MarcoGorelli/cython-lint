@@ -46,7 +46,13 @@ def replace_cfuncdef(tokens, i):
         tokens[j] = Token(name='PLACEHOLDER', src='')
         j -= 1
     tokens[j] = Token(name='NAME', src='def')
-    breakpoint()
+
+def replace_cfuncarg(tokens, i):
+    tokens[i] = Token(name='PLACEHOLDER', src='')
+    j = i+1
+    while not tokens[j].src.strip():  # TODO: tokenize whitespace?
+        tokens[j] = Token(name='PLACEHOLDER', src='')
+        j += 1
 
 def replace_cdef(tokens, i):
     breakpoint()
@@ -116,6 +122,12 @@ def visit_cfuncdefnode(node):
         node.base_type.pos[1],
         node.base_type.pos[2],
     )
+    for arg in node.declarator.args:
+        yield (
+            'cfuncarg',
+            arg.pos[1],
+            arg.pos[2],
+        )
 
 
 import collections
@@ -156,6 +168,8 @@ def main():
                     replace_coercion(tokens, n)
                 elif name == 'cfuncdef':
                     replace_cfuncdef(tokens, n)
+                elif name == 'cfuncarg':
+                    replace_cfuncarg(tokens, n)
 
     newsrc = tokens_to_src(tokens)
 
