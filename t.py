@@ -15,7 +15,11 @@ and cdef blocks then...
 """
 
 from Cython.Compiler.TreeFragment import parse_from_strings
-from Cython.Compiler.Nodes import StatListNode, CVarDefNode
+from Cython.Compiler.Nodes import (
+    StatListNode,
+    CVarDefNode,
+    CFuncDefNode,
+)
 from Cython.Compiler.ExprNodes import TypecastNode
 import ast
 import re
@@ -29,75 +33,101 @@ if exclude != -1:
 
 tree = parse_from_strings('algos', code)
 
+def replace_cvardef(tokens, i):
+    tokens[i] = Token(name='PLACEHOLDER', src='')
+    j = i+1
+    while tokens[j].name == 'UNIMPORTANT_WS':
+        tokens[j] = Token(name='PLACEHOLDER', src='')
+        j += 1
+
+
 def visit_cvardefnode(node, *, block: bool = False):
     base_type = node.base_type
-    cvardefs = [{
-        'line': base_type.pos[1]-1,
-        'endline': base_type.pos[1],
-        'start': base_type.pos[2],
-        'end': node.declarators[0].pos[2],
-    }]
+    yield (
+        'cvardef',
+        base_type.pos[1],
+        base_type.pos[2],
+    )
     coercions = []
     for declaration in node.declarators:
         if isinstance(declaration.default, TypecastNode):
-            coercions.append(
-                {
-                    'line': declaration.pos[1]-1,
-                    'endline': declaration.pos[1],
-                    'name': declaration.default.base_type.name,
-                }
+            yield (
+                    'coercion',
+                    declaration.pos[1],
+                    declaration.pos[1],
             )
     if not block:
-        cdefs = [{
-            'line': node.pos[1]-1,
-            'endline': node.pos[1],
-            'start': node.pos[2],
-        }]
-    else:
-        cdefs = []
-    return {
-            'cvardefs': cvardefs,
-            'cdefs': cdefs,
-            'coercions': coercions,
-    }
+        yield (
+            'cdef',
+            node.pos[1],
+            node.pos[2],
+        )
 
 
 def visit_statlistnode(node, prev):
     collects = collections.defaultdict(list)
+    cvarsdefs = False
     for _node in node.stats:
         if isinstance(_node, CVarDefNode):
-            collect = visit_cvardefnode(_node, block=True)
-            for key, var in collect.items():
-                collects[key].extend(var)
-    if collects['cvardefs']:
+            yield from visit_cvardefnode(_node, block=True)
+            cvarsdefs = True
+    if cvarsdefs:
         # we must be in a cdef block
-        collects['cdefblocks'] = [{
+        yield {
+            'type': 'cdef',
             'line': prev.pos[1]+1,
             'endline': node.pos[1],
-        }]
+        }
+
+
+def visit_cfuncdefnode(node):
+    collects = {}
+    # here, we need to put a cdef inside
+    collects['cdefs'] = [{
+        'line': node.pos[1],
+        'endline': node.pos[1],
+        'start': node.pos[2],
+    }]
     return collects
 
 
 import collections
+from tokenize_rt import src_to_tokens, tokens_to_src, reversed_enumerate, Token
+
+# ok, no, let's do something totally different
+# let's have...let's do...
+# some list of replacements
 
 def main():
+    tokens = src_to_tokens(code)
     body = tree.body
     prev = None
     collects = collections.defaultdict(list)
+    replacements = {}
 
     for node in body.stats:
         if isinstance(node, StatListNode):
-            collect = visit_statlistnode(node, prev)
-            for key, var in collect.items():
-                collects[key].extend(var)
+            for name, line, col in visit_statlistnode(node, prev):
+                replacements[line, col] = name
         elif isinstance(node, CVarDefNode):
-            collect = visit_cvardefnode(node)
+            for name, line, col in visit_cvardefnode(node, prev):
+                replacements[line, col] = name
+        elif isinstance(node, CFuncDefNode):
+            continue
+            collect = visit_cfuncdefnode(node)
             for key, var in collect.items():
                 collects[key].extend(var)
         prev = node
 
-    pycode = code.replace('cimport', 'import')
-    lines = pycode.splitlines(keepends=True)
+    for n, token in reversed_enumerate(tokens):
+        key = (token.line, token.utf8_byte_offset)
+        if key in replacements:
+            if replacements.pop(key) == 'cvardef':
+                breakpoint()
+                replace_cvardef(tokens, n)
+
+    newsrc = tokens_to_src(tokens)
+    breakpoint()
 
     for cdef in collects['cdefblocks']:
         before = ''.join(lines[:cdef['line']])
