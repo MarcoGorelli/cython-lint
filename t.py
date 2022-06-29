@@ -40,6 +40,22 @@ def replace_cvardef(tokens, i):
         tokens[j] = Token(name='PLACEHOLDER', src='')
         j += 1
 
+def replace_cdef(tokens, i):
+    breakpoint()
+
+def replace_coercion(tokens, i):
+    tokens[i] = Token(name='PLACEHOLDER', src='')
+    j = i-1
+    while not (tokens[j].name == 'OP' and tokens[j].src == '<'):
+        j -= 1
+        tokens[j] = Token(name='PLACEHOLDER', src='')
+    tokens[j] = Token(name='PLACEHOLDER', src='')
+    j = i+1
+    while not (tokens[j].name == 'OP' and tokens[j].src == '>'):
+        j += 1
+        tokens[j] = Token(name='PLACEHOLDER', src='')
+    tokens[j] = Token(name='PLACEHOLDER', src='')
+
 
 def visit_cvardefnode(node, *, block: bool = False):
     base_type = node.base_type
@@ -53,8 +69,8 @@ def visit_cvardefnode(node, *, block: bool = False):
         if isinstance(declaration.default, TypecastNode):
             yield (
                     'coercion',
-                    declaration.pos[1],
-                    declaration.pos[1],
+                    declaration.default.base_type.pos[1],
+                    declaration.default.base_type.pos[2],
             )
     if not block:
         yield (
@@ -103,15 +119,15 @@ def main():
     body = tree.body
     prev = None
     collects = collections.defaultdict(list)
-    replacements = {}
+    replacements = collections.defaultdict(list)
 
     for node in body.stats:
         if isinstance(node, StatListNode):
             for name, line, col in visit_statlistnode(node, prev):
-                replacements[line, col] = name
+                replacements[line, col].append(name)
         elif isinstance(node, CVarDefNode):
             for name, line, col in visit_cvardefnode(node, prev):
-                replacements[line, col] = name
+                replacements[line, col].append(name)
         elif isinstance(node, CFuncDefNode):
             continue
             collect = visit_cfuncdefnode(node)
@@ -122,41 +138,15 @@ def main():
     for n, token in reversed_enumerate(tokens):
         key = (token.line, token.utf8_byte_offset)
         if key in replacements:
-            if replacements.pop(key) == 'cvardef':
-                breakpoint()
-                replace_cvardef(tokens, n)
+            for name in replacements.pop(key):
+                if name == 'cvardef':
+                    replace_cvardef(tokens, n)
+                elif name == 'cdef':
+                    replace_cdef(tokens, n)
+                elif name == 'coercion':
+                    replace_coercion(tokens, n)
 
     newsrc = tokens_to_src(tokens)
-    breakpoint()
-
-    for cdef in collects['cdefblocks']:
-        before = ''.join(lines[:cdef['line']])
-        during = ''.join(lines[cdef['line']:cdef['endline']])
-        after = ''.join(lines[cdef['endline']:])
-        pycode = before + during.replace('cdef:', 'if True:') + after
-        lines = pycode.splitlines(keepends=True)
-
-    for cvardef in collects['cvardefs']:
-        before = ''.join(lines[:cvardef['line']])
-        during = ''.join(lines[cvardef['line']:cvardef['endline']])
-        after = ''.join(lines[cvardef['endline']:])
-        pycode = before + during[:cvardef['start']] + during[cvardef['end']:] + after
-        lines = pycode.splitlines(keepends=True)
-
-    for cdef in collects['cdefs']:
-        before = ''.join(lines[:cdef['line']])
-        during = ''.join(lines[cdef['line']:cdef['endline']])
-        after = ''.join(lines[cdef['endline']:])
-        pycode = before + during[cdef['start']:] + after
-        lines = pycode.splitlines(keepends=True)
-
-    for coercion in collects['coercions']:
-        before = ''.join(lines[:coercion['line']])
-        during = ''.join(lines[coercion['line']:coercion['endline']])
-        after = ''.join(lines[coercion['endline']:])
-        name = coercion['name']
-        pycode = before + re.sub(fr'<\s*{name}\s*>', '', during) + after
-        lines = pycode.splitlines(keepends=True)
 
     breakpoint()
 
