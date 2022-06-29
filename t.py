@@ -40,6 +40,14 @@ def replace_cvardef(tokens, i):
         tokens[j] = Token(name='PLACEHOLDER', src='')
         j += 1
 
+def replace_cfuncdef(tokens, i):
+    j = i
+    while not (tokens[j].name == 'NAME' and tokens[j].src=='cdef'):
+        tokens[j] = Token(name='PLACEHOLDER', src='')
+        j -= 1
+    tokens[j] = Token(name='NAME', src='def')
+    breakpoint()
+
 def replace_cdef(tokens, i):
     breakpoint()
 
@@ -86,7 +94,7 @@ def visit_cvardefnode(node, *, block: bool = False):
         )
 
 
-def visit_statlistnode(node, prev):
+def visit_statlistnode(node):
     collects = collections.defaultdict(list)
     cvarsdefs = False
     for _node in node.stats:
@@ -103,14 +111,11 @@ def visit_statlistnode(node, prev):
 
 
 def visit_cfuncdefnode(node):
-    collects = {}
-    # here, we need to put a cdef inside
-    collects['cdefs'] = [{
-        'line': node.pos[1],
-        'endline': node.pos[1],
-        'start': node.pos[2],
-    }]
-    return collects
+    yield (
+        'cfuncdef',
+        node.base_type.pos[1],
+        node.base_type.pos[2],
+    )
 
 
 import collections
@@ -123,23 +128,19 @@ from tokenize_rt import src_to_tokens, tokens_to_src, reversed_enumerate, Token
 def main():
     tokens = src_to_tokens(code)
     body = tree.body
-    prev = None
     collects = collections.defaultdict(list)
     replacements = collections.defaultdict(list)
 
     for node in body.stats:
         if isinstance(node, StatListNode):
-            for name, line, col in visit_statlistnode(node, prev):
+            for name, line, col in visit_statlistnode(node):
                 replacements[line, col].append(name)
         elif isinstance(node, CVarDefNode):
-            for name, line, col in visit_cvardefnode(node, prev):
+            for name, line, col in visit_cvardefnode(node):
                 replacements[line, col].append(name)
         elif isinstance(node, CFuncDefNode):
-            continue
-            collect = visit_cfuncdefnode(node)
-            for key, var in collect.items():
-                collects[key].extend(var)
-        prev = node
+            for name, line, col in visit_cfuncdefnode(node):
+                replacements[line, col].append(name)
 
     for n, token in reversed_enumerate(tokens):
         key = (token.line, token.utf8_byte_offset)
@@ -153,6 +154,8 @@ def main():
                     replace_cdefblock(tokens, n)
                 elif name == 'coercion':
                     replace_coercion(tokens, n)
+                elif name == 'cfuncdef':
+                    replace_cfuncdef(tokens, n)
 
     newsrc = tokens_to_src(tokens)
 
