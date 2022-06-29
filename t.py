@@ -39,62 +39,76 @@ def visit_cvardefnode(node, prev):
         cdefs = [{
             'line': prev.pos[1],
             'endline': node.pos[1],
+            'start': node.pos[2],
         }]
     else:
         cdefs = []
-    return cvardefs, cdefs
+    return {
+            'cvardefs': cvardefs,
+            'cdefs': cdefs,
+    }
 
 
 def visit_statlistnode(node, prev):
-    cvardefs = []
-    cdefs = []
+    collects = collections.defaultdict(list)
     for _node in node.stats:
         if isinstance(_node, CVarDefNode):
-            _cvardef, _cdef = visit_cvardefnode(_node, prev=None)
-            cvardefs.extend(_cvardef)
-            cdefs.extend(_cdef)
-    if cvardefs:
+            collect = visit_cvardefnode(_node, prev=None)
+            for key, var in collect.items():
+                collects[key].extend(var)
+    if collects['cvardefs']:
         # we must be in a cdef block
-        cdefs.append({
+        collects['cdefblocks'] = [{
             'line': prev.pos[1]+1,
             'endline': node.pos[1],
-        })
-    return cvardefs, cdefs
+        }]
+    return collects
 
 
+import collections
 
-body = tree.body
-prev = None
-cvardefs = []
-cdefs = []
-for node in body.stats:
-    if isinstance(node, StatListNode):
-        _cvardefs, _cdef = visit_statlistnode(node, prev)
-        cvardefs.extend(_cvardefs)
-        cdefs.extend(_cdef)
-    elif isinstance(node, CVarDefNode):
-        _cvardefs, _cdef = visit_cvardefnode(node, prev)
-        cvardefs.extend(_cvardefs)
-        cdefs.extend(_cdef)
-    prev = node
+def main():
+    body = tree.body
+    prev = None
+    collects = collections.defaultdict(list)
 
-pycode = code.replace('cimport', 'import')
-lines = pycode.splitlines(keepends=True)
+    for node in body.stats:
+        if isinstance(node, StatListNode):
+            collect = visit_statlistnode(node, prev)
+            for key, var in collect.items():
+                collects[key].extend(var)
+        elif isinstance(node, CVarDefNode):
+            collect = visit_cvardefnode(node, prev)
+            for key, var in collect.items():
+                collects[key].extend(var)
+        prev = node
 
-for cdef in cdefs:
-    before = ''.join(lines[:cdef['line']])
-    during = ''.join(lines[cdef['line']:cdef['endline']])
-    after = ''.join(lines[cdef['endline']:])
-    pycode = before + during.replace('cdef:', 'if True:') + after
+    pycode = code.replace('cimport', 'import')
     lines = pycode.splitlines(keepends=True)
 
-for cvardef in cvardefs:
-    before = ''.join(lines[:cvardef['line']])
-    during = ''.join(lines[cvardef['line']:cvardef['endline']])
-    after = ''.join(lines[cvardef['endline']:])
-    pycode = before + during[:cvardef['start']] + during[cvardef['end']:] + after
-    lines = pycode.splitlines(keepends=True)
+    for cdef in collects['cdefblocks']:
+        before = ''.join(lines[:cdef['line']])
+        during = ''.join(lines[cdef['line']:cdef['endline']])
+        after = ''.join(lines[cdef['endline']:])
+        pycode = before + during.replace('cdef:', 'if True:') + after
+        lines = pycode.splitlines(keepends=True)
 
-breakpoint()
+    for cvardef in collects['cvardefs']:
+        before = ''.join(lines[:cvardef['line']])
+        during = ''.join(lines[cvardef['line']:cvardef['endline']])
+        after = ''.join(lines[cvardef['endline']:])
+        pycode = before + during[:cvardef['start']] + during[cvardef['end']:] + after
+        lines = pycode.splitlines(keepends=True)
 
-# want to get to: ast.parse(code)
+    for cdef in collects['cdefs']:
+        before = ''.join(lines[:cdef['line']])
+        during = ''.join(lines[cdef['line']:cdef['endline']])
+        after = ''.join(lines[cdef['endline']:])
+        pycode = before + during[cdef['start']:] + after
+        lines = pycode.splitlines(keepends=True)
+
+    breakpoint()
+
+    # want to get to: ast.parse(code)
+
+main()
