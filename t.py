@@ -16,7 +16,9 @@ and cdef blocks then...
 
 from Cython.Compiler.TreeFragment import parse_from_strings
 from Cython.Compiler.Nodes import StatListNode, CVarDefNode
+from Cython.Compiler.ExprNodes import TypecastNode
 import ast
+import re
 
 with open('algos.pyx') as fd:
     code = fd.read()
@@ -35,6 +37,16 @@ def visit_cvardefnode(node, *, block: bool = False):
         'start': base_type.pos[2],
         'end': node.declarators[0].pos[2],
     }]
+    coercions = []
+    for declaration in node.declarators:
+        if isinstance(declaration.default, TypecastNode):
+            coercions.append(
+                {
+                    'line': declaration.pos[1]-1,
+                    'endline': declaration.pos[1],
+                    'name': declaration.default.base_type.name,
+                }
+            )
     if not block:
         cdefs = [{
             'line': node.pos[1]-1,
@@ -46,6 +58,7 @@ def visit_cvardefnode(node, *, block: bool = False):
     return {
             'cvardefs': cvardefs,
             'cdefs': cdefs,
+            'coercions': coercions,
     }
 
 
@@ -104,8 +117,15 @@ def main():
         before = ''.join(lines[:cdef['line']])
         during = ''.join(lines[cdef['line']:cdef['endline']])
         after = ''.join(lines[cdef['endline']:])
-        breakpoint()
         pycode = before + during[cdef['start']:] + after
+        lines = pycode.splitlines(keepends=True)
+
+    for coercion in collects['coercions']:
+        before = ''.join(lines[:coercion['line']])
+        during = ''.join(lines[coercion['line']:coercion['endline']])
+        after = ''.join(lines[coercion['endline']:])
+        name = coercion['name']
+        pycode = before + re.sub(fr'<\s*{name}\s*>', '', during) + after
         lines = pycode.splitlines(keepends=True)
 
     breakpoint()
