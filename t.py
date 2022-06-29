@@ -43,6 +43,12 @@ def replace_cvardef(tokens, i):
 def replace_cdef(tokens, i):
     breakpoint()
 
+def replace_cdefblock(tokens, i):
+    j = i-1
+    while not (tokens[j].name=='NAME' and tokens[j].src=='cdef'):
+        j -= 1
+    tokens[j] = Token(name='NAME', src='if True')
+
 def replace_coercion(tokens, i):
     tokens[i] = Token(name='PLACEHOLDER', src='')
     j = i-1
@@ -85,15 +91,15 @@ def visit_statlistnode(node, prev):
     cvarsdefs = False
     for _node in node.stats:
         if isinstance(_node, CVarDefNode):
-            yield from visit_cvardefnode(_node, block=True)
             cvarsdefs = True
+            yield from visit_cvardefnode(_node, block=True)
     if cvarsdefs:
         # we must be in a cdef block
-        yield {
-            'type': 'cdef',
-            'line': prev.pos[1]+1,
-            'endline': node.pos[1],
-        }
+        yield (
+            'cdefblock',
+            node.pos[1],
+            node.pos[2],
+        )
 
 
 def visit_cfuncdefnode(node):
@@ -143,6 +149,8 @@ def main():
                     replace_cvardef(tokens, n)
                 elif name == 'cdef':
                     replace_cdef(tokens, n)
+                elif name == 'cdefblock':
+                    replace_cdefblock(tokens, n)
                 elif name == 'coercion':
                     replace_coercion(tokens, n)
 
