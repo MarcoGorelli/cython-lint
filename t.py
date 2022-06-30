@@ -19,6 +19,8 @@ from Cython.Compiler.Nodes import (
     StatListNode,
     CVarDefNode,
     CFuncDefNode,
+    CImportStatNode,
+    CArgDeclNode,
 )
 from Cython.Compiler.ExprNodes import TypecastNode
 import ast
@@ -31,7 +33,6 @@ exclude = code.find('# generated from template')
 if exclude != -1:
     code = code[:exclude]
 
-tree = parse_from_strings('algos', code)
 
 def replace_cvardef(tokens, i):
     tokens[i] = Token(name='PLACEHOLDER', src='')
@@ -63,57 +64,37 @@ def replace_cdefblock(tokens, i):
         j -= 1
     tokens[j] = Token(name='NAME', src='if True')
 
-def replace_coercion(tokens, i):
+def replace_typecast(tokens, i):
     tokens[i] = Token(name='PLACEHOLDER', src='')
-    j = i-1
-    while not (tokens[j].name == 'OP' and tokens[j].src == '<'):
-        j -= 1
-        tokens[j] = Token(name='PLACEHOLDER', src='')
-    tokens[j] = Token(name='PLACEHOLDER', src='')
     j = i+1
     while not (tokens[j].name == 'OP' and tokens[j].src == '>'):
         j += 1
+    for _i in range(i, j+1):
+        tokens[_i] = Token(name='PLACEHOLDER', src='')
+
+
+def replace_cargdecl(tokens, i):
+    tokens[i] = Token(name='PLACEHOLDER', src='')
+    j = i+1
+    while not tokens[j].src.strip():  # TODO: tokenize whitespace?
         tokens[j] = Token(name='PLACEHOLDER', src='')
-    tokens[j] = Token(name='PLACEHOLDER', src='')
+        j += 1
 
 
-def visit_cvardefnode(node, *, block: bool = False):
+def visit_cvardefnode(node):
     base_type = node.base_type
     yield (
         'cvardef',
         base_type.pos[1],
         base_type.pos[2],
     )
-    coercions = []
-    for declaration in node.declarators:
-        if isinstance(declaration.default, TypecastNode):
-            yield (
-                    'coercion',
-                    declaration.default.base_type.pos[1],
-                    declaration.default.base_type.pos[2],
-            )
-    if not block:
-        yield (
-            'cdef',
+
+def visit_typecastnode(node):
+    yield (
+            'typecast',
             node.pos[1],
             node.pos[2],
-        )
-
-
-def visit_statlistnode(node):
-    collects = collections.defaultdict(list)
-    cvarsdefs = False
-    for _node in node.stats:
-        if isinstance(_node, CVarDefNode):
-            cvarsdefs = True
-            yield from visit_cvardefnode(_node, block=True)
-    if cvarsdefs:
-        # we must be in a cdef block
-        yield (
-            'cdefblock',
-            node.pos[1],
-            node.pos[2],
-        )
+    )
 
 
 def visit_cfuncdefnode(node):
@@ -122,12 +103,14 @@ def visit_cfuncdefnode(node):
         node.base_type.pos[1],
         node.base_type.pos[2],
     )
-    for arg in node.declarator.args:
-        yield (
-            'cfuncarg',
-            arg.pos[1],
-            arg.pos[2],
-        )
+
+def visit_cargdeclnode(node):
+    yield (
+        'cargdecl',
+        node.pos[1],
+        node.pos[2],
+    )
+
 
 
 import collections
@@ -138,21 +121,9 @@ from tokenize_rt import src_to_tokens, tokens_to_src, reversed_enumerate, Token
 # some list of replacements
 
 def main():
+    tree = parse_from_strings('algos', code)
+    replacements = traverse(tree)
     tokens = src_to_tokens(code)
-    body = tree.body
-    collects = collections.defaultdict(list)
-    replacements = collections.defaultdict(list)
-
-    for node in body.stats:
-        if isinstance(node, StatListNode):
-            for name, line, col in visit_statlistnode(node):
-                replacements[line, col].append(name)
-        elif isinstance(node, CVarDefNode):
-            for name, line, col in visit_cvardefnode(node):
-                replacements[line, col].append(name)
-        elif isinstance(node, CFuncDefNode):
-            for name, line, col in visit_cfuncdefnode(node):
-                replacements[line, col].append(name)
 
     for n, token in reversed_enumerate(tokens):
         key = (token.line, token.utf8_byte_offset)
@@ -164,17 +135,49 @@ def main():
                     replace_cdef(tokens, n)
                 elif name == 'cdefblock':
                     replace_cdefblock(tokens, n)
-                elif name == 'coercion':
-                    replace_coercion(tokens, n)
+                elif name == 'typecast':
+                    replace_typecast(tokens, n)
                 elif name == 'cfuncdef':
                     replace_cfuncdef(tokens, n)
                 elif name == 'cfuncarg':
                     replace_cfuncarg(tokens, n)
+                elif name == 'cargdecl':
+                    replace_cargdecl(tokens, n)
 
     newsrc = tokens_to_src(tokens)
-
     breakpoint()
 
+
     # want to get to: ast.parse(code)
+
+def traverse(tree):
+    # check if child isn't []
+    nodes = [tree]
+    replacements = collections.defaultdict(list)
+
+    funcs = {
+        'CVarDefNode': visit_cvardefnode,
+        'CFuncDefNode': visit_cfuncdefnode,
+        'TypecastNode': visit_typecastnode,
+        'CArgDeclNode': visit_cargdeclnode,
+    }
+
+    while nodes:
+        node = nodes.pop()
+        if node is None:
+            continue
+
+        func = funcs.get(type(node).__name__)
+        if func is not None:
+            for name, line, col in func(node):
+                replacements[line, col].append(name)
+
+        for attr in node.child_attrs:
+            child = getattr(node, attr)
+            if isinstance(child, list):
+                nodes.extend(child)
+            else:
+                nodes.append(child)
+    return replacements
 
 main()
