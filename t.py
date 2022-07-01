@@ -91,6 +91,12 @@ def replace_fromcimportstat(tokens, i):
         j += 1
     tokens[j] = Token(name='NAME', src='import')
 
+def replace_cimportstat(tokens, i):
+    j = i-1
+    while not (tokens[j].name=='NAME' and tokens[j].src=='cimport'):
+        j -= 1
+    tokens[j] = Token(name='NAME', src='import')
+
 
 def visit_cvardefnode(node):
     base_type = node.base_type
@@ -137,6 +143,12 @@ def visit_fromcimportstatnode(node):
         node.pos[2],
     )
 
+def visit_cimportstatnode(node):
+    yield (
+        'cimport',
+        node.pos[1],
+        node.pos[2],
+    )
 
 
 import collections
@@ -171,6 +183,8 @@ def main():
                     replace_cargdecl(tokens, n)
                 elif name == 'fromcimport':
                     replace_fromcimportstat(tokens, n)
+                elif name == 'cimport':
+                    replace_cimportstat(tokens, n)
 
     newsrc = tokens_to_src(tokens)
     breakpoint()
@@ -190,6 +204,7 @@ def traverse(tree):
         'CArgDeclNode': visit_cargdeclnode,
         'FromCImportStatNode': visit_fromcimportstatnode,
         'StatListNode': visit_statlistnode,
+        'CImportStatNode': visit_cimportstatnode,
     }
 
     breakpoint()
