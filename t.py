@@ -1,20 +1,7 @@
 """
-maybe, we should just transform
-
-cdef:
-    type a = b
-
-to
-
-a = b
-
-naah, don't mess with indents
-
-will need to distinguish between inline cdefs
-and cdef blocks then...
-
-still need statslist. check if they are all declarations, and if
-so, look for a cdef before, and remove it
+    cpdef ndarray[int64_t, ndim=1] unique_deltas(
+gets transformed to
+    def, ndim=1] unique_deltas(
 """
 
 from Cython.Compiler.TreeFragment import parse_from_strings
@@ -47,8 +34,7 @@ def replace_cvardef(tokens, i):
 
 def replace_cfuncdef(tokens, i):
     j = i
-    while not (tokens[j].name == 'NAME' and tokens[j].src=='cdef'):
-        tokens[j] = Token(name='PLACEHOLDER', src='')
+    while not (tokens[j].name == 'NAME' and tokens[j].src in ('cdef', 'cpdef')):
         j -= 1
     tokens[j] = Token(name='NAME', src='def')
 
@@ -97,6 +83,15 @@ def replace_cimportstat(tokens, i):
         j -= 1
     tokens[j] = Token(name='NAME', src='import')
 
+def replace_templatedtype(tokens, i):
+    j = i
+    while not (tokens[j].name=='OP' and tokens[j].src==']'):
+        tokens[j] = Token(name='PLACEHOLDER', src='')
+        j += 1
+    tokens[j] = Token(name='PLACEHOLDER', src='')
+    while not tokens[j].src.strip():
+        tokens[j] = Token(name='PLACEHOLDER', src='')
+        j += 1
 
 def visit_cvardefnode(node):
     base_type = node.base_type
@@ -150,6 +145,14 @@ def visit_cimportstatnode(node):
         node.pos[2],
     )
 
+def visit_templatedtypenode(node):
+    # might need to unpack a whole load more things here
+    yield (
+        'templatedtype',
+        node.base_type_node.pos[1],
+        node.base_type_node.pos[2],
+    )
+
 
 import collections
 from tokenize_rt import src_to_tokens, tokens_to_src, reversed_enumerate, Token
@@ -185,6 +188,8 @@ def main():
                     replace_fromcimportstat(tokens, n)
                 elif name == 'cimport':
                     replace_cimportstat(tokens, n)
+                elif name == 'templatedtype':
+                    replace_templatedtype(tokens, n)
 
     newsrc = tokens_to_src(tokens)
     breakpoint()
@@ -205,6 +210,7 @@ def traverse(tree):
         'FromCImportStatNode': visit_fromcimportstatnode,
         'StatListNode': visit_statlistnode,
         'CImportStatNode': visit_cimportstatnode,
+        'TemplatedTypeNode': visit_templatedtypenode,
     }
 
     breakpoint()
