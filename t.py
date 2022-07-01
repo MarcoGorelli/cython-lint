@@ -24,6 +24,7 @@ from Cython.Compiler.Nodes import (
     CFuncDefNode,
     CImportStatNode,
     CArgDeclNode,
+    FromCImportStatNode,
 )
 from Cython.Compiler.ExprNodes import TypecastNode
 import ast
@@ -84,6 +85,12 @@ def replace_cargdecl(tokens, i):
         j += 1
 
 
+def replace_fromcimportstat(tokens, i):
+    j = i+1
+    while not (tokens[j].name=='NAME' and tokens[j].src=='cimport'):
+        j += 1
+    tokens[j] = Token(name='NAME', src='import')
+
 
 def visit_cvardefnode(node):
     base_type = node.base_type
@@ -123,6 +130,13 @@ def visit_statlistnode(node):
             node.pos[2],
         )
 
+def visit_fromcimportstatnode(node):
+    yield (
+        'fromcimport',
+        node.pos[1],
+        node.pos[2],
+    )
+
 
 
 import collections
@@ -155,6 +169,8 @@ def main():
                     replace_cfuncarg(tokens, n)
                 elif name == 'cargdecl':
                     replace_cargdecl(tokens, n)
+                elif name == 'fromcimport':
+                    replace_fromcimportstat(tokens, n)
 
     newsrc = tokens_to_src(tokens)
     breakpoint()
@@ -172,6 +188,7 @@ def traverse(tree):
         'CFuncDefNode': visit_cfuncdefnode,
         'TypecastNode': visit_typecastnode,
         'CArgDeclNode': visit_cargdeclnode,
+        'FromCImportStatNode': visit_fromcimportstatnode,
         'StatListNode': visit_statlistnode,
     }
 
