@@ -12,6 +12,9 @@ naah, don't mess with indents
 
 will need to distinguish between inline cdefs
 and cdef blocks then...
+
+still need statslist. check if they are all declarations, and if
+so, look for a cdef before, and remove it
 """
 
 from Cython.Compiler.TreeFragment import parse_from_strings
@@ -81,6 +84,7 @@ def replace_cargdecl(tokens, i):
         j += 1
 
 
+
 def visit_cvardefnode(node):
     base_type = node.base_type
     yield (
@@ -110,6 +114,14 @@ def visit_cargdeclnode(node):
         node.pos[1],
         node.pos[2],
     )
+
+def visit_statlistnode(node):
+    if all(isinstance(child, CVarDefNode) for child in node.stats):
+        yield (
+            'cdefblock',
+            node.pos[1],
+            node.pos[2],
+        )
 
 
 
@@ -160,8 +172,10 @@ def traverse(tree):
         'CFuncDefNode': visit_cfuncdefnode,
         'TypecastNode': visit_typecastnode,
         'CArgDeclNode': visit_cargdeclnode,
+        'StatListNode': visit_statlistnode,
     }
 
+    breakpoint()
     while nodes:
         node = nodes.pop()
         if node is None:
@@ -169,8 +183,10 @@ def traverse(tree):
 
         func = funcs.get(type(node).__name__)
         if func is not None:
-            for name, line, col in func(node):
-                replacements[line, col].append(name)
+            iterator = func(node)
+            if iterator is not None:
+                for name, line, col in iterator:
+                    replacements[line, col].append(name)
 
         for attr in node.child_attrs:
             child = getattr(node, attr)
