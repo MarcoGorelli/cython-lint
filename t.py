@@ -1,7 +1,5 @@
 """
-    cpdef ndarray[int64_t, ndim=1] unique_deltas(
-gets transformed to
-    def, ndim=1] unique_deltas(
+ooh, still need to process &foo
 """
 
 from Cython.Compiler.TreeFragment import parse_from_strings
@@ -12,8 +10,10 @@ from Cython.Compiler.Nodes import (
     CImportStatNode,
     CArgDeclNode,
     FromCImportStatNode,
+    CSimpleBaseTypeNode,
+    MemoryViewSliceTypeNode,
 )
-from Cython.Compiler.ExprNodes import TypecastNode
+from Cython.Compiler.ExprNodes import TypecastNode, AmpersandNode
 import ast
 import re
 
@@ -33,6 +33,12 @@ def replace_cvardef(tokens, i):
         j += 1
 
 def replace_cfuncdef(tokens, i):
+    if (tokens[i].name == 'NAME' and tokens[i].src == 'inline'):
+        tokens[i] = Token(name='PLACEHOLDER', src='')
+    j = i+1
+    while not tokens[j].src.strip():  # TODO: tokenize whitespace?
+        tokens[j] = Token(name='PLACEHOLDER', src='')
+        j += 1
     j = i
     while not (tokens[j].name == 'NAME' and tokens[j].src in ('cdef', 'cpdef')):
         j -= 1
@@ -93,6 +99,39 @@ def replace_templatedtype(tokens, i):
         tokens[j] = Token(name='PLACEHOLDER', src='')
         j += 1
 
+def replace_csimplebasetype(tokens, i):
+    tokens[i] = Token(name='PLACEHOLDER', src='')
+    j = i+1
+    while not tokens[j].src.strip():
+        tokens[j] = Token(name='PLACEHOLDER', src='')
+        j += 1
+
+def replace_cconsttypenode(tokens, i):
+    tokens[i] = Token(name='PLACEHOLDER', src='')
+    j = i+1
+    while not tokens[j].src.strip():
+        tokens[j] = Token(name='PLACEHOLDER', src='')
+        j += 1
+
+def replace_memoryviewslicetypenode(tokens, i):
+    j = i
+    while not (tokens[j].name=='OP' and tokens[j].src=='['):
+        tokens[j] = Token(name='PLACEHOLDER', src='')
+        j -= 1
+    tokens[j] = Token(name='PLACEHOLDER', src='')
+    j = i+1
+    while not (tokens[j].name=='OP' and tokens[j].src==']'):
+        tokens[j] = Token(name='PLACEHOLDER', src='')
+        j += 1
+    tokens[j] = Token(name='PLACEHOLDER', src='')
+    j = j+1
+    while not tokens[j].src.strip():
+        tokens[j] = Token(name='PLACEHOLDER', src='')
+        j += 1
+
+def replace_ampersandnode(tokens, i):
+    tokens[i] = Token(name='PLACEHOLDER', src='')
+
 def visit_cvardefnode(node):
     base_type = node.base_type
     yield (
@@ -112,8 +151,8 @@ def visit_typecastnode(node):
 def visit_cfuncdefnode(node):
     yield (
         'cfuncdef',
-        node.base_type.pos[1],
-        node.base_type.pos[2],
+        node.pos[1],
+        node.pos[2],
     )
 
 def visit_cargdeclnode(node):
@@ -153,6 +192,33 @@ def visit_templatedtypenode(node):
         node.base_type_node.pos[2],
     )
 
+def visit_csimplebasetypenode(node):
+    yield (
+        'csimplebasetype',
+        node.pos[1],
+        node.pos[2],
+    )
+
+def visit_cconsttypenode(node):
+    yield (
+        'cconsttype',
+        node.pos[1],
+        node.pos[2],
+    )
+
+def visit_memoryviewslicetypenode(node):
+    yield (
+        'memoryviewslicetype',
+        node.pos[1],
+        node.pos[2],
+    )
+
+def visit_ampersandnode(node):
+    yield (
+        'ampersand',
+        node.pos[1],
+        node.pos[2],
+    )
 
 import collections
 from tokenize_rt import src_to_tokens, tokens_to_src, reversed_enumerate, Token
@@ -190,6 +256,14 @@ def main():
                     replace_cimportstat(tokens, n)
                 elif name == 'templatedtype':
                     replace_templatedtype(tokens, n)
+                elif name == 'csimplebasetype':
+                    replace_csimplebasetype(tokens, n)
+                elif name == 'cconsttypenode':
+                    replace_cconsttypenode(tokens, n)
+                elif name == 'memoryviewslicetype':
+                    replace_memoryviewslicetypenode(tokens, n)
+                elif name == 'ampersand':
+                    replace_ampersandnode(tokens, n)
 
     newsrc = tokens_to_src(tokens)
     breakpoint()
@@ -211,6 +285,10 @@ def traverse(tree):
         'StatListNode': visit_statlistnode,
         'CImportStatNode': visit_cimportstatnode,
         'TemplatedTypeNode': visit_templatedtypenode,
+        'CSimpleBaseTypeNode': visit_csimplebasetypenode,
+        'CConstTypeNode': visit_cconsttypenode,
+        'MemoryViewSliceTypeNode': visit_memoryviewslicetypenode,
+        'AmpersandNode': visit_ampersandnode,
     }
 
     breakpoint()
