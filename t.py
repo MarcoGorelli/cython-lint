@@ -1,5 +1,10 @@
 """
-ooh, still need to process &foo
+todo: remove handling of statlist
+instead, for cvardef, check if token before it is cdef:
+need to look for:
+Token(name='OP', src=':', line=245, utf8_byte_offset=8)
+(Pdb) tokens[i-9]
+Token(name='NAME', src='cdef', line=245, utf8_byte_offset=4)
 """
 
 from Cython.Compiler.TreeFragment import parse_from_strings
@@ -31,6 +36,19 @@ def replace_cvardef(tokens, i):
     while tokens[j].name == 'UNIMPORTANT_WS':
         tokens[j] = Token(name='PLACEHOLDER', src='')
         j += 1
+    j = i-1
+    while not tokens[j].src.strip():
+        j -= 1
+    k = j-1
+    while not tokens[k].src.strip():
+        k -= 1
+    if (
+        tokens[j].name == 'OP'
+        and tokens[j].src == ':'
+        and tokens[k].name == 'NAME'
+        and tokens[k].src == 'cdef'
+    ):
+        tokens[k] = Token(name='NAME', src='if True')
 
 def replace_cfuncdef(tokens, i):
     if (tokens[i].name == 'NAME' and tokens[i].src == 'inline'):
@@ -240,8 +258,6 @@ def main():
                     replace_cvardef(tokens, n)
                 elif name == 'cdef':
                     replace_cdef(tokens, n)
-                elif name == 'cdefblock':
-                    replace_cdefblock(tokens, n)
                 elif name == 'typecast':
                     replace_typecast(tokens, n)
                 elif name == 'cfuncdef':
