@@ -160,7 +160,10 @@ def replace_ampersandnode(tokens, i):
     tokens[i] = Token(name='PLACEHOLDER', src='')
 
 def replace_cptrdeclaratornode(tokens, i):
-    tokens[i] = Token(name='PLACEHOLDER', src='')
+    j = i
+    while not tokens[j].name == 'OP' and tokens[j] == '*':
+        j += 1
+    tokens[j] = Token(name='PLACEHOLDER', src='')
 
 def replace_gilstatnode(tokens, i):
     tokens[i] = Token(name='NAME', src='True')
@@ -358,7 +361,12 @@ def traverse(tree):
                 for name, line, col in iterator:
                     replacements[line, col].append(name)
 
-        for attr in node.child_attrs:
+        child_attrs = node.child_attrs
+        if 'declarator' not in child_attrs and hasattr(node, 'declarator'):
+            # noticed this in size(int*)
+            # bug?
+            child_attrs.append('declarator')
+        for attr in child_attrs:
             child = getattr(node, attr)
             if isinstance(child, list):
                 nodes.extend(child)
