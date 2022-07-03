@@ -93,15 +93,6 @@ def replace_typecast(tokens, i):
         tokens[_i] = Token(name='PLACEHOLDER', src='')
 
 
-def replace_cargdecl(tokens, i):
-    # this is eating list_of_arrays
-    tokens[i] = Token(name='PLACEHOLDER', src='')
-    j = i+1
-    while not tokens[j].src.strip():  # TODO: tokenize whitespace?
-        tokens[j] = Token(name='PLACEHOLDER', src='')
-        j += 1
-
-
 def replace_fromcimportstat(tokens, i):
     j = i+1
     while not (tokens[j].name=='NAME' and tokens[j].src=='cimport'):
@@ -183,12 +174,6 @@ def visit_cfuncdefnode(node):
         node.pos[2],
     )
 
-def visit_cargdeclnode(node):
-    yield (
-        'cargdecl',
-        node.pos[1],
-        node.pos[2],
-    )
 
 def visit_statlistnode(node):
     if all(isinstance(child, CVarDefNode) for child in node.stats):
@@ -281,8 +266,6 @@ def main():
                     replace_cfuncdef(tokens, n)
                 elif name == 'cfuncarg':
                     replace_cfuncarg(tokens, n)
-                elif name == 'cargdecl':
-                    replace_cargdecl(tokens, n)
                 elif name == 'fromcimport':
                     replace_fromcimportstat(tokens, n)
                 elif name == 'cimport':
@@ -316,7 +299,6 @@ def traverse(tree):
         'CVarDefNode': visit_cvardefnode,
         'CFuncDefNode': visit_cfuncdefnode,
         'TypecastNode': visit_typecastnode,
-        'CArgDeclNode': visit_cargdeclnode,
         'FromCImportStatNode': visit_fromcimportstatnode,
         'StatListNode': visit_statlistnode,
         'CImportStatNode': visit_cimportstatnode,
