@@ -94,6 +94,7 @@ def replace_typecast(tokens, i):
 
 
 def replace_cargdecl(tokens, i):
+    # this is eating list_of_arrays
     tokens[i] = Token(name='PLACEHOLDER', src='')
     j = i+1
     while not tokens[j].src.strip():  # TODO: tokenize whitespace?
@@ -300,6 +301,7 @@ def main():
                     replace_cptrdeclaratornode(tokens, n)
 
     newsrc = tokens_to_src(tokens)
+    print(newsrc)
     breakpoint()
 
 
