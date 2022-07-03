@@ -14,6 +14,7 @@ from Cython.Compiler.Nodes import (
     MemoryViewSliceTypeNode,
     CPtrDeclaratorNode,
     GILStatNode,
+    FusedTypeNode,
 )
 from Cython.Compiler.ExprNodes import TypecastNode, AmpersandNode
 import ast
@@ -175,6 +176,12 @@ def replace_gilstatnode(tokens, i):
     tokens[j] = Token(name='NAME', src='if')
 
 
+def replace_fusedtype(tokens, i):
+    j = i
+    while not (tokens[j].name=='OP' and tokens[j].src==':'):
+        tokens[j] = Token(name='PLACEHOLDER', src='')
+        j += 1
+    tokens[j-1] = Token(name='NAME', src='if True')
 
 def visit_cvardefnode(node):
     base_type = node.base_type
@@ -275,6 +282,12 @@ def visit_gilstatnode(node):
         node.pos[2],
     )
 
+def visit_fusedtypenode(node):
+    yield (
+        'fusedtype',
+        node.pos[1],
+        node.pos[2],
+    )
 import collections
 from tokenize_rt import src_to_tokens, tokens_to_src, reversed_enumerate, Token
 
@@ -319,9 +332,12 @@ def main():
                     replace_cptrdeclaratornode(tokens, n)
                 elif name == 'gilstat':
                     replace_gilstatnode(tokens, n)
+                elif name == 'fusedtype':
+                    replace_fusedtype(tokens, n)
 
     newsrc = tokens_to_src(tokens)
     print(newsrc)
+    print(ast.parse(newsrc))
     breakpoint()
 
 
@@ -346,6 +362,7 @@ def traverse(tree):
         'AmpersandNode': visit_ampersandnode,
         'CPtrDeclaratorNode': visit_cptrdeclaratornode,
         'GILStatNode': visit_gilstatnode,
+        'FusedTypeNode': visit_fusedtypenode,
     }
 
     breakpoint()
