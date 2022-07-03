@@ -334,10 +334,14 @@ def main():
                     replace_gilstatnode(tokens, n)
                 elif name == 'fusedtype':
                     replace_fusedtype(tokens, n)
-
     newsrc = tokens_to_src(tokens)
-    print(newsrc)
-    print(ast.parse(newsrc))
+    try:
+        ast.parse(newsrc)
+    except SyntaxError as exp:
+        if str(exp).startswith('cannot assign to literal'):
+            print('limitation of cython-lint, sorry')
+    else:
+        print(newsrc)
     breakpoint()
 
 
