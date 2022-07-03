@@ -1,7 +1,6 @@
 """
-also, missing nogil
-
-const not getting removed...
+todo:
+    replace('with nogil', 'if True').replace('nogil', '').replace('int64_t*', 'int64_t'))
 """
 
 from Cython.Compiler.TreeFragment import parse_from_strings
@@ -14,6 +13,7 @@ from Cython.Compiler.Nodes import (
     CSimpleBaseTypeNode,
     MemoryViewSliceTypeNode,
     CPtrDeclaratorNode,
+    GILStatNode,
 )
 from Cython.Compiler.ExprNodes import TypecastNode, AmpersandNode
 import ast
@@ -64,6 +64,20 @@ def replace_cfuncdef(tokens, i):
     while not (tokens[j].name == 'NAME' and tokens[j].src in ('cdef', 'cpdef')):
         j -= 1
     tokens[j] = Token(name='NAME', src='def')
+    j = i+1
+    # get to the end of the function declaration
+    while not (tokens[j].name == 'OP' and tokens[j].src == ':'):
+        j += 1
+    j -= 1  # go back to statement before colon
+    # ignore any whitespace before colon
+    while not tokens[j].src.strip():
+        j -= 1
+    if tokens[j].name == 'NAME' and tokens[j].src == 'nogil':
+        tokens[j] = Token(name='PLACEHOLDER', src='')
+    # remove any extra whitespace
+    while not tokens[j].src.strip():
+        tokens[j] = Token(name='PLACEHOLDER', src='')
+        j -= 1
 
 def replace_cfuncarg(tokens, i):
     tokens[i] = Token(name='PLACEHOLDER', src='')
@@ -147,6 +161,17 @@ def replace_ampersandnode(tokens, i):
 
 def replace_cptrdeclaratornode(tokens, i):
     tokens[i] = Token(name='PLACEHOLDER', src='')
+
+def replace_gilstatnode(tokens, i):
+    tokens[i] = Token(name='NAME', src='True')
+    j = i-1
+    while not tokens[j].src.strip():
+        j -= 1
+    if not tokens[j].name == 'NAME' and tokens[j].src == 'if':
+        raise AssertionError('Please report a bug')
+    tokens[j] = Token(name='NAME', src='if')
+
+
 
 def visit_cvardefnode(node):
     base_type = node.base_type
@@ -240,6 +265,13 @@ def visit_cptrdeclaratornode(node):
         node.pos[2],
     )
 
+def visit_gilstatnode(node):
+    yield (
+        'gilstat',
+        node.pos[1],
+        node.pos[2],
+    )
+
 import collections
 from tokenize_rt import src_to_tokens, tokens_to_src, reversed_enumerate, Token
 
@@ -282,6 +314,8 @@ def main():
                     replace_ampersandnode(tokens, n)
                 elif name == 'cptrdeclarator':
                     replace_cptrdeclaratornode(tokens, n)
+                elif name == 'gilstat':
+                    replace_gilstatnode(tokens, n)
 
     newsrc = tokens_to_src(tokens)
     print(newsrc)
@@ -308,6 +342,7 @@ def traverse(tree):
         'MemoryViewSliceTypeNode': visit_memoryviewslicetypenode,
         'AmpersandNode': visit_ampersandnode,
         'CPtrDeclaratorNode': visit_cptrdeclaratornode,
+        'GILStatNode': visit_gilstatnode,
     }
 
     breakpoint()
