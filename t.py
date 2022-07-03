@@ -161,8 +161,8 @@ def replace_ampersandnode(tokens, i):
 
 def replace_cptrdeclaratornode(tokens, i):
     j = i
-    while not tokens[j].name == 'OP' and tokens[j] == '*':
-        j += 1
+    while not (tokens[j].name == 'OP' and set(tokens[j].src) == {'*'}):
+        j -= 1
     tokens[j] = Token(name='PLACEHOLDER', src='')
 
 def replace_gilstatnode(tokens, i):
