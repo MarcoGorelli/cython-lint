@@ -1,10 +1,9 @@
 """
-todo: remove handling of statlist
-instead, for cvardef, check if token before it is cdef:
-need to look for:
-Token(name='OP', src=':', line=245, utf8_byte_offset=8)
-(Pdb) tokens[i-9]
-Token(name='NAME', src='cdef', line=245, utf8_byte_offset=4)
+list_of_arrays: list
+gets transformed wrongly to 
+: list
+
+also, missing nogil
 """
 
 from Cython.Compiler.TreeFragment import parse_from_strings
@@ -17,6 +16,7 @@ from Cython.Compiler.Nodes import (
     FromCImportStatNode,
     CSimpleBaseTypeNode,
     MemoryViewSliceTypeNode,
+    CPtrDeclaratorNode,
 )
 from Cython.Compiler.ExprNodes import TypecastNode, AmpersandNode
 import ast
@@ -49,6 +49,12 @@ def replace_cvardef(tokens, i):
         and tokens[k].src == 'cdef'
     ):
         tokens[k] = Token(name='NAME', src='if True')
+    elif tokens[j].name == 'NAME' and tokens[j].src == 'cdef':
+        tokens[j] = Token(name='PLACEHOLDER', src='')
+        j = j+1
+        while not tokens[j].src.strip():
+            tokens[j] = Token(name='PLACEHOLDER', src='')
+            j += 1
 
 def replace_cfuncdef(tokens, i):
     if (tokens[i].name == 'NAME' and tokens[i].src == 'inline'):
@@ -150,6 +156,9 @@ def replace_memoryviewslicetypenode(tokens, i):
 def replace_ampersandnode(tokens, i):
     tokens[i] = Token(name='PLACEHOLDER', src='')
 
+def replace_cptrdeclaratornode(tokens, i):
+    tokens[i] = Token(name='PLACEHOLDER', src='')
+
 def visit_cvardefnode(node):
     base_type = node.base_type
     yield (
@@ -238,6 +247,13 @@ def visit_ampersandnode(node):
         node.pos[2],
     )
 
+def visit_cptrdeclaratornode(node):
+    yield (
+        'cptrdeclarator',
+        node.pos[1],
+        node.pos[2],
+    )
+
 import collections
 from tokenize_rt import src_to_tokens, tokens_to_src, reversed_enumerate, Token
 
@@ -280,6 +296,8 @@ def main():
                     replace_memoryviewslicetypenode(tokens, n)
                 elif name == 'ampersand':
                     replace_ampersandnode(tokens, n)
+                elif name == 'cptrdeclarator':
+                    replace_cptrdeclaratornode(tokens, n)
 
     newsrc = tokens_to_src(tokens)
     breakpoint()
@@ -305,6 +323,7 @@ def traverse(tree):
         'CConstTypeNode': visit_cconsttypenode,
         'MemoryViewSliceTypeNode': visit_memoryviewslicetypenode,
         'AmpersandNode': visit_ampersandnode,
+        'CPtrDeclaratorNode': visit_cptrdeclaratornode,
     }
 
     breakpoint()
