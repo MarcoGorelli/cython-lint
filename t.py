@@ -1,9 +1,7 @@
 """
-list_of_arrays: list
-gets transformed wrongly to 
-: list
-
 also, missing nogil
+
+const not getting removed...
 """
 
 from Cython.Compiler.TreeFragment import parse_from_strings
@@ -12,7 +10,6 @@ from Cython.Compiler.Nodes import (
     CVarDefNode,
     CFuncDefNode,
     CImportStatNode,
-    CArgDeclNode,
     FromCImportStatNode,
     CSimpleBaseTypeNode,
     MemoryViewSliceTypeNode,
@@ -76,7 +73,7 @@ def replace_cfuncarg(tokens, i):
         j += 1
 
 def replace_cdef(tokens, i):
-    breakpoint()
+    pass
 
 def replace_cdefblock(tokens, i):
     j = i-1
@@ -206,6 +203,9 @@ def visit_templatedtypenode(node):
     )
 
 def visit_csimplebasetypenode(node):
+    if node.name is None:
+        # no C type declared.
+        return
     yield (
         'csimplebasetype',
         node.pos[1],
@@ -274,7 +274,7 @@ def main():
                     replace_templatedtype(tokens, n)
                 elif name == 'csimplebasetype':
                     replace_csimplebasetype(tokens, n)
-                elif name == 'cconsttypenode':
+                elif name == 'cconsttype':
                     replace_cconsttypenode(tokens, n)
                 elif name == 'memoryviewslicetype':
                     replace_memoryviewslicetypenode(tokens, n)
