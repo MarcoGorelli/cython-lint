@@ -24,6 +24,8 @@ from Cython.Compiler.Nodes import (
     GILStatNode,
     FusedTypeNode,
     CClassDefNode,
+    CArgDeclNode,
+    CNameDeclaratorNode,
 )
 from Cython.Compiler.ExprNodes import TypecastNode, AmpersandNode
 import ast
@@ -395,7 +397,7 @@ def main(filename, append_config):
                 elif name == 'cclassdef':
                     replace_cclassdefnode(tokens, n)
     newsrc = tokens_to_src(tokens)
-    print(newsrc)
+    #print(newsrc)
     import sys
     try:
         ast.parse(newsrc)
@@ -444,6 +446,18 @@ def _run_flake8(filename: str) -> dict[int, set[str]]:
             ret[int(lineno)].add(code)
     return ret
 
+
+def skip_typeless_arg(child, parent):
+    if (
+        isinstance(child, CSimpleBaseTypeNode)
+        and isinstance(parent, CArgDeclNode)
+        and isinstance(parent.declarator, CNameDeclaratorNode)
+        and not parent.declarator.name
+    ):
+        return True
+    return False
+
+
 def traverse(tree):
     # check if child isn't []
     nodes = [tree]
@@ -486,6 +500,9 @@ def traverse(tree):
             child_attrs.append('declarator')
         for attr in child_attrs:
             child = getattr(node, attr)
+
+            if skip_typeless_arg(child, node):
+                continue
             if isinstance(child, list):
                 nodes.extend(child)
             else:
