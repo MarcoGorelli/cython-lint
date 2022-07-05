@@ -1,12 +1,11 @@
 """
-todo:
-    cdef a, b=0, c=0
-should become
-    cdef a, b, c = *[1, 2, 3]
-is it possible to do this non-hackily?
-I think so, via tokenization
-could how many cvardefs there are?
-should be possible to do something...
+maybe, we don't want to delete basetypes like this?
+
+one idea could be:
+    keep going til you find a whitespace
+    keep track of open and closed square brackets
+another:
+    keep going til you find declared variable
 """
 import os
 import argparse
@@ -30,17 +29,23 @@ from Cython.Compiler.ExprNodes import TypecastNode, AmpersandNode
 import ast
 import re
 
+def _delete_base_type(tokens, i):
+    j = i
+    open_paren = False
+    while (tokens[j].src.strip() or open_paren):
+        if tokens[j].name == 'OP' and tokens[j].src == '[':
+            open_paren = True
+        elif tokens[j].name == 'OP' and tokens[j].src == ']':
+            open_paren = False
+        tokens[j] = Token(name='PLACEHOLDER', src='')
+        j += 1
+    # remove any trailing whitespace
+    while not tokens[j].src.strip() and j<len(tokens)-1:
+        tokens[j] = Token(name='PLACEHOLDER', src='')
+        j += 1
 
 def replace_cvardef(tokens, i, varnames):
-    # delete the base type
-    j = i
-    while tokens[j].src.strip():
-        tokens[j] = Token(name='PLACEHOLDER', src='')
-        j += 1
-    # delete any trailing whitespace
-    while tokens[j].name == 'UNIMPORTANT_WS':
-        tokens[j] = Token(name='PLACEHOLDER', src='')
-        j += 1
+    #_delete_base_type(tokens, i)
     j = i-1
     while not tokens[j].src.strip():
         j -= 1
@@ -152,11 +157,7 @@ def replace_templatedtype(tokens, i):
         j += 1
 
 def replace_csimplebasetype(tokens, i):
-    tokens[i] = Token(name='PLACEHOLDER', src='')
-    j = i+1
-    while not tokens[j].src.strip() and j<len(tokens)-1:
-        tokens[j] = Token(name='PLACEHOLDER', src='')
-        j += 1
+    _delete_base_type(tokens, i)
 
 def replace_cconsttypenode(tokens, i):
     tokens[i] = Token(name='PLACEHOLDER', src='')
@@ -166,6 +167,7 @@ def replace_cconsttypenode(tokens, i):
         j += 1
 
 def replace_memoryviewslicetypenode(tokens, i):
+    return
     j = i
     while not (tokens[j].name=='OP' and tokens[j].src=='['):
         tokens[j] = Token(name='PLACEHOLDER', src='')
@@ -393,6 +395,7 @@ def main(filename, append_config):
                 elif name == 'cclassdef':
                     replace_cclassdefnode(tokens, n)
     newsrc = tokens_to_src(tokens)
+    print(newsrc)
     import sys
     try:
         ast.parse(newsrc)
