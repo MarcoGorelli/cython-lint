@@ -54,6 +54,12 @@ def replace_cvardef(tokens, i, varnames):
     m = k-1
     while not tokens[m].src.strip():
         m -= 1
+    n = m-1
+    while not tokens[n].src.strip():
+        n -= 1
+    o = n-1
+    while not tokens[o].src.strip():
+        o -= 1
     if (
         tokens[j].name == 'OP'
         and tokens[j].src == ':'
@@ -70,6 +76,21 @@ def replace_cvardef(tokens, i, varnames):
         and tokens[m].src == 'cdef'
     ):
         tokens[m] = Token(name='NAME', src='if True')
+        tokens[k] = Token(name='PLACEHOLDER', src='')
+        # todo: delete some whitespace
+    elif (
+        tokens[j].name == 'OP'
+        and tokens[j].src == ':'
+        and tokens[m].name == 'NAME'
+        and tokens[m].src == 'from'
+        and tokens[n].name == 'NAME'
+        and tokens[n].src == 'extern'
+        and tokens[o].name == 'NAME'
+        and tokens[o].src == 'cdef'
+    ):
+        tokens[o] = Token(name='NAME', src='if True')
+        tokens[n] = Token(name='PLACEHOLDER', src='')
+        tokens[m] = Token(name='PLACEHOLDER', src='')
         tokens[k] = Token(name='PLACEHOLDER', src='')
         # todo: delete some whitespace
     elif tokens[j].name == 'NAME' and tokens[j].src == 'cdef':
@@ -237,6 +258,7 @@ def replace_cenumdefnode(tokens, i):
         tokens[j] = Token(name='PLACEHOLDER', src='')
         j -= 1
     tokens[j] = Token(name='PLACEHOLDER', src='')
+
 
 def visit_cvardefnode(node):
     base_type = node.base_type
