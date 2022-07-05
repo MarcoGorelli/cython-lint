@@ -1,11 +1,9 @@
 """
 maybe, we don't want to delete basetypes like this?
 
-one idea could be:
-    keep going til you find a whitespace
-    keep track of open and closed square brackets
-another:
-    keep going til you find declared variable
+ok, groupby.pyx still causing issues
+
+got to process CEnumDefNode
 """
 import os
 import argparse
@@ -26,6 +24,7 @@ from Cython.Compiler.Nodes import (
     CClassDefNode,
     CArgDeclNode,
     CNameDeclaratorNode,
+    CEnumDefNode,
 )
 from Cython.Compiler.ExprNodes import TypecastNode, AmpersandNode
 import ast
@@ -221,6 +220,14 @@ def replace_cclassdefnode(tokens, i):
         tokens[j] = Token(name='PLACEHOLDER', src='')
         j += 1
 
+def replace_cenumdefnode(tokens, i):
+    tokens[i] = Token(name='NAME', src='class')
+    j = i-1
+    while not (tokens[j].name == 'NAME' and tokens[j].src in ('cdef', 'cpdef')):
+        tokens[j] = Token(name='PLACEHOLDER', src='')
+        j -= 1
+    tokens[j] = Token(name='PLACEHOLDER', src='')
+
 def visit_cvardefnode(node):
     base_type = node.base_type
     varnames = []
@@ -340,6 +347,12 @@ def visit_cclassdefnode(node):
         node.pos[2],
     )
 
+def visit_cenumdefnode(node):
+    yield (
+        'cenumdef',
+        node.pos[1],
+        node.pos[2],
+    )
 import collections
 from tokenize_rt import src_to_tokens, tokens_to_src, reversed_enumerate, Token
 
@@ -368,6 +381,8 @@ def main(filename, append_config):
                     replace_cvardef(tokens, n, kwargs[0]['varnames'])
                 elif name == 'cdef':
                     replace_cdef(tokens, n)
+                elif name == 'cdefblock':
+                    replace_cdefblock(tokens, n)
                 elif name == 'typecast':
                     replace_typecast(tokens, n)
                 elif name == 'cfuncdef':
@@ -396,8 +411,10 @@ def main(filename, append_config):
                     replace_fusedtype(tokens, n)
                 elif name == 'cclassdef':
                     replace_cclassdefnode(tokens, n)
+                elif name == 'cenumdef':
+                    replace_cenumdefnode(tokens, n)
     newsrc = tokens_to_src(tokens)
-    #print(newsrc)
+    print(newsrc)
     import sys
     try:
         ast.parse(newsrc)
@@ -479,6 +496,7 @@ def traverse(tree):
         'GILStatNode': visit_gilstatnode,
         'FusedTypeNode': visit_fusedtypenode,
         'CClassDefNode': visit_cclassdefnode,
+        'CEnumDefNode': visit_cenumdefnode,
     }
 
     while nodes:
