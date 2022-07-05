@@ -1,9 +1,20 @@
 """
 maybe, we don't want to delete basetypes like this?
 
-ok, groupby.pyx still causing issues
+we gotta find a way to get rid of
+    cdef readonly:
+inside a class. but...how?
 
-got to process CEnumDefNode
+maybe: make my own class, put this one (cvardef which is child of
+cclassdef) inside that class, and then, for that one, delete cdef
+before it, just like cdef block? or even just yield cdef block?
+hmmm...
+
+maybe, go backward, and look for:
+    - cdef:
+    - cdef
+    - cdef readonly:
+    - cdef public:
 """
 import os
 import argparse
@@ -53,6 +64,9 @@ def replace_cvardef(tokens, i, varnames):
     k = j-1
     while not tokens[k].src.strip():
         k -= 1
+    m = k-1
+    while not tokens[m].src.strip():
+        m -= 1
     if (
         tokens[j].name == 'OP'
         and tokens[j].src == ':'
@@ -60,6 +74,17 @@ def replace_cvardef(tokens, i, varnames):
         and tokens[k].src == 'cdef'
     ):
         tokens[k] = Token(name='NAME', src='if True')
+    elif (
+        tokens[j].name == 'OP'
+        and tokens[j].src == ':'
+        and tokens[k].name == 'NAME'
+        and tokens[k].src in ('readonly', 'public')
+        and tokens[m].name == 'NAME'
+        and tokens[m].src == 'cdef'
+    ):
+        tokens[m] = Token(name='NAME', src='if True')
+        tokens[k] = Token(name='PLACEHOLDER', src='')
+        # todo: delete some whitespace
     elif tokens[j].name == 'NAME' and tokens[j].src == 'cdef':
         tokens[j] = Token(name='PLACEHOLDER', src='')
         j = j+1
@@ -125,6 +150,10 @@ def replace_cdefblock(tokens, i):
     while not (tokens[j].name=='NAME' and tokens[j].src=='cdef'):
         j -= 1
     tokens[j] = Token(name='NAME', src='if True')
+    j += 1
+    while not (tokens[j].name == 'OP' and tokens[j].src == ':'):
+        tokens[j] = Token(name='PLACEHOLDER', src='')
+        j += 1
 
 def replace_typecast(tokens, i):
     tokens[i] = Token(name='PLACEHOLDER', src='')
@@ -241,6 +270,12 @@ def visit_cvardefnode(node):
         base_type.pos[2],
         {'varnames': varnames},
     )
+    if hasattr(node, '_parent'):
+        yield (
+            'cdefblock',
+            node.pos[1],
+            node.pos[2],
+        )
 
 def visit_typecastnode(node):
     yield (
@@ -257,14 +292,6 @@ def visit_cfuncdefnode(node):
         node.pos[2],
     )
 
-
-def visit_statlistnode(node):
-    if all(isinstance(child, CVarDefNode) for child in node.stats):
-        yield (
-            'cdefblock',
-            node.pos[1],
-            node.pos[2],
-        )
 
 def visit_fromcimportstatnode(node):
     yield (
@@ -496,7 +523,7 @@ def traverse(tree):
         'CFuncDefNode': visit_cfuncdefnode,
         'TypecastNode': visit_typecastnode,
         'FromCImportStatNode': visit_fromcimportstatnode,
-        'StatListNode': visit_statlistnode,
+        #'StatListNode': visit_statlistnode,
         'CImportStatNode': visit_cimportstatnode,
         'TemplatedTypeNode': visit_templatedtypenode,
         'CSimpleBaseTypeNode': visit_csimplebasetypenode,
