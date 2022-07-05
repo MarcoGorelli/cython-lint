@@ -9,6 +9,7 @@ could how many cvardefs there are?
 should be possible to do something...
 """
 import os
+import argparse
 import subprocess
 import tempfile
 from Cython.Compiler.TreeFragment import parse_from_strings
@@ -27,13 +28,6 @@ from Cython.Compiler.Nodes import (
 from Cython.Compiler.ExprNodes import TypecastNode, AmpersandNode
 import ast
 import re
-
-with open('algos.pyx') as fd:
-    code = fd.read()
-
-exclude = code.find('# generated from template')
-if exclude != -1:
-    code = code[:exclude]
 
 
 def replace_cvardef(tokens, i, varnames):
@@ -326,8 +320,13 @@ from tokenize_rt import src_to_tokens, tokens_to_src, reversed_enumerate, Token
 # let's have...let's do...
 # some list of replacements
 
-def main():
-    tree = parse_from_strings('algos', code)
+def main(filename, config_file):
+    with open(filename, encoding='utf-8') as fd:
+        code = fd.read()
+    exclude = code.find('# generated from template')
+    if exclude != -1:
+        code = code[:exclude]
+    tree = parse_from_strings(filename, code)
     replacements = traverse(tree)
     tokens = src_to_tokens(code)
 
@@ -377,15 +376,21 @@ def main():
         sys.exit(1)
 
     fd, path = tempfile.mkstemp(
-        dir='.',
-        prefix='algos',
+        dir=os.path.dirname(filename),
+        prefix=os.path.basename(filename),
         suffix='.py',
     )
     try:
         with open(fd, 'w', encoding='utf-8') as f:
             f.write(newsrc)
+        breakpoint()
         output = subprocess.run(['python', '-m', 'flake8', path, '--extend-ignore=F401,F821'], capture_output=True, text=True)
-        sys.stdout.write(output.stdout.replace(path, 'algos.pyx'))
+        sys.stdout.write(
+            output.stdout.replace(
+                os.path.basename(path),
+                os.path.basename(filename),
+            ),
+        )
     finally:
         os.remove(path)
 
@@ -453,4 +458,10 @@ def traverse(tree):
                 nodes.append(child)
     return replacements
 
-main()
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('paths', nargs='*')
+    parser.add_argument('--config', required=False)
+    args = parser.parse_args()
+    for path in args.paths:
+        main(path, args.config)
