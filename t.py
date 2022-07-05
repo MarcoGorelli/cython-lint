@@ -24,6 +24,7 @@ from Cython.Compiler.Nodes import (
     CPtrDeclaratorNode,
     GILStatNode,
     FusedTypeNode,
+    CClassDefNode,
 )
 from Cython.Compiler.ExprNodes import TypecastNode, AmpersandNode
 import ast
@@ -31,8 +32,12 @@ import re
 
 
 def replace_cvardef(tokens, i, varnames):
-    tokens[i] = Token(name='PLACEHOLDER', src='')
-    j = i+1
+    # delete the base type
+    j = i
+    while tokens[j].src.strip():
+        tokens[j] = Token(name='PLACEHOLDER', src='')
+        j += 1
+    # delete any trailing whitespace
     while tokens[j].name == 'UNIMPORTANT_WS':
         tokens[j] = Token(name='PLACEHOLDER', src='')
         j += 1
@@ -202,6 +207,16 @@ def replace_fusedtype(tokens, i):
         j += 1
     tokens[j-1] = Token(name='NAME', src='if True')
 
+def replace_cclassdefnode(tokens, i):
+    j = i-1
+    while not (tokens[j].name == 'NAME' and tokens[j].src == 'cdef'):
+        j -= 1
+    tokens[j] = Token(name='PLACEHOLDER', src='')
+    j += 1
+    while not tokens[j].src.strip():
+        tokens[j] = Token(name='PLACEHOLDER', src='')
+        j += 1
+
 def visit_cvardefnode(node):
     base_type = node.base_type
     varnames = []
@@ -263,7 +278,7 @@ def visit_templatedtypenode(node):
     )
 
 def visit_csimplebasetypenode(node):
-    if node.name is None:
+    if node.name is None or node.is_self_arg:
         # no C type declared.
         return
     yield (
@@ -313,6 +328,14 @@ def visit_fusedtypenode(node):
         node.pos[1],
         node.pos[2],
     )
+
+def visit_cclassdefnode(node):
+    yield (
+        'cclassdef',
+        node.pos[1],
+        node.pos[2],
+    )
+
 import collections
 from tokenize_rt import src_to_tokens, tokens_to_src, reversed_enumerate, Token
 
@@ -367,6 +390,8 @@ def main(filename, append_config):
                     replace_gilstatnode(tokens, n)
                 elif name == 'fusedtype':
                     replace_fusedtype(tokens, n)
+                elif name == 'cclassdef':
+                    replace_cclassdefnode(tokens, n)
     newsrc = tokens_to_src(tokens)
     import sys
     try:
@@ -375,7 +400,7 @@ def main(filename, append_config):
         if str(exp).startswith('cannot assign to literal'):
             print('limitation of cython-lint, sorry')
         else:
-            print(repr(exp))
+            print(f'{filename}: {repr(exp)}')
         sys.exit(1)
 
     fd, path = tempfile.mkstemp(
@@ -436,6 +461,7 @@ def traverse(tree):
         'CPtrDeclaratorNode': visit_cptrdeclaratornode,
         'GILStatNode': visit_gilstatnode,
         'FusedTypeNode': visit_fusedtypenode,
+        'CClassDefNode': visit_cclassdefnode,
     }
 
     while nodes:
