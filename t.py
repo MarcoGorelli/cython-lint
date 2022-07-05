@@ -320,7 +320,7 @@ from tokenize_rt import src_to_tokens, tokens_to_src, reversed_enumerate, Token
 # let's have...let's do...
 # some list of replacements
 
-def main(filename, config_file):
+def main(filename, append_config):
     with open(filename, encoding='utf-8') as fd:
         code = fd.read()
     tokens = src_to_tokens(code)
@@ -386,7 +386,10 @@ def main(filename, config_file):
     try:
         with open(fd, 'w', encoding='utf-8') as f:
             f.write(newsrc)
-        output = subprocess.run(['python', '-m', 'flake8', path, '--extend-ignore=F401,F821'], capture_output=True, text=True)
+        command = ['python', '-m', 'flake8', path]
+        if append_config is not None:
+            command += ['--append-config', append_config]
+        output = subprocess.run(command, capture_output=True, text=True)
         sys.stdout.write(
             output.stdout.replace(
                 os.path.basename(path),
@@ -463,7 +466,7 @@ def traverse(tree):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('paths', nargs='*')
-    parser.add_argument('--config', required=False)
+    parser.add_argument('--append-config', required=False)
     args = parser.parse_args()
     for path in args.paths:
-        main(path, args.config)
+        main(path, args.append_config)
