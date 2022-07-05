@@ -62,7 +62,7 @@ def replace_cvardef(tokens, i, varnames):
     while not (tokens[j].name == 'NAME' and tokens[j].src == varnames[0]):
         j += 1
     assignment_idx = j
-    assignment = f"{', '.join(varnames)} = {', '.join('None' for _ in range(len(varnames)))}\n"
+    assignment = f"{', '.join(varnames)} = {', '.join('0' for _ in range(len(varnames)))}\n"
     line = tokens[assignment_idx].line
     tokens[assignment_idx] = Token(name='NAME', src=assignment, line=line)
     tokens_in_line = []
@@ -323,9 +323,12 @@ from tokenize_rt import src_to_tokens, tokens_to_src, reversed_enumerate, Token
 def main(filename, config_file):
     with open(filename, encoding='utf-8') as fd:
         code = fd.read()
-    exclude = code.find('# generated from template')
-    if exclude != -1:
-        code = code[:exclude]
+    tokens = src_to_tokens(code)
+    exclude_lines = set()
+    for token in tokens:
+        if token.name == 'NAME' and token.src == 'include':
+            exclude_lines.add(token.line)
+    code = ''.join([line for i, line in enumerate(code.splitlines(keepends=True), start=1) if i not in exclude_lines])
     tree = parse_from_strings(filename, code)
     replacements = traverse(tree)
     tokens = src_to_tokens(code)
@@ -383,7 +386,6 @@ def main(filename, config_file):
     try:
         with open(fd, 'w', encoding='utf-8') as f:
             f.write(newsrc)
-        breakpoint()
         output = subprocess.run(['python', '-m', 'flake8', path, '--extend-ignore=F401,F821'], capture_output=True, text=True)
         sys.stdout.write(
             output.stdout.replace(
