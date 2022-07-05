@@ -1,8 +1,16 @@
 """
 todo:
-    replace('with nogil', 'if True').replace('nogil', '').replace('int64_t*', 'int64_t'))
+    cdef a, b=0, c=0
+should become
+    cdef a, b, c = *[1, 2, 3]
+is it possible to do this non-hackily?
+I think so, via tokenization
+could how many cvardefs there are?
+should be possible to do something...
 """
-
+import os
+import subprocess
+import tempfile
 from Cython.Compiler.TreeFragment import parse_from_strings
 from Cython.Compiler.Nodes import (
     StatListNode,
@@ -28,7 +36,7 @@ if exclude != -1:
     code = code[:exclude]
 
 
-def replace_cvardef(tokens, i):
+def replace_cvardef(tokens, i, varnames):
     tokens[i] = Token(name='PLACEHOLDER', src='')
     j = i+1
     while tokens[j].name == 'UNIMPORTANT_WS':
@@ -53,6 +61,23 @@ def replace_cvardef(tokens, i):
         while not tokens[j].src.strip():
             tokens[j] = Token(name='PLACEHOLDER', src='')
             j += 1
+
+    # replace the variables
+    # find first variable
+    j = i
+    while not (tokens[j].name == 'NAME' and tokens[j].src == varnames[0]):
+        j += 1
+    assignment_idx = j
+    assignment = f"{', '.join(varnames)} = {', '.join('None' for _ in range(len(varnames)))}\n"
+    line = tokens[assignment_idx].line
+    tokens[assignment_idx] = Token(name='NAME', src=assignment, line=line)
+    tokens_in_line = []
+    j = assignment_idx + 1
+    while tokens[j].line is None or tokens[j].line == line:
+        tokens_in_line.append(j)
+        j += 1
+    for j in tokens_in_line:
+        tokens[j] = Token(name='PLACEHOLDER', src='')
 
 def replace_cfuncdef(tokens, i):
     if (tokens[i].name == 'NAME' and tokens[i].src == 'inline'):
@@ -130,7 +155,7 @@ def replace_templatedtype(tokens, i):
 def replace_csimplebasetype(tokens, i):
     tokens[i] = Token(name='PLACEHOLDER', src='')
     j = i+1
-    while not tokens[j].src.strip():
+    while not tokens[j].src.strip() and j<len(tokens)-1:
         tokens[j] = Token(name='PLACEHOLDER', src='')
         j += 1
 
@@ -185,10 +210,16 @@ def replace_fusedtype(tokens, i):
 
 def visit_cvardefnode(node):
     base_type = node.base_type
+    varnames = []
+    for declarator in node.declarators:
+        while isinstance(declarator, CPtrDeclaratorNode):
+            declarator = declarator.base
+        varnames.append(declarator.name)
     yield (
         'cvardef',
         base_type.pos[1],
         base_type.pos[2],
+        {'varnames': varnames},
     )
 
 def visit_typecastnode(node):
@@ -303,9 +334,9 @@ def main():
     for n, token in reversed_enumerate(tokens):
         key = (token.line, token.utf8_byte_offset)
         if key in replacements:
-            for name in replacements.pop(key):
+            for name, kwargs in replacements.pop(key):
                 if name == 'cvardef':
-                    replace_cvardef(tokens, n)
+                    replace_cvardef(tokens, n, kwargs[0]['varnames'])
                 elif name == 'cdef':
                     replace_cdef(tokens, n)
                 elif name == 'typecast':
@@ -335,17 +366,45 @@ def main():
                 elif name == 'fusedtype':
                     replace_fusedtype(tokens, n)
     newsrc = tokens_to_src(tokens)
+    import sys
     try:
         ast.parse(newsrc)
     except SyntaxError as exp:
         if str(exp).startswith('cannot assign to literal'):
             print('limitation of cython-lint, sorry')
-    else:
-        print(newsrc)
-    breakpoint()
+        else:
+            print(repr(exp))
+        sys.exit(1)
+
+    fd, path = tempfile.mkstemp(
+        dir='.',
+        prefix='algos',
+        suffix='.py',
+    )
+    try:
+        with open(fd, 'w', encoding='utf-8') as f:
+            f.write(newsrc)
+        output = subprocess.run(['python', '-m', 'flake8', path, '--extend-ignore=F401,F821'], capture_output=True, text=True)
+        sys.stdout.write(output.stdout.replace(path, 'algos.pyx'))
+    finally:
+        os.remove(path)
 
 
     # want to get to: ast.parse(code)
+
+def _run_flake8(filename: str) -> dict[int, set[str]]:
+    cmd = (sys.executable, '-mflake8', filename)
+    out, _ = subprocess.Popen(cmd, stdout=subprocess.PIPE).communicate()
+    ret: dict[int, set[str]] = collections.defaultdict(set)
+    for line in out.decode().splitlines():
+        # TODO: use --no-show-source when that is released instead
+        try:
+            lineno, code = line.split('\t')
+        except ValueError:
+            pass  # ignore additional output besides our --format
+        else:
+            ret[int(lineno)].add(code)
+    return ret
 
 def traverse(tree):
     # check if child isn't []
@@ -369,7 +428,6 @@ def traverse(tree):
         'FusedTypeNode': visit_fusedtypenode,
     }
 
-    breakpoint()
     while nodes:
         node = nodes.pop()
         if node is None:
@@ -379,8 +437,8 @@ def traverse(tree):
         if func is not None:
             iterator = func(node)
             if iterator is not None:
-                for name, line, col in iterator:
-                    replacements[line, col].append(name)
+                for name, line, col, *kwargs in iterator:
+                    replacements[line, col].append((name, kwargs))
 
         child_attrs = node.child_attrs
         if 'declarator' not in child_attrs and hasattr(node, 'declarator'):
