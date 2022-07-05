@@ -368,6 +368,17 @@ def main(filename, append_config):
     for token in tokens:
         if token.name == 'NAME' and token.src == 'include':
             exclude_lines.add(token.line)
+    # compile time defs (not in ast?)
+    compile_time_defs = []
+    for i, token in enumerate(tokens):
+        if token.name == 'NAME' and token.src == 'DEF':
+            tokens[i] = Token(name='PLACEHOLDER', src='')
+            j = i+1
+            while not tokens[j].src.strip():
+                tokens[j] = Token(name='PLACEHOLDER', src='')
+                j += 1
+    code = tokens_to_src(tokens)
+
     code = ''.join([line for i, line in enumerate(code.splitlines(keepends=True), start=1) if i not in exclude_lines])
     tree = parse_from_strings(filename, code)
     replacements = traverse(tree)
