@@ -1,20 +1,7 @@
 """
-maybe, we don't want to delete basetypes like this?
-
-we gotta find a way to get rid of
-    cdef readonly:
-inside a class. but...how?
-
-maybe: make my own class, put this one (cvardef which is child of
-cclassdef) inside that class, and then, for that one, delete cdef
-before it, just like cdef block? or even just yield cdef block?
-hmmm...
-
-maybe, go backward, and look for:
-    - cdef:
-    - cdef
-    - cdef readonly:
-    - cdef public:
+need to get:
+    cdef extern from "Python.h":
+        Py_ssize_t PY_SSIZE_T_MAX
 """
 import os
 import argparse
@@ -120,18 +107,12 @@ def replace_cfuncdef(tokens, i):
     while not (tokens[j].name == 'NAME' and tokens[j].src in ('cdef', 'cpdef')):
         j -= 1
     tokens[j] = Token(name='NAME', src='def')
-    j = i+1
     # get to the end of the function declaration
     while not (tokens[j].name == 'OP' and tokens[j].src == ':'):
         j += 1
-    j -= 1  # go back to statement before colon
-    # ignore any whitespace before colon
-    while not tokens[j].src.strip():
-        j -= 1
-    if tokens[j].name == 'NAME' and tokens[j].src == 'nogil':
-        tokens[j] = Token(name='PLACEHOLDER', src='')
-    # remove any extra whitespace
-    while not tokens[j].src.strip():
+    # go back to closing paren
+    j -= 1
+    while not (tokens[j].name=='OP' and tokens[j].src == ')'):
         tokens[j] = Token(name='PLACEHOLDER', src='')
         j -= 1
 
@@ -266,8 +247,8 @@ def visit_cvardefnode(node):
         varnames.append(declarator.name)
     yield (
         'cvardef',
-        base_type.pos[1],
-        base_type.pos[2],
+        node.pos[1],
+        node.pos[2],
         {'varnames': varnames},
     )
     if hasattr(node, '_parent'):
