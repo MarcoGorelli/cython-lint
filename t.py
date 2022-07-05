@@ -23,6 +23,7 @@ from Cython.Compiler.Nodes import (
     CArgDeclNode,
     CNameDeclaratorNode,
     CEnumDefNode,
+    CTupleBaseTypeNode,
 )
 from Cython.Compiler.ExprNodes import TypecastNode, AmpersandNode
 import ast
@@ -36,11 +37,11 @@ def _delete_base_type(tokens, i):
             open_paren = True
         elif tokens[j].name == 'OP' and tokens[j].src == ']':
             open_paren = False
-        tokens[j] = Token(name='PLACEHOLDER', src='')
+        tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
         j += 1
     # remove any trailing whitespace
     while not tokens[j].src.strip() and j<len(tokens)-1:
-        tokens[j] = Token(name='PLACEHOLDER', src='')
+        tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
         j += 1
 
 def replace_cvardef(tokens, i, varnames):
@@ -76,7 +77,7 @@ def replace_cvardef(tokens, i, varnames):
         and tokens[m].src == 'cdef'
     ):
         tokens[m] = Token(name='NAME', src='if True')
-        tokens[k] = Token(name='PLACEHOLDER', src='')
+        tokens[k] = Token(name='PLACEHOLDER', src='', line=tokens[k].line, utf8_byte_offset=tokens[k].utf8_byte_offset)
         # todo: delete some whitespace
     elif (
         tokens[j].name == 'OP'
@@ -89,15 +90,15 @@ def replace_cvardef(tokens, i, varnames):
         and tokens[o].src == 'cdef'
     ):
         tokens[o] = Token(name='NAME', src='if True')
-        tokens[n] = Token(name='PLACEHOLDER', src='')
-        tokens[m] = Token(name='PLACEHOLDER', src='')
-        tokens[k] = Token(name='PLACEHOLDER', src='')
+        tokens[n] = Token(name='PLACEHOLDER', src='', line=tokens[n].line, utf8_byte_offset=tokens[n].utf8_byte_offset)
+        tokens[m] = Token(name='PLACEHOLDER', src='', line=tokens[m].line, utf8_byte_offset=tokens[m].utf8_byte_offset)
+        tokens[k] = Token(name='PLACEHOLDER', src='', line=tokens[k].line, utf8_byte_offset=tokens[k].utf8_byte_offset)
         # todo: delete some whitespace
     elif tokens[j].name == 'NAME' and tokens[j].src == 'cdef':
-        tokens[j] = Token(name='PLACEHOLDER', src='')
+        tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
         j = j+1
         while not tokens[j].src.strip():
-            tokens[j] = Token(name='PLACEHOLDER', src='')
+            tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
             j += 1
 
     # replace the variables
@@ -115,15 +116,19 @@ def replace_cvardef(tokens, i, varnames):
         tokens_in_line.append(j)
         j += 1
     for j in tokens_in_line:
-        tokens[j] = Token(name='PLACEHOLDER', src='')
+        tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
 
-def replace_cfuncdef(tokens, i):
-    if (tokens[i].name == 'NAME' and tokens[i].src == 'inline'):
-        tokens[i] = Token(name='PLACEHOLDER', src='')
-    j = i+1
-    while not tokens[j].src.strip():  # TODO: tokenize whitespace?
-        tokens[j] = Token(name='PLACEHOLDER', src='')
+def replace_cfuncdef(tokens, i, declarator):
+    # let's get to the opening paren
+    j = i
+    while not (tokens[j].line == declarator[1] and tokens[j].utf8_byte_offset == declarator[2]):
         j += 1
+    # go back to name before paren
+    j -= 1
+    while not tokens[j].name == 'NAME':
+        j -= 1
+    for k in range(i, j):
+        tokens[k] = Token(name='PLACEHOLDER', src='', line=tokens[k].line, utf8_byte_offset=tokens[k].utf8_byte_offset)
     j = i
     while not (tokens[j].name == 'NAME' and tokens[j].src in ('cdef', 'cpdef')):
         j -= 1
@@ -134,14 +139,14 @@ def replace_cfuncdef(tokens, i):
     # go back to closing paren
     j -= 1
     while not (tokens[j].name=='OP' and tokens[j].src == ')'):
-        tokens[j] = Token(name='PLACEHOLDER', src='')
+        tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
         j -= 1
 
 def replace_cfuncarg(tokens, i):
-    tokens[i] = Token(name='PLACEHOLDER', src='')
+    tokens[i] = Token(name='PLACEHOLDER', src='', line=tokens[i].line, utf8_byte_offset=tokens[i].utf8_byte_offset)
     j = i+1
     while not tokens[j].src.strip():  # TODO: tokenize whitespace?
-        tokens[j] = Token(name='PLACEHOLDER', src='')
+        tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
         j += 1
 
 def replace_cdef(tokens, i):
@@ -154,16 +159,16 @@ def replace_cdefblock(tokens, i):
     tokens[j] = Token(name='NAME', src='if True')
     j += 1
     while not (tokens[j].name == 'OP' and tokens[j].src == ':'):
-        tokens[j] = Token(name='PLACEHOLDER', src='')
+        tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
         j += 1
 
 def replace_typecast(tokens, i):
-    tokens[i] = Token(name='PLACEHOLDER', src='')
+    tokens[i] = Token(name='PLACEHOLDER', src='', line=tokens[i].line, utf8_byte_offset=tokens[i].utf8_byte_offset)
     j = i+1
     while not (tokens[j].name == 'OP' and tokens[j].src == '>'):
         j += 1
     for _i in range(i, j+1):
-        tokens[_i] = Token(name='PLACEHOLDER', src='')
+        tokens[_i] = Token(name='PLACEHOLDER', src='', line=tokens[_i].line, utf8_byte_offset=tokens[_i].utf8_byte_offset)
 
 
 def replace_fromcimportstat(tokens, i):
@@ -179,50 +184,51 @@ def replace_cimportstat(tokens, i):
     tokens[j] = Token(name='NAME', src='import')
 
 def replace_templatedtype(tokens, i):
+    return
     j = i
     while not (tokens[j].name=='OP' and tokens[j].src==']'):
-        tokens[j] = Token(name='PLACEHOLDER', src='')
+        tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
         j += 1
-    tokens[j] = Token(name='PLACEHOLDER', src='')
+    tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
     while not tokens[j].src.strip():
-        tokens[j] = Token(name='PLACEHOLDER', src='')
+        tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
         j += 1
 
 def replace_csimplebasetype(tokens, i):
     _delete_base_type(tokens, i)
 
 def replace_cconsttypenode(tokens, i):
-    tokens[i] = Token(name='PLACEHOLDER', src='')
+    tokens[i] = Token(name='PLACEHOLDER', src='', line=tokens[i].line, utf8_byte_offset=tokens[i].utf8_byte_offset)
     j = i+1
     while not tokens[j].src.strip():
-        tokens[j] = Token(name='PLACEHOLDER', src='')
+        tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
         j += 1
 
 def replace_memoryviewslicetypenode(tokens, i):
     return
     j = i
     while not (tokens[j].name=='OP' and tokens[j].src=='['):
-        tokens[j] = Token(name='PLACEHOLDER', src='')
+        tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
         j -= 1
-    tokens[j] = Token(name='PLACEHOLDER', src='')
+    tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
     j = i+1
     while not (tokens[j].name=='OP' and tokens[j].src==']'):
-        tokens[j] = Token(name='PLACEHOLDER', src='')
+        tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
         j += 1
-    tokens[j] = Token(name='PLACEHOLDER', src='')
+    tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
     j = j+1
     while not tokens[j].src.strip():
-        tokens[j] = Token(name='PLACEHOLDER', src='')
+        tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
         j += 1
 
 def replace_ampersandnode(tokens, i):
-    tokens[i] = Token(name='PLACEHOLDER', src='')
+    tokens[i] = Token(name='PLACEHOLDER', src='', line=tokens[i].line, utf8_byte_offset=tokens[i].utf8_byte_offset)
 
 def replace_cptrdeclaratornode(tokens, i):
     j = i
     while not (tokens[j].name == 'OP' and set(tokens[j].src) == {'*'}):
         j -= 1
-    tokens[j] = Token(name='PLACEHOLDER', src='')
+    tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
 
 def replace_gilstatnode(tokens, i):
     tokens[i] = Token(name='NAME', src='True')
@@ -237,7 +243,7 @@ def replace_gilstatnode(tokens, i):
 def replace_fusedtype(tokens, i):
     j = i
     while not (tokens[j].name=='OP' and tokens[j].src==':'):
-        tokens[j] = Token(name='PLACEHOLDER', src='')
+        tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
         j += 1
     tokens[j-1] = Token(name='NAME', src='if True')
 
@@ -245,20 +251,22 @@ def replace_cclassdefnode(tokens, i):
     j = i-1
     while not (tokens[j].name == 'NAME' and tokens[j].src == 'cdef'):
         j -= 1
-    tokens[j] = Token(name='PLACEHOLDER', src='')
+    tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
     j += 1
     while not tokens[j].src.strip():
-        tokens[j] = Token(name='PLACEHOLDER', src='')
+        tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
         j += 1
 
 def replace_cenumdefnode(tokens, i):
     tokens[i] = Token(name='NAME', src='class')
     j = i-1
     while not (tokens[j].name == 'NAME' and tokens[j].src in ('cdef', 'cpdef')):
-        tokens[j] = Token(name='PLACEHOLDER', src='')
+        tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
         j -= 1
-    tokens[j] = Token(name='PLACEHOLDER', src='')
+    tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
 
+def replace_ctuplebasetypenode(tokens, i):
+    pass
 
 def visit_cvardefnode(node):
     base_type = node.base_type
@@ -293,6 +301,7 @@ def visit_cfuncdefnode(node):
         'cfuncdef',
         node.pos[1],
         node.pos[2],
+        {'declarator': node.declarator.pos},
     )
 
 
@@ -383,6 +392,12 @@ def visit_cenumdefnode(node):
         node.pos[1],
         node.pos[2],
     )
+def visit_ctuplebasetypenode(node):
+    yield (
+        'ctuplebasetype',
+        node.pos[1],
+        node.pos[2],
+    )
 import collections
 from tokenize_rt import src_to_tokens, tokens_to_src, reversed_enumerate, Token
 
@@ -402,10 +417,10 @@ def main(filename, append_config):
     compile_time_defs = []
     for i, token in enumerate(tokens):
         if token.name == 'NAME' and token.src == 'DEF':
-            tokens[i] = Token(name='PLACEHOLDER', src='')
+            tokens[i] = Token(name='PLACEHOLDER', src='', line=tokens[i].line, utf8_byte_offset=tokens[i].utf8_byte_offset)
             j = i+1
             while not tokens[j].src.strip():
-                tokens[j] = Token(name='PLACEHOLDER', src='')
+                tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
                 j += 1
     code = tokens_to_src(tokens)
 
@@ -427,7 +442,7 @@ def main(filename, append_config):
                 elif name == 'typecast':
                     replace_typecast(tokens, n)
                 elif name == 'cfuncdef':
-                    replace_cfuncdef(tokens, n)
+                    replace_cfuncdef(tokens, n, kwargs[0]['declarator'])
                 elif name == 'cfuncarg':
                     replace_cfuncarg(tokens, n)
                 elif name == 'fromcimport':
@@ -454,6 +469,8 @@ def main(filename, append_config):
                     replace_cclassdefnode(tokens, n)
                 elif name == 'cenumdef':
                     replace_cenumdefnode(tokens, n)
+                elif name == 'ctuplebasetype':
+                    replace_ctuplebasetypenode(tokens, n)
     newsrc = tokens_to_src(tokens)
     print(newsrc)
     import sys
@@ -538,6 +555,7 @@ def traverse(tree):
         'FusedTypeNode': visit_fusedtypenode,
         'CClassDefNode': visit_cclassdefnode,
         'CEnumDefNode': visit_cenumdefnode,
+        'CTupleBaseTypeNode': visit_ctuplebasetypenode,
     }
 
     while nodes:
