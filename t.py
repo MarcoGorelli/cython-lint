@@ -2,6 +2,18 @@
 need to get:
     cdef extern from "Python.h":
         Py_ssize_t PY_SSIZE_T_MAX
+
+holy shit, also
+
+    cdef:
+        public int foo
+
+is valid
+
+wtf...need a more robust way to find these, just deleting the previous one won't do
+we need to have the start and end, and delete in between
+
+ok, that's enough for now though? is that all a cvardefnode?
 """
 import os
 import argparse
@@ -67,7 +79,7 @@ def replace_cvardef(tokens, i, varnames):
         and tokens[k].name == 'NAME'
         and tokens[k].src == 'cdef'
     ):
-        tokens[k] = Token(name='NAME', src='if True')
+        tokens[k] = tokens[k]._replace(src='if True')
     elif (
         tokens[j].name == 'OP'
         and tokens[j].src == ':'
@@ -76,7 +88,7 @@ def replace_cvardef(tokens, i, varnames):
         and tokens[m].name == 'NAME'
         and tokens[m].src == 'cdef'
     ):
-        tokens[m] = Token(name='NAME', src='if True')
+        tokens[m] = tokens[m]._replace(src='if True')
         tokens[k] = Token(name='PLACEHOLDER', src='', line=tokens[k].line, utf8_byte_offset=tokens[k].utf8_byte_offset)
         # todo: delete some whitespace
     elif (
@@ -89,7 +101,7 @@ def replace_cvardef(tokens, i, varnames):
         and tokens[o].name == 'NAME'
         and tokens[o].src == 'cdef'
     ):
-        tokens[o] = Token(name='NAME', src='if True')
+        tokens[o] = tokens[o]._replace(src='if True')
         tokens[n] = Token(name='PLACEHOLDER', src='', line=tokens[n].line, utf8_byte_offset=tokens[n].utf8_byte_offset)
         tokens[m] = Token(name='PLACEHOLDER', src='', line=tokens[m].line, utf8_byte_offset=tokens[m].utf8_byte_offset)
         tokens[k] = Token(name='PLACEHOLDER', src='', line=tokens[k].line, utf8_byte_offset=tokens[k].utf8_byte_offset)
@@ -109,7 +121,7 @@ def replace_cvardef(tokens, i, varnames):
     assignment_idx = j
     assignment = f"{', '.join(varnames)} = {', '.join('0' for _ in range(len(varnames)))}\n"
     line = tokens[assignment_idx].line
-    tokens[assignment_idx] = Token(name='NAME', src=assignment, line=line)
+    tokens[assignment_idx] = tokens[assignment_idx]._replace(src=assignment)
     tokens_in_line = []
     j = assignment_idx + 1
     while tokens[j].line is None or tokens[j].line == line:
@@ -132,7 +144,7 @@ def replace_cfuncdef(tokens, i, declarator):
     j = i
     while not (tokens[j].name == 'NAME' and tokens[j].src in ('cdef', 'cpdef')):
         j -= 1
-    tokens[j] = Token(name='NAME', src='def')
+    tokens[j] = tokens[j]._replace(src='def')
     # get to the end of the function declaration
     while not (tokens[j].name == 'OP' and tokens[j].src == ':'):
         j += 1
@@ -156,7 +168,7 @@ def replace_cdefblock(tokens, i):
     j = i-1
     while not (tokens[j].name=='NAME' and tokens[j].src=='cdef'):
         j -= 1
-    tokens[j] = Token(name='NAME', src='if True')
+    tokens[j] = tokens[j]._replace(src='if True')
     j += 1
     while not (tokens[j].name == 'OP' and tokens[j].src == ':'):
         tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
@@ -175,13 +187,13 @@ def replace_fromcimportstat(tokens, i):
     j = i+1
     while not (tokens[j].name=='NAME' and tokens[j].src=='cimport'):
         j += 1
-    tokens[j] = Token(name='NAME', src='import')
+    tokens[j] = tokens[j]._replace(src='import')
 
 def replace_cimportstat(tokens, i):
     j = i-1
     while not (tokens[j].name=='NAME' and tokens[j].src=='cimport'):
         j -= 1
-    tokens[j] = Token(name='NAME', src='import')
+    tokens[j] = tokens[j]._replace(src='import')
 
 def replace_templatedtype(tokens, i):
     return
@@ -226,18 +238,18 @@ def replace_ampersandnode(tokens, i):
 
 def replace_cptrdeclaratornode(tokens, i):
     j = i
-    while not (tokens[j].name == 'OP' and set(tokens[j].src) == {'*'}):
-        j -= 1
+    #while not (tokens[j].name == 'OP' and set(tokens[j].src) == {'*'}):
+    #    j -= 1
     tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
 
 def replace_gilstatnode(tokens, i):
-    tokens[i] = Token(name='NAME', src='True')
+    tokens[i] = tokens[i]._replace(src='True')
     j = i-1
     while not tokens[j].src.strip():
         j -= 1
     if not tokens[j].name == 'NAME' and tokens[j].src == 'if':
         raise AssertionError('Please report a bug')
-    tokens[j] = Token(name='NAME', src='if')
+    tokens[j] = tokens[j]._replace(src='if')
 
 
 def replace_fusedtype(tokens, i):
@@ -245,7 +257,7 @@ def replace_fusedtype(tokens, i):
     while not (tokens[j].name=='OP' and tokens[j].src==':'):
         tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
         j += 1
-    tokens[j-1] = Token(name='NAME', src='if True')
+    tokens[j-1] = tokens[j-1]._replace(src='if True')
 
 def replace_cclassdefnode(tokens, i):
     j = i-1
@@ -258,7 +270,7 @@ def replace_cclassdefnode(tokens, i):
         j += 1
 
 def replace_cenumdefnode(tokens, i):
-    tokens[i] = Token(name='NAME', src='class')
+    tokens[i] = tokens[i]._replace(src='class')
     j = i-1
     while not (tokens[j].name == 'NAME' and tokens[j].src in ('cdef', 'cpdef')):
         tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
@@ -472,6 +484,9 @@ def main(filename, append_config):
                 elif name == 'ctuplebasetype':
                     replace_ctuplebasetypenode(tokens, n)
     newsrc = tokens_to_src(tokens)
+    if False:
+        with open(filename, 'w') as fd:
+            fd.write(newsrc)
     print(newsrc)
     import sys
     try:
@@ -536,6 +551,7 @@ def skip_typeless_arg(child, parent):
 def traverse(tree):
     # check if child isn't []
     nodes = [tree]
+    breakpoint()
     replacements = collections.defaultdict(list)
 
     funcs = {
