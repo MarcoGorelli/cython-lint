@@ -409,11 +409,11 @@ def tokenize_replacements(tokens):
     cdef = []
     colon = []
     for i, token in enumerate(tokens):
-        if cdef and not token.src.strip():
+        if in_cdef and not token.src.strip():
             continue
-        elif cdef and (token.name == 'NAME' and token.src in ('public', 'readonly')):
+        elif in_cdef and (token.name == 'NAME' and token.src in ('public', 'readonly')):
             continue
-        elif cdef and token.name == 'OP' and token.src == ':':
+        elif in_cdef and token.name == 'OP' and token.src == ':':
             colon.append(i)
             in_cdef = False
         if token.name == 'NAME' and token.src == 'cdef':
@@ -453,8 +453,6 @@ def transform(code, filename):
                     replace_cvardef(tokens, n, kwargs[0]['first_declarator'], kwargs[0]['varnames'])
                 elif name == 'cdef':
                     replace_cdef(tokens, n)
-                elif name == 'cdefblock':
-                    replace_cdefblock(tokens, n)
                 elif name == 'typecast':
                     replace_typecast(tokens, n)
                 elif name == 'cfuncdef':

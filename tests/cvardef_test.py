@@ -54,6 +54,24 @@ def test_cvardef_inline(src, expected):
             'cdef:\n    mytype a\n    mytype b\n',
             'if True:\n    a = 0\n    b = 0\n',
         ),
+        (
+            'cdef class Foo:\n'
+            '     cdef public:\n'
+            '        mytype a\n',
+            'class Foo:\n'
+            '     if True:\n'
+            '        a = 0\n',
+        ),
+        (
+            'cdef class Foo(Bar):\n'
+            '     cdef public:\n'
+            '        mytype a\n'
+            '     def __cinit__(self): pass\n',
+            'class Foo(Bar):\n'
+            '     if True:\n'
+            '        a = 0\n'
+            '     def __cinit__(self): pass\n',
+        ),
     ]
 )
 def test_cvardef_block(src, expected):
