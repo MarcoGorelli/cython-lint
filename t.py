@@ -1,51 +1,6 @@
 """
-we're gonna have to find:
-    position of the first declarator
-    position of the first type
-    delete everything in between?
-
-one strategy could be:
-    1. delete everything before first declarator
-
-
-cvardef type var: this is just a cvardefnode, and var is the first declarator
-cvardef type var, var2: also cvardefnode, with multiple declarators
-cvardef public type var: first declarator is var
-
-can get position of first declarator. can I get the position of the first type?
-
-let's do this differently?
-tokenizing, replace cdef:
-remove types from cvardef
-if it's inline, also remove cdef
-cool? cool
-
-yeah can't just delete everything - keep the varnames part
-
-
-what about in a function? that cargdecl, so totally different, no need to worry?
-
-for pointers, need to handle them separately
-but...this should give us all we need?
-have a look at cdef blocks as well, come up
-with a good simple strategy that'll work for both
-this will be awesome if you can get it to work!
-
-need to get:
-    cdef extern from "Python.h":
-        Py_ssize_t PY_SSIZE_T_MAX
-
-holy shit, also
-
-    cdef:
-        public int foo
-
-is valid
-
-wtf...need a more robust way to find these, just deleting the previous one won't do
-we need to have the start and end, and delete in between
-
-ok, that's enough for now though? is that all a cvardefnode?
+so, if in class, we need to record objstruct_name
+for that one, delete brackets?
 """
 import os
 import argparse
@@ -250,7 +205,7 @@ def replace_fusedtype(tokens, i):
         j += 1
     tokens[j-1] = tokens[j-1]._replace(src='if True')
 
-def replace_cclassdefnode(tokens, i):
+def replace_cclassdefnode(tokens, i, objstructname):
     j = i-1
     while not (tokens[j].name == 'NAME' and tokens[j].src in ('cdef', 'ctypedef')):
         j -= 1
@@ -259,6 +214,25 @@ def replace_cclassdefnode(tokens, i):
     while not tokens[j].src.strip():
         tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
         j += 1
+    if objstructname is not None:
+        # find location
+        j = i+1
+        while not (tokens[j].name == 'NAME' and tokens[j].src == objstructname):
+            j += 1
+        objstruct_pos = j
+        j = objstruct_pos
+        while not (tokens[j].name == 'OP' and tokens[j].src == '['):
+            tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
+            j -= 1
+        tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
+        while not tokens[j].src.strip():
+            tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
+            j -= 1
+        j = objstruct_pos
+        while not (tokens[j].name == 'OP' and tokens[j].src == ']'):
+            tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
+            j += 1
+        tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
 
 def replace_cenumdefnode(tokens, i):
     tokens[i] = tokens[i]._replace(src='class')
@@ -389,6 +363,7 @@ def visit_cclassdefnode(node):
         'cclassdef',
         node.pos[1],
         node.pos[2],
+        {'objstruct_name': getattr(node, 'objstruct_name', None)},
     )
 
 def visit_cenumdefnode(node):
@@ -498,7 +473,7 @@ def transform(code, filename):
                 elif name == 'fusedtype':
                     replace_fusedtype(tokens, n)
                 elif name == 'cclassdef':
-                    replace_cclassdefnode(tokens, n)
+                    replace_cclassdefnode(tokens, n, kwargs[0]['objstruct_name'])
                 elif name == 'cenumdef':
                     replace_cenumdefnode(tokens, n)
                 elif name == 'ctuplebasetype':
