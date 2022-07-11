@@ -1,4 +1,20 @@
 """
+we're gonna have to find:
+    position of the first declarator
+    position of the first type
+    delete everything in between?
+
+one strategy could be:
+    1. delete everything before first declarator
+
+
+cvardef type var: this is just a cvardefnode, and var is the first declarator
+cvardef type var, var2: also cvardefnode, with multiple declarators
+cvardef public type var: first declarator is var
+
+what about in a function? that cargdecl, so totally different, no need to worry?
+
+
 need to get:
     cdef extern from "Python.h":
         Py_ssize_t PY_SSIZE_T_MAX
@@ -417,9 +433,7 @@ from tokenize_rt import src_to_tokens, tokens_to_src, reversed_enumerate, Token
 # let's have...let's do...
 # some list of replacements
 
-def main(filename, append_config):
-    with open(filename, encoding='utf-8') as fd:
-        code = fd.read()
+def transform(code, filename):
     tokens = src_to_tokens(code)
     exclude_lines = set()
     for token in tokens:
@@ -484,6 +498,10 @@ def main(filename, append_config):
                 elif name == 'ctuplebasetype':
                     replace_ctuplebasetypenode(tokens, n)
     newsrc = tokens_to_src(tokens)
+    return newsrc
+
+def main(code, filename, append_config):
+    newsrc = transform(code, filename)
     if False:
         with open(filename, 'w') as fd:
             fd.write(newsrc)
@@ -608,4 +626,6 @@ if __name__ == '__main__':
     parser.add_argument('--append-config', required=False)
     args = parser.parse_args()
     for path in args.paths:
-        main(path, args.append_config)
+        with open(path, encoding='utf-8') as fd:
+            content = fd.read()
+        main(content, path, args.append_config)
