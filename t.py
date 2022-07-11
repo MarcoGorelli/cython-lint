@@ -205,7 +205,7 @@ def replace_fusedtype(tokens, i):
         j += 1
     tokens[j-1] = tokens[j-1]._replace(src='if True')
 
-def replace_cclassdefnode(tokens, i, objstructname):
+def replace_cclassdefnode(tokens, i, objstructname, module_name, class_name, as_name):
     j = i-1
     while not (tokens[j].name == 'NAME' and tokens[j].src in ('cdef', 'ctypedef')):
         j -= 1
@@ -233,6 +233,17 @@ def replace_cclassdefnode(tokens, i, objstructname):
             tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
             j += 1
         tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
+
+        # use as_name
+        if module_name is not None and module_name != '':
+            j = i
+            while not (tokens[j].name == 'NAME' and tokens[j].src == module_name):
+                j += 1
+            while not (tokens[j].name == 'NAME' and tokens[j].src == class_name):
+                tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
+                j += 1
+
+
 
 def replace_cenumdefnode(tokens, i):
     tokens[i] = tokens[i]._replace(src='class')
@@ -363,7 +374,12 @@ def visit_cclassdefnode(node):
         'cclassdef',
         node.pos[1],
         node.pos[2],
-        {'objstruct_name': getattr(node, 'objstruct_name', None)},
+        {
+            'objstruct_name': getattr(node, 'objstruct_name', None),
+            'module_name': getattr(node, 'module_name', None),
+            'class_name': getattr(node, 'class_name', None),
+            'as_name': getattr(node, 'as_name', None),
+        },
     )
 
 def visit_cenumdefnode(node):
@@ -473,7 +489,14 @@ def transform(code, filename):
                 elif name == 'fusedtype':
                     replace_fusedtype(tokens, n)
                 elif name == 'cclassdef':
-                    replace_cclassdefnode(tokens, n, kwargs[0]['objstruct_name'])
+                    replace_cclassdefnode(
+                        tokens,
+                        n,
+                        kwargs[0]['objstruct_name'],
+                        kwargs[0]['module_name'],
+                        kwargs[0]['class_name'],
+                        kwargs[0]['as_name'],
+                    )
                 elif name == 'cenumdef':
                     replace_cenumdefnode(tokens, n)
                 elif name == 'ctuplebasetype':
