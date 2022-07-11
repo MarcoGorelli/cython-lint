@@ -12,8 +12,24 @@ cvardef type var: this is just a cvardefnode, and var is the first declarator
 cvardef type var, var2: also cvardefnode, with multiple declarators
 cvardef public type var: first declarator is var
 
+can get position of first declarator. can I get the position of the first type?
+
+let's do this differently?
+tokenizing, replace cdef:
+remove types from cvardef
+if it's inline, also remove cdef
+cool? cool
+
+yeah can't just delete everything - keep the varnames part
+
+
 what about in a function? that cargdecl, so totally different, no need to worry?
 
+for pointers, need to handle them separately
+but...this should give us all we need?
+have a look at cdef blocks as well, come up
+with a good simple strategy that'll work for both
+this will be awesome if you can get it to work!
 
 need to get:
     cdef extern from "Python.h":
@@ -72,62 +88,20 @@ def _delete_base_type(tokens, i):
         tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
         j += 1
 
-def replace_cvardef(tokens, i, varnames):
-    #_delete_base_type(tokens, i)
+def replace_cvardef(tokens, i, declarator, varnames):
     j = i-1
     while not tokens[j].src.strip():
         j -= 1
-    k = j-1
-    while not tokens[k].src.strip():
-        k -= 1
-    m = k-1
-    while not tokens[m].src.strip():
-        m -= 1
-    n = m-1
-    while not tokens[n].src.strip():
-        n -= 1
-    o = n-1
-    while not tokens[o].src.strip():
-        o -= 1
-    if (
-        tokens[j].name == 'OP'
-        and tokens[j].src == ':'
-        and tokens[k].name == 'NAME'
-        and tokens[k].src == 'cdef'
-    ):
-        tokens[k] = tokens[k]._replace(src='if True')
-    elif (
-        tokens[j].name == 'OP'
-        and tokens[j].src == ':'
-        and tokens[k].name == 'NAME'
-        and tokens[k].src in ('readonly', 'public')
-        and tokens[m].name == 'NAME'
-        and tokens[m].src == 'cdef'
-    ):
-        tokens[m] = tokens[m]._replace(src='if True')
-        tokens[k] = Token(name='PLACEHOLDER', src='', line=tokens[k].line, utf8_byte_offset=tokens[k].utf8_byte_offset)
-        # todo: delete some whitespace
-    elif (
-        tokens[j].name == 'OP'
-        and tokens[j].src == ':'
-        and tokens[m].name == 'NAME'
-        and tokens[m].src == 'from'
-        and tokens[n].name == 'NAME'
-        and tokens[n].src == 'extern'
-        and tokens[o].name == 'NAME'
-        and tokens[o].src == 'cdef'
-    ):
-        tokens[o] = tokens[o]._replace(src='if True')
-        tokens[n] = Token(name='PLACEHOLDER', src='', line=tokens[n].line, utf8_byte_offset=tokens[n].utf8_byte_offset)
-        tokens[m] = Token(name='PLACEHOLDER', src='', line=tokens[m].line, utf8_byte_offset=tokens[m].utf8_byte_offset)
-        tokens[k] = Token(name='PLACEHOLDER', src='', line=tokens[k].line, utf8_byte_offset=tokens[k].utf8_byte_offset)
-        # todo: delete some whitespace
-    elif tokens[j].name == 'NAME' and tokens[j].src == 'cdef':
+    if tokens[j].name == 'NAME' and tokens[j].src == 'cdef':
         tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
-        j = j+1
+        j += 1
         while not tokens[j].src.strip():
             tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
             j += 1
+    j = i
+    while not (tokens[j].line == declarator[1] and tokens[j].utf8_byte_offset == declarator[2]):
+        tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
+        j += 1
 
     # replace the variables
     # find first variable
@@ -304,17 +278,14 @@ def visit_cvardefnode(node):
             declarator = declarator.base
         varnames.append(declarator.name)
     yield (
-        'cvardef',
-        node.pos[1],
-        node.pos[2],
-        {'varnames': varnames},
-    )
-    if hasattr(node, '_parent'):
-        yield (
-            'cdefblock',
-            node.pos[1],
-            node.pos[2],
-        )
+         'cvardef',
+         node.pos[1],
+         node.pos[2],
+         {
+             'varnames': varnames,
+             'first_declarator': node.declarators[0].pos,
+         },
+     )
 
 def visit_typecastnode(node):
     yield (
@@ -433,6 +404,26 @@ from tokenize_rt import src_to_tokens, tokens_to_src, reversed_enumerate, Token
 # let's have...let's do...
 # some list of replacements
 
+def tokenize_replacements(tokens):
+    in_cdef = False
+    cdef = []
+    colon = []
+    for i, token in enumerate(tokens):
+        if cdef and not token.src.strip():
+            continue
+        elif cdef and (token.name == 'NAME' and token.src in ('public', 'readonly')):
+            continue
+        elif cdef and token.name == 'OP' and token.src == ':':
+            colon.append(i)
+            in_cdef = False
+        if token.name == 'NAME' and token.src == 'cdef':
+            cdef.append(i)
+            in_cdef = True
+    for start, end in zip(cdef, colon):
+        tokens[start] = tokens[start]._replace(src='if True')
+        for j in range(start+1, end):
+            tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
+
 def transform(code, filename):
     tokens = src_to_tokens(code)
     exclude_lines = set()
@@ -449,7 +440,6 @@ def transform(code, filename):
                 tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
                 j += 1
     code = tokens_to_src(tokens)
-
     code = ''.join([line for i, line in enumerate(code.splitlines(keepends=True), start=1) if i not in exclude_lines])
     tree = parse_from_strings(filename, code)
     replacements = traverse(tree)
@@ -460,7 +450,7 @@ def transform(code, filename):
         if key in replacements:
             for name, kwargs in replacements.pop(key):
                 if name == 'cvardef':
-                    replace_cvardef(tokens, n, kwargs[0]['varnames'])
+                    replace_cvardef(tokens, n, kwargs[0]['first_declarator'], kwargs[0]['varnames'])
                 elif name == 'cdef':
                     replace_cdef(tokens, n)
                 elif name == 'cdefblock':
@@ -497,6 +487,7 @@ def transform(code, filename):
                     replace_cenumdefnode(tokens, n)
                 elif name == 'ctuplebasetype':
                     replace_ctuplebasetypenode(tokens, n)
+    tokenize_replacements(tokens)
     newsrc = tokens_to_src(tokens)
     return newsrc
 
@@ -566,10 +557,10 @@ def skip_typeless_arg(child, parent):
     return False
 
 
+
 def traverse(tree):
     # check if child isn't []
     nodes = [tree]
-    breakpoint()
     replacements = collections.defaultdict(list)
 
     funcs = {
