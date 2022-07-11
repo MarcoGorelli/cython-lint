@@ -68,6 +68,7 @@ from Cython.Compiler.Nodes import (
     CNameDeclaratorNode,
     CEnumDefNode,
     CTupleBaseTypeNode,
+    CFuncDeclaratorNode,
 )
 from Cython.Compiler.ExprNodes import TypecastNode, AmpersandNode
 import ast
@@ -251,7 +252,7 @@ def replace_fusedtype(tokens, i):
 
 def replace_cclassdefnode(tokens, i):
     j = i-1
-    while not (tokens[j].name == 'NAME' and tokens[j].src == 'cdef'):
+    while not (tokens[j].name == 'NAME' and tokens[j].src in ('cdef', 'ctypedef')):
         j -= 1
     tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
     j += 1
@@ -273,17 +274,22 @@ def replace_ctuplebasetypenode(tokens, i):
 def visit_cvardefnode(node):
     base_type = node.base_type
     varnames = []
+    first_declarator = None
     for declarator in node.declarators:
         while isinstance(declarator, CPtrDeclaratorNode):
             declarator = declarator.base
+        if isinstance(declarator, CFuncDeclaratorNode):
+            declarator = declarator.base
         varnames.append(declarator.name)
+        if first_declarator is None:
+            first_declarator = declarator
     yield (
          'cvardef',
          node.pos[1],
          node.pos[2],
          {
              'varnames': varnames,
-             'first_declarator': node.declarators[0].pos,
+             'first_declarator': first_declarator.pos,
          },
      )
 
@@ -411,14 +417,25 @@ def tokenize_replacements(tokens):
     for i, token in enumerate(tokens):
         if in_cdef and not token.src.strip():
             continue
-        elif in_cdef and (token.name == 'NAME' and token.src in ('public', 'readonly')):
-            continue
+        elif in_cdef and (
+                token.name == 'NAME'
+                and token.src in ('public', 'readonly', 'from', 'extern')
+            ):
+            pass
+        elif in_cdef and (token.name == 'STRING' and token.src.strip('\'"').strip().endswith('.h')):
+            pass
         elif in_cdef and token.name == 'OP' and token.src == ':':
             colon.append(i)
             in_cdef = False
-        if token.name == 'NAME' and token.src == 'cdef':
+        elif token.name == 'NAME' and token.src == 'cdef':
             cdef.append(i)
             in_cdef = True
+        else:
+            # This wasn't a cdef we were looking for.
+            if in_cdef:
+                cdef.pop()
+                in_cdef = False
+    assert len(cdef) == len(colon)
     for start, end in zip(cdef, colon):
         tokens[start] = tokens[start]._replace(src='if True')
         for j in range(start+1, end):
@@ -444,6 +461,7 @@ def transform(code, filename):
     tree = parse_from_strings(filename, code)
     replacements = traverse(tree)
     tokens = src_to_tokens(code)
+    tokenize_replacements(tokens)
 
     for n, token in reversed_enumerate(tokens):
         key = (token.line, token.utf8_byte_offset)
@@ -485,7 +503,6 @@ def transform(code, filename):
                     replace_cenumdefnode(tokens, n)
                 elif name == 'ctuplebasetype':
                     replace_ctuplebasetypenode(tokens, n)
-    tokenize_replacements(tokens)
     newsrc = tokens_to_src(tokens)
     return newsrc
 

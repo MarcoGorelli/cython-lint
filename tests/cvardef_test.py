@@ -50,19 +50,21 @@ def test_cvardef_inline(src, expected):
 @pytest.mark.parametrize(
     "src, expected",
     [
-        (
+        pytest.param(
             'cdef:\n    mytype a\n    mytype b\n',
             'if True:\n    a = 0\n    b = 0\n',
+            id='two simple',
         ),
-        (
+        pytest.param(
             'cdef class Foo:\n'
             '     cdef public:\n'
             '        mytype a\n',
             'class Foo:\n'
             '     if True:\n'
             '        a = 0\n',
+            id='inside class',
         ),
-        (
+        pytest.param(
             'cdef class Foo(Bar):\n'
             '     cdef public:\n'
             '        mytype a\n'
@@ -71,6 +73,7 @@ def test_cvardef_inline(src, expected):
             '     if True:\n'
             '        a = 0\n'
             '     def __cinit__(self): pass\n',
+            id='class with method',
         ),
     ]
 )
