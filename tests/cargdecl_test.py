@@ -24,6 +24,16 @@ import pytest
             'def foo(self, values): pass\n',
             id='self and other arg',
         ),
+        pytest.param(
+            'cpdef bar foo(self, ndarray values) except -1: pass\n',
+            'def foo(self, values): pass\n',
+            id='except -1',
+        ),
+        pytest.param(
+            'cpdef (bar, quox) foo(self, ndarray values): pass\n',
+            'def foo(self, values): pass\n',
+            id='tuple return',
+        ),
     ]
 )
 def test_cvardef_inline(src, expected):

@@ -276,6 +276,7 @@ def replace_cenumdefnode(tokens, i):
     tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
 
 def replace_ctuplebasetypenode(tokens, i):
+    return
     j = i
     tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
     while not (tokens[j].name == 'NAME' and tokens[j].src in ('cdef', 'cpdef')):
