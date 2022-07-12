@@ -313,12 +313,6 @@ def replace_cargdeclnode(tokens, i, declarator):
         j += 1
 
 def visit_cvardefnode(node):
-    if len(node.declarators) > 1:
-        raise NotImplementedError(
-            'Declaring multiple variables on '
-            'the same line is not yet supported.'
-        )
-
     base_type = node.base_type
     varnames = []
     first_declarator = None
@@ -554,7 +548,7 @@ def transform(code, filename):
     code = tokens_to_src(tokens)
     code = ''.join([line for i, line in enumerate(code.splitlines(keepends=True), start=1) if i not in exclude_lines])
     tree = parse_from_strings(filename, code)
-    replacements = traverse(tree)
+    replacements = traverse(tree, filename)
     tokens = src_to_tokens(code)
     tokenize_replacements(tokens)
 
@@ -685,7 +679,7 @@ def skip_typeless_arg(child, parent):
 
 
 
-def traverse(tree):
+def traverse(tree, filename):
     # check if child isn't []
     nodes = [tree]
     replacements = collections.defaultdict(list)
@@ -714,6 +708,15 @@ def traverse(tree):
         node = nodes.pop()
         if node is None:
             continue
+
+        if isinstance(node, CVarDefNode):
+            if len(node.declarators) > 1:
+                raise NotImplementedError(
+                    f'{filename}:{node.pos[1]}:{node.pos[2]} '
+                    'Declaring multiple variables on '
+                    'the same line is not yet supported.'
+                )
+
 
         func = funcs.get(type(node).__name__)
         if func is not None:
