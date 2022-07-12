@@ -15,6 +15,16 @@ import pytest
             id='public',
         ),
         pytest.param(
+            'cdef mytype a, b\n' ,
+            'a, b = 0, 0\n',
+            id='multiple',
+        ),
+        pytest.param(
+            'cdef mytype a=0, b\n' ,
+            'a, b = 0, 0\n',
+            id='multiple with initial',
+        ),
+        pytest.param(
             'cdef mytype[::1] myvar\n' ,
             'myvar = 0\n',
             id='memview',
@@ -30,6 +40,11 @@ import pytest
             'class Foo:\n'
             '    a = 0\n',
             id='public in class',
+        ),
+        pytest.param(
+            'cdef mytype myvar = sizeof(foo*)\n' ,
+            'myvar = 0\n',
+            id='pointer',
         ),
     ]
 )
@@ -65,18 +80,6 @@ def test_cvardef_inline(src, expected):
             '     def __cinit__(self): pass\n',
             id='class with method',
         ),
-        pytest.param(
-            'cdef:\n'
-            '    foo bar = foo(\n'
-            '        1,\n'
-            '        skipna=True,\n'
-            '    )\n',
-            'if True:\n'
-            '    bar = foo(\n'
-            '        1,\n'
-            '        skipna=True,\n'
-            '    )\n',
-        )
     ]
 )
 def test_cvardef_block(src, expected):
@@ -87,13 +90,12 @@ def test_cvardef_block(src, expected):
     'src',
     [
         pytest.param(
-            'cdef mytype a, b\n' ,
-            id='multiple',
-        ),
-        pytest.param(
-            'cdef mytype a=0, b\n' ,
-            id='multiple with initial',
-        ),
+            'cdef:\n'
+            '    foo bar = foo(\n'
+            '        1,\n'
+            '        skipna=True,\n'
+            '    )\n',
+        )
     ],
 )
 def test_cvardef_not_supported(src):

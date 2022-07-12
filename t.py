@@ -15,6 +15,12 @@ not overly keen on that. what is we just,
 don't visit csimplebasetype?
 
 first, let's raise if there's multiple varnames
+
+ok, let's disallow cvardef on multiple lines
+just, declare on one line, assign on the next one?
+
+or maybe this is ok?
+just filter error message before showing it?
 """
 import os
 import argparse
@@ -81,35 +87,15 @@ def replace_cvardef(tokens, i, declarator, varnames, end_pos):
         j += 1
     assignment_idx = j
 
-    # is there already an assignment?
-    j = assignment_idx
-    while not (tokens[j].line == end_pos[1] and tokens[j].utf8_byte_offset == end_pos[2]):
-        if tokens[j].name == 'OP' and tokens[j].src == '=':
-            # there's already an assignment, just return
-            return
-        j += 1
-
     assignment = f"{', '.join(varnames)} = {', '.join('0' for _ in range(len(varnames)))}"
     tokens[assignment_idx] = tokens[assignment_idx]._replace(src=assignment)
     if tokens[assignment_idx].line == end_pos[1] and tokens[assignment_idx].utf8_byte_offset == end_pos[2]:
         return
+    # we've ruled out multi-line assignments, so...just go on until the end of the line
     j = assignment_idx + 1
-    while not (tokens[j].line == end_pos[1] and tokens[j].utf8_byte_offset == end_pos[2]):
+    while not tokens[j].name == 'NEWLINE':
         tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
         j += 1
-    if tokens[j].name == 'OP' and tokens[j].src == '(':
-        open_parens = 1
-        tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
-        j += 1
-        while not open_parens == 0:
-            if tokens[j].name == 'OP' and tokens[j].src == '(':
-                open_parens += 1
-            elif tokens[j].name == 'OP' and tokens[j].src == ')':
-                open_parens -= 1
-            tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
-            j += 1
-    else:
-        tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
 
 def replace_cfuncdef(tokens, i, declarator):
     # let's get to the opening paren
@@ -710,11 +696,13 @@ def traverse(tree, filename):
             continue
 
         if isinstance(node, CVarDefNode):
-            if len(node.declarators) > 1:
+            if node.pos[1] != node.end_pos()[1]:
                 raise NotImplementedError(
                     f'{filename}:{node.pos[1]}:{node.pos[2]} '
-                    'Declaring multiple variables on '
-                    'the same line is not yet supported.'
+                    'Variable declarations spanning multiple '
+                    'line are not yet supported. '
+                    'You might want to declare the variable '
+                    'on one line, and assign it on another.'
                 )
 
 
