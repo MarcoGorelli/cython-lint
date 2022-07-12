@@ -273,12 +273,34 @@ def replace_ctuplebasetypenode(tokens, i):
         tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
         j -= 1
 
-def replace_cargdeclnode(tokens, i, declarator):
+def replace_cargdeclnode(tokens, i, declarator, not_none):
     j = i
     tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
     while not (tokens[j].line == declarator[1] and tokens[j].utf8_byte_offset == declarator[2]):
         tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
         j += 1
+    if not_none:
+        j += 1
+        # skip whitespaces
+        while not tokens[j].src.strip():
+            tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
+            j += 1
+        if tokens[j].name == 'NAME' and tokens[j].src == 'not':
+            tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
+            j += 1
+        else:
+            raise AssertionError('please report bug')
+        while not tokens[j].src.strip():
+            tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
+            j += 1
+        if tokens[j].name == 'NAME' and tokens[j].src == 'None':
+            tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
+            j += 1
+        else:
+            raise AssertionError('please report bug')
+        while not tokens[j].src.strip():
+            tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
+            j += 1
 
 def visit_cvardefnode(node):
     base_type = node.base_type
@@ -458,7 +480,10 @@ def visit_cargdeclnode(node):
         'cargdecl',
         node.pos[1],
         node.pos[2],
-        {'declarator': node.declarator.pos},
+        {
+            'declarator': node.declarator.pos,
+            'not_none': node.not_none,
+        },
     )
 import collections
 from tokenize_rt import src_to_tokens, tokens_to_src, reversed_enumerate, Token
@@ -537,7 +562,11 @@ def transform(code, filename):
                 elif name == 'typecast':
                     replace_typecast(tokens, n)
                 elif name == 'cfuncdef':
-                    replace_cfuncdef(tokens, n, kwargs[0]['declarator'])
+                    replace_cfuncdef(
+                    tokens,
+                    n,
+                    kwargs[0]['declarator'],
+                )
                 elif name == 'cfuncarg':
                     replace_cfuncarg(tokens, n)
                 elif name == 'fromcimport':
@@ -576,7 +605,12 @@ def transform(code, filename):
                 elif name == 'ctuplebasetype':
                     replace_ctuplebasetypenode(tokens, n)
                 elif name == 'cargdecl':
-                    replace_cargdeclnode(tokens, n, kwargs[0]['declarator'])
+                    replace_cargdeclnode(
+                        tokens,
+                        n,
+                        kwargs[0]['declarator'],
+                        kwargs[0]['not_none'],
+                    )
     newsrc = tokens_to_src(tokens)
     return newsrc
 

@@ -45,6 +45,11 @@ import pytest
             '): pass\n',
             id='multiline',
         ),
+        pytest.param(
+            'def foo(mytype bar not None): pass\n',
+            'def foo(bar): pass\n',
+            id='not None',
+        ),
     ]
 )
 def test_cvardef_inline(src, expected):
