@@ -166,7 +166,6 @@ def replace_templatedtype(tokens, i):
 
 def replace_csimplebasetype(tokens, i, name):
     return
-    breakpoint()
     _delete_base_type(tokens, i)
 
 def replace_cconsttypenode(tokens, i):
@@ -443,7 +442,16 @@ def visit_ctuplebasetypenode(node):
         node.pos[2],
     )
 def visit_cargdeclnode(node):
-    if node.annotation is not None or node.base_type.name is None:
+    if (
+        node.annotation is not None 
+        or (
+            isinstance(node.base_type, CSimpleBaseTypeNode)
+            and (
+                node.base_type.name is None
+                or node.base_type.name == 'self'
+            )
+        )
+    ):
         # has annotation, so no type to delete
         return
     if node.is_self_arg:
