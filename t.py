@@ -79,9 +79,16 @@ def replace_cvardef(tokens, i, declarator, varnames, end_pos):
     j = i
     while not (tokens[j].name == 'NAME' and tokens[j].src == varnames[0]):
         j += 1
+    assignment_idx = j
 
     # is there already an assignment?
-    assignment_idx = j
+    j = assignment_idx
+    while not (tokens[j].line == end_pos[1] and tokens[j].utf8_byte_offset == end_pos[2]):
+        if tokens[j].name == 'OP' and tokens[j].src == '=':
+            # there's already an assignment, just return
+            return
+        j += 1
+
     assignment = f"{', '.join(varnames)} = {', '.join('0' for _ in range(len(varnames)))}"
     tokens[assignment_idx] = tokens[assignment_idx]._replace(src=assignment)
     if tokens[assignment_idx].line == end_pos[1] and tokens[assignment_idx].utf8_byte_offset == end_pos[2]:
