@@ -10,16 +10,6 @@ import pytest
             id='simple',
         ),
         pytest.param(
-            'cdef mytype a, b\n' ,
-            'a, b = 0, 0\n',
-            id='multiple',
-        ),
-        pytest.param(
-            'cdef mytype a=0, b\n' ,
-            'a, b = 0, 0\n',
-            id='multiple with initial',
-        ),
-        pytest.param(
             'cdef public mytype myvar\n' ,
             'myvar = 0\n',
             id='public',
@@ -75,9 +65,37 @@ def test_cvardef_inline(src, expected):
             '     def __cinit__(self): pass\n',
             id='class with method',
         ),
+        pytest.param(
+            'cdef:\n'
+            '    foo bar = foo(\n'
+            '        1,\n'
+            '        skipna=True,\n'
+            '    )\n',
+            'if True:\n'
+            '    bar = foo(\n'
+            '        1,\n'
+            '        skipna=True,\n'
+            '    )\n',
+        )
     ]
 )
 def test_cvardef_block(src, expected):
     result = transform(src, '')
     assert result == expected
 
+@pytest.mark.parametrize(
+    'src',
+    [
+        pytest.param(
+            'cdef mytype a, b\n' ,
+            id='multiple',
+        ),
+        pytest.param(
+            'cdef mytype a=0, b\n' ,
+            id='multiple with initial',
+        ),
+    ],
+)
+def test_cvardef_not_supported(src):
+    with pytest.raises(NotImplementedError, match='not yet supported'):
+        transform(src, '')

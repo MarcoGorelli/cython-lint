@@ -13,6 +13,8 @@ and the parent?
 
 not overly keen on that. what is we just,
 don't visit csimplebasetype?
+
+first, let's raise if there's multiple varnames
 """
 import os
 import argparse
@@ -57,7 +59,7 @@ def _delete_base_type(tokens, i):
         tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
         j += 1
 
-def replace_cvardef(tokens, i, declarator, varnames):
+def replace_cvardef(tokens, i, declarator, varnames, end_pos):
     j = i-1
     while not tokens[j].src.strip():
         j -= 1
@@ -77,16 +79,29 @@ def replace_cvardef(tokens, i, declarator, varnames):
     j = i
     while not (tokens[j].name == 'NAME' and tokens[j].src == varnames[0]):
         j += 1
+
+    # is there already an assignment?
     assignment_idx = j
-    assignment = f"{', '.join(varnames)} = {', '.join('0' for _ in range(len(varnames)))}\n"
-    line = tokens[assignment_idx].line
+    assignment = f"{', '.join(varnames)} = {', '.join('0' for _ in range(len(varnames)))}"
     tokens[assignment_idx] = tokens[assignment_idx]._replace(src=assignment)
-    tokens_in_line = []
+    if tokens[assignment_idx].line == end_pos[1] and tokens[assignment_idx].utf8_byte_offset == end_pos[2]:
+        return
     j = assignment_idx + 1
-    while tokens[j].line is None or tokens[j].line == line:
-        tokens_in_line.append(j)
+    while not (tokens[j].line == end_pos[1] and tokens[j].utf8_byte_offset == end_pos[2]):
+        tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
         j += 1
-    for j in tokens_in_line:
+    if tokens[j].name == 'OP' and tokens[j].src == '(':
+        open_parens = 1
+        tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
+        j += 1
+        while not open_parens == 0:
+            if tokens[j].name == 'OP' and tokens[j].src == '(':
+                open_parens += 1
+            elif tokens[j].name == 'OP' and tokens[j].src == ')':
+                open_parens -= 1
+            tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
+            j += 1
+    else:
         tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
 
 def replace_cfuncdef(tokens, i, declarator):
@@ -291,6 +306,12 @@ def replace_cargdeclnode(tokens, i, declarator):
         j += 1
 
 def visit_cvardefnode(node):
+    if len(node.declarators) > 1:
+        raise NotImplementedError(
+            'Declaring multiple variables on '
+            'the same line is not yet supported.'
+        )
+
     base_type = node.base_type
     varnames = []
     first_declarator = None
@@ -309,6 +330,7 @@ def visit_cvardefnode(node):
          {
              'varnames': varnames,
              'first_declarator': first_declarator.pos,
+             'end_pos': node.end_pos(),
          },
      )
 
@@ -534,7 +556,13 @@ def transform(code, filename):
         if key in replacements:
             for name, kwargs in replacements.pop(key):
                 if name == 'cvardef':
-                    replace_cvardef(tokens, n, kwargs[0]['first_declarator'], kwargs[0]['varnames'])
+                    replace_cvardef(
+                        tokens,
+                        n,
+                        kwargs[0]['first_declarator'],
+                        kwargs[0]['varnames'],
+                        kwargs[0]['end_pos'],
+                    )
                 elif name == 'cdef':
                     replace_cdef(tokens, n)
                 elif name == 'typecast':
