@@ -46,6 +46,11 @@ import pytest
             'myvar = 0\n',
             id='pointer',
         ),
+        pytest.param(
+            'cdef int itemsize "elsize"\n' ,
+            'itemsize = 0\n' ,
+            id='definition with string after',
+        ),
     ]
 )
 def test_cvardef_inline(src, expected):

@@ -1,26 +1,7 @@
 """
-still need to deal with ctypedef fused
-
-ctypedef fused foo:
-    a[b, c]
-    d[b, c]
-
-all I can think of is: if you have a fused type,
-then go into the types, mark the children somehow
-and...remember that?
-then, for csimplebasetype, check both the node
-and the parent?
-
-not overly keen on that. what is we just,
-don't visit csimplebasetype?
-
-first, let's raise if there's multiple varnames
-
-ok, let's disallow cvardef on multiple lines
-just, declare on one line, assign on the next one?
-
-or maybe this is ok?
-just filter error message before showing it?
+holy shit, even
+    cdef void foo(list types not None):
+is valid. shit!
 """
 import os
 import argparse
@@ -90,7 +71,8 @@ def replace_cvardef(tokens, i, declarator, varnames, end_pos):
     assignment = f"{', '.join(varnames)} = {', '.join('0' for _ in range(len(varnames)))}"
     tokens[assignment_idx] = tokens[assignment_idx]._replace(src=assignment)
     if tokens[assignment_idx].line == end_pos[1] and tokens[assignment_idx].utf8_byte_offset == end_pos[2]:
-        return
+        pass
+        # return
     # we've ruled out multi-line assignments, so...just go on until the end of the line
     j = assignment_idx + 1
     while not tokens[j].name == 'NEWLINE':
