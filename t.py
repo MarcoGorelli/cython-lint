@@ -1,6 +1,18 @@
 """
-so, if in class, we need to record objstruct_name
-for that one, delete brackets?
+still need to deal with ctypedef fused
+
+ctypedef fused foo:
+    a[b, c]
+    d[b, c]
+
+all I can think of is: if you have a fused type,
+then go into the types, mark the children somehow
+and...remember that?
+then, for csimplebasetype, check both the node
+and the parent?
+
+not overly keen on that. what is we just,
+don't visit csimplebasetype?
 """
 import os
 import argparse
@@ -24,6 +36,7 @@ from Cython.Compiler.Nodes import (
     CEnumDefNode,
     CTupleBaseTypeNode,
     CFuncDeclaratorNode,
+    TemplatedTypeNode,
 )
 from Cython.Compiler.ExprNodes import TypecastNode, AmpersandNode
 import ast
@@ -144,15 +157,16 @@ def replace_cimportstat(tokens, i):
 def replace_templatedtype(tokens, i):
     return
     j = i
+    while not (tokens[j].name=='OP' and tokens[j].src=='['):
+        j += 1
     while not (tokens[j].name=='OP' and tokens[j].src==']'):
         tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
         j += 1
     tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
-    while not tokens[j].src.strip():
-        tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
-        j += 1
 
-def replace_csimplebasetype(tokens, i):
+def replace_csimplebasetype(tokens, i, name):
+    return
+    breakpoint()
     _delete_base_type(tokens, i)
 
 def replace_cconsttypenode(tokens, i):
@@ -198,12 +212,21 @@ def replace_gilstatnode(tokens, i):
     tokens[j] = tokens[j]._replace(src='if')
 
 
-def replace_fusedtype(tokens, i):
+def replace_fusedtype(tokens, i, name):
     j = i
-    while not (tokens[j].name=='OP' and tokens[j].src==':'):
+    while not (tokens[j].name=='NAME' and tokens[j].src==name):
         tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
         j += 1
-    tokens[j-1] = tokens[j-1]._replace(src='if True')
+    tokens[j-1] = tokens[j-1]._replace(src='class ')
+
+def replace_fusedtype_child(tokens, i, name):
+    j = i
+    tokens[j] = tokens[j]._replace(src=f'{name} = 0')
+    j += 1
+    while not tokens[j].name == 'NEWLINE':
+        tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
+        j += 1
+
 
 def replace_cclassdefnode(tokens, i, objstructname, module_name, class_name, as_name):
     j = i-1
@@ -254,7 +277,18 @@ def replace_cenumdefnode(tokens, i):
     tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
 
 def replace_ctuplebasetypenode(tokens, i):
-    pass
+    j = i
+    tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
+    while not (tokens[j].name == 'NAME' and tokens[j].src in ('cdef', 'cpdef')):
+        tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
+        j -= 1
+
+def replace_cargdeclnode(tokens, i, declarator):
+    j = i
+    tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
+    while not (tokens[j].line == declarator[1] and tokens[j].utf8_byte_offset == declarator[2]):
+        tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
+        j += 1
 
 def visit_cvardefnode(node):
     base_type = node.base_type
@@ -325,6 +359,7 @@ def visit_csimplebasetypenode(node):
         'csimplebasetype',
         node.pos[1],
         node.pos[2],
+        {'name': node.name},
     )
 
 def visit_cconsttypenode(node):
@@ -363,10 +398,23 @@ def visit_gilstatnode(node):
     )
 
 def visit_fusedtypenode(node):
+    typenames = []
+    for _type in node.types:
+        if isinstance(_type, TemplatedTypeNode):
+            _type = _type.base_type_node
+        yield (
+            'fusedtype_child',
+            _type.pos[1],
+            _type.pos[2],
+            {'name': _type.name},
+        )
     yield (
         'fusedtype',
         node.pos[1],
         node.pos[2],
+        {
+            'name': node.name,
+        },
     )
 
 def visit_cclassdefnode(node):
@@ -393,6 +441,19 @@ def visit_ctuplebasetypenode(node):
         'ctuplebasetype',
         node.pos[1],
         node.pos[2],
+    )
+def visit_cargdeclnode(node):
+    if node.annotation is not None or node.base_type.name is None:
+        # has annotation, so no type to delete
+        return
+    if node.is_self_arg:
+        # don't replace self
+        return
+    yield (
+        'cargdecl',
+        node.pos[1],
+        node.pos[2],
+        {'declarator': node.declarator.pos},
     )
 import collections
 from tokenize_rt import src_to_tokens, tokens_to_src, reversed_enumerate, Token
@@ -475,7 +536,7 @@ def transform(code, filename):
                 elif name == 'templatedtype':
                     replace_templatedtype(tokens, n)
                 elif name == 'csimplebasetype':
-                    replace_csimplebasetype(tokens, n)
+                    replace_csimplebasetype(tokens, n, kwargs[0]['name'])
                 elif name == 'cconsttype':
                     replace_cconsttypenode(tokens, n)
                 elif name == 'memoryviewslicetype':
@@ -487,7 +548,9 @@ def transform(code, filename):
                 elif name == 'gilstat':
                     replace_gilstatnode(tokens, n)
                 elif name == 'fusedtype':
-                    replace_fusedtype(tokens, n)
+                    replace_fusedtype(tokens, n, kwargs[0]['name'])
+                elif name == 'fusedtype_child':
+                    replace_fusedtype_child(tokens, n, kwargs[0]['name'])
                 elif name == 'cclassdef':
                     replace_cclassdefnode(
                         tokens,
@@ -501,6 +564,8 @@ def transform(code, filename):
                     replace_cenumdefnode(tokens, n)
                 elif name == 'ctuplebasetype':
                     replace_ctuplebasetypenode(tokens, n)
+                elif name == 'cargdecl':
+                    replace_cargdeclnode(tokens, n, kwargs[0]['declarator'])
     newsrc = tokens_to_src(tokens)
     return newsrc
 
@@ -594,8 +659,8 @@ def traverse(tree):
         'CClassDefNode': visit_cclassdefnode,
         'CEnumDefNode': visit_cenumdefnode,
         'CTupleBaseTypeNode': visit_ctuplebasetypenode,
+        'CArgDeclNode': visit_cargdeclnode,
     }
-
     while nodes:
         node = nodes.pop()
         if node is None:
@@ -613,6 +678,8 @@ def traverse(tree):
             # noticed this in size(int*)
             # bug?
             child_attrs.append('declarator')
+        if isinstance(node, FusedTypeNode):
+            child_attrs.append('types')
         for attr in child_attrs:
             child = getattr(node, attr)
 
