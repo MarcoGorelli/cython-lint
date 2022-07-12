@@ -452,6 +452,11 @@ def visit_cargdeclnode(node):
                 or node.base_type.name == 'self'
             )
         )
+        or (
+            isinstance(node.declarator, CNameDeclaratorNode)
+            and node.declarator.name == ''
+            
+        )
     ):
         # has annotation, so no type to delete
         return

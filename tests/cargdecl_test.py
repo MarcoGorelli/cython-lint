@@ -34,6 +34,17 @@ import pytest
             'def foo(self, values): pass\n',
             id='tuple return',
         ),
+        pytest.param(
+            'cpdef foo(\n'
+            '    a,\n'
+                'foo b=0,\n'
+            '): pass\n',
+            'def foo(\n'
+            '    a,\n'
+                'b=0,\n'
+            '): pass\n',
+            id='multiline',
+        ),
     ]
 )
 def test_cvardef_inline(src, expected):
