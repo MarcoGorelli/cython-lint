@@ -1,7 +1,4 @@
 """
-holy shit, even
-    cdef void foo(list types not None):
-is valid. shit!
 """
 import os
 import argparse
@@ -26,6 +23,7 @@ from Cython.Compiler.Nodes import (
     CTupleBaseTypeNode,
     CFuncDeclaratorNode,
     TemplatedTypeNode,
+    CStructOrUnionDefNode,
 )
 from Cython.Compiler.ExprNodes import TypecastNode, AmpersandNode
 import ast
@@ -302,6 +300,14 @@ def replace_cargdeclnode(tokens, i, declarator, not_none):
             tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
             j += 1
 
+def replace_cstructoruniondefnode(tokens, i, name):
+    j = i
+    tokens[j] = tokens[j]._replace(src='class ')
+    j += 1
+    while not (tokens[j].name == 'NAME' and tokens[j].src == name):
+        tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
+        j += 1
+
 def visit_cvardefnode(node):
     base_type = node.base_type
     varnames = []
@@ -310,6 +316,8 @@ def visit_cvardefnode(node):
         while isinstance(declarator, CPtrDeclaratorNode):
             declarator = declarator.base
         if isinstance(declarator, CFuncDeclaratorNode):
+            declarator = declarator.base
+        while isinstance(declarator, CPtrDeclaratorNode):
             declarator = declarator.base
         varnames.append(declarator.name)
         if first_declarator is None:
@@ -485,6 +493,13 @@ def visit_cargdeclnode(node):
             'not_none': node.not_none,
         },
     )
+def visit_cstructoruniondefnode(node):
+    yield (
+        'cstructorunion',
+        node.pos[1],
+        node.pos[2],
+        {'name': node.name},
+    )
 import collections
 from tokenize_rt import src_to_tokens, tokens_to_src, reversed_enumerate, Token
 
@@ -611,6 +626,12 @@ def transform(code, filename):
                         kwargs[0]['declarator'],
                         kwargs[0]['not_none'],
                     )
+                elif name == 'cstructorunion':
+                    replace_cstructoruniondefnode(
+                        tokens,
+                        n,
+                        kwargs[0]['name'],
+                    )
     newsrc = tokens_to_src(tokens)
     return newsrc
 
@@ -705,6 +726,7 @@ def traverse(tree, filename):
         'CEnumDefNode': visit_cenumdefnode,
         'CTupleBaseTypeNode': visit_ctuplebasetypenode,
         'CArgDeclNode': visit_cargdeclnode,
+        'CStructOrUnionDefNode': visit_cstructoruniondefnode,
     }
     while nodes:
         node = nodes.pop()
