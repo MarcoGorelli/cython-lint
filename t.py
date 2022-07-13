@@ -1,4 +1,9 @@
 """
+probably, remove replace_cenum, and do it with TDD
+
+what to do about
+    enum: A
+?
 """
 import os
 import argparse
@@ -255,13 +260,21 @@ def replace_cclassdefnode(tokens, i, objstructname, module_name, class_name, as_
 
 
 
-def replace_cenumdefnode(tokens, i):
-    tokens[i] = tokens[i]._replace(src='class')
-    j = i-1
-    while not (tokens[j].name == 'NAME' and tokens[j].src in ('cdef', 'cpdef')):
+def replace_cenumdefnode(tokens, i, name):
+    if name is None:
+        tokens[i] = tokens[i]._replace(src='lambda')
+        return
+    if tokens[i].name == 'NAME' and tokens[i].src == 'enum':
+        # bug in Cython?
+        j = i
+        while not (tokens[j].name == 'NAME' and tokens[j].src in ('cdef', 'def', 'ctypedef')):
+            j -= 1
+        i = j
+    tokens[i] = tokens[i]._replace(src='class ')
+    j = i+1
+    while not (tokens[j].name == 'NAME' and tokens[j].src == name):
         tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
-        j -= 1
-    tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
+        j += 1
 
 def replace_ctuplebasetypenode(tokens, i):
     return
@@ -456,6 +469,7 @@ def visit_cenumdefnode(node):
         'cenumdef',
         node.pos[1],
         node.pos[2],
+        {'name': node.name},
     )
 def visit_ctuplebasetypenode(node):
     yield (
@@ -565,13 +579,16 @@ def transform(code, filename):
         if key in replacements:
             for name, kwargs in replacements.pop(key):
                 if name == 'cvardef':
-                    replace_cvardef(
-                        tokens,
-                        n,
-                        kwargs[0]['first_declarator'],
-                        kwargs[0]['varnames'],
-                        kwargs[0]['end_pos'],
-                    )
+                    try:
+                        replace_cvardef(
+                            tokens,
+                            n,
+                            kwargs[0]['first_declarator'],
+                            kwargs[0]['varnames'],
+                            kwargs[0]['end_pos'],
+                        )
+                    except:
+                        print(filename)
                 elif name == 'cdef':
                     replace_cdef(tokens, n)
                 elif name == 'typecast':
@@ -616,7 +633,7 @@ def transform(code, filename):
                         kwargs[0]['as_name'],
                     )
                 elif name == 'cenumdef':
-                    replace_cenumdefnode(tokens, n)
+                    replace_cenumdefnode(tokens, n, kwargs[0]['name'])
                 elif name == 'ctuplebasetype':
                     replace_ctuplebasetypenode(tokens, n)
                 elif name == 'cargdecl':
