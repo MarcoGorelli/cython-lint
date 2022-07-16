@@ -50,6 +50,18 @@ import pytest
             'def foo(bar): pass\n',
             id='not None',
         ),
+        pytest.param(
+            'cdef inline int _try_double_nogil(parser_t *parser,\n'
+            '                     float64_t (*double_converter)(\n'
+            '                         const char *, char **, char,\n'
+            '                         char, char, int, int *, int *) nogil,\n'
+            '                     int *na_count) nogil: pass\n',
+            'def _try_double_nogil(parser,\n'
+            '                     double_converter\n'
+            '                         \n'
+            '                         ,\n'
+            '                     na_count): pass\n',
+        ),
     ]
 )
 def test_cvardef_inline(src, expected):

@@ -1,9 +1,11 @@
 """
-probably, remove replace_cenum, and do it with TDD
+ok, interesting...so, we need to track the declarator
+not just the position, but...everything about it
 
-what to do about
-    enum: A
-?
+but, that node would be visited anyway, right?
+yeah, that's fine if it's visited anyway. we then
+visit it again, and delete everything between
+the brackets, including the brackets?
 """
 import os
 import argparse
@@ -29,6 +31,7 @@ from Cython.Compiler.Nodes import (
     CFuncDeclaratorNode,
     TemplatedTypeNode,
     CStructOrUnionDefNode,
+    CTypeDefNode,
 )
 from Cython.Compiler.ExprNodes import TypecastNode, AmpersandNode
 import ast
@@ -287,7 +290,7 @@ def replace_ctuplebasetypenode(tokens, i):
 def replace_cargdeclnode(tokens, i, declarator, not_none):
     j = i
     tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
-    while not (tokens[j].line == declarator[1] and tokens[j].utf8_byte_offset == declarator[2]):
+    while not (tokens[j].line == declarator.pos[1] and tokens[j].utf8_byte_offset == declarator.pos[2]):
         tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
         j += 1
     if not_none:
@@ -320,6 +323,21 @@ def replace_cstructoruniondefnode(tokens, i, name):
     while not (tokens[j].name == 'NAME' and tokens[j].src == name):
         tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
         j += 1
+
+def replace_ctypedefnode(tokens, i, declarator):
+    j = i
+    tokens[j] = tokens[j]._replace(src='lambda:')
+    j += 1
+    while not (tokens[j].line == declarator[1] and tokens[j].utf8_byte_offset == declarator[2]):
+        tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
+        j += 1
+    while not tokens[j].src.strip():
+        j += 1
+    if tokens[j].name == 'OP' and tokens[j].src == '(':
+        tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
+        while not (tokens[j].name == 'OP' and tokens[j].src == ')'):
+            j += 1
+        tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
 
 def visit_cvardefnode(node):
     base_type = node.base_type
@@ -503,7 +521,7 @@ def visit_cargdeclnode(node):
         node.pos[1],
         node.pos[2],
         {
-            'declarator': node.declarator.pos,
+            'declarator': node.declarator,
             'not_none': node.not_none,
         },
     )
@@ -513,6 +531,13 @@ def visit_cstructoruniondefnode(node):
         node.pos[1],
         node.pos[2],
         {'name': node.name},
+    )
+def visit_ctypedefnode(node):
+    yield (
+        'ctypedef',
+        node.pos[1],
+        node.pos[2],
+        {'declarator': node.declarator.pos},
     )
 import collections
 from tokenize_rt import src_to_tokens, tokens_to_src, reversed_enumerate, Token
@@ -649,6 +674,8 @@ def transform(code, filename):
                         n,
                         kwargs[0]['name'],
                     )
+                elif name == 'ctypedef':
+                    replace_ctypedefnode(tokens, n, kwargs[0]['declarator'])
     newsrc = tokens_to_src(tokens)
     return newsrc
 
@@ -744,6 +771,7 @@ def traverse(tree, filename):
         'CTupleBaseTypeNode': visit_ctuplebasetypenode,
         'CArgDeclNode': visit_cargdeclnode,
         'CStructOrUnionDefNode': visit_cstructoruniondefnode,
+        'CTypeDefNode': visit_ctypedefnode,
     }
     while nodes:
         node = nodes.pop()
