@@ -58,8 +58,8 @@ import pytest
             '                     int *na_count) nogil: pass\n',
             'def _try_double_nogil(parser,\n'
             '                     double_converter\n'
-            '                         \n'
-            '                         ,\n'
+            '\n'
+            ',\n'
             '                     na_count): pass\n',
         ),
     ]

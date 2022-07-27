@@ -6,6 +6,11 @@ but, that node would be visited anyway, right?
 yeah, that's fine if it's visited anyway. we then
 visit it again, and delete everything between
 the brackets, including the brackets?
+
+something is already erasing the function's name...
+
+we've kept the function name, but somehow the open
+paren is getting erased too
 """
 import os
 import argparse
@@ -288,10 +293,17 @@ def replace_ctuplebasetypenode(tokens, i):
         j -= 1
 
 def replace_cargdeclnode(tokens, i, declarator, not_none):
+    func_node = None
+    if isinstance(declarator, CFuncDeclaratorNode):
+        assert isinstance(declarator.base, CPtrDeclaratorNode)
+        assert isinstance(declarator.base.base, CNameDeclaratorNode)
+        func_node = declarator.base.base
+
     j = i
     tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
     while not (tokens[j].line == declarator.pos[1] and tokens[j].utf8_byte_offset == declarator.pos[2]):
-        tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
+        if func_node is None or not (tokens[j].line == func_node.pos[1] and tokens[j].utf8_byte_offset == func_node.pos[2]):
+            tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
         j += 1
     if not_none:
         j += 1
@@ -313,6 +325,31 @@ def replace_cargdeclnode(tokens, i, declarator, not_none):
         else:
             raise AssertionError('please report bug')
         while not tokens[j].src.strip():
+            tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
+            j += 1
+
+    # have we deleted the function name before getting here?
+    if isinstance(declarator, CFuncDeclaratorNode):
+        # delete the brackets and everything
+        # inside them
+        j = i
+        while not (tokens[j].line == declarator.pos[1] and tokens[j].utf8_byte_offset == declarator.pos[2]):
+            j += 1
+        if not (tokens[j].name == 'OP' and tokens[j].src == '('):
+            raise AssertionError('please report bug')
+        open_paren = 1
+        tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
+        j += 1 
+        while open_paren != 0:
+            if (tokens[j].name == 'OP' and tokens[j].src == '('):
+                open_paren += 1
+            elif (tokens[j].name == 'OP' and tokens[j].src == ')'):
+                open_paren -= 1
+            if tokens[j].name not in ('NEWLINE', 'NL'):
+                tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
+            j += 1
+        # remove any extra terms after the closing paren
+        while (not tokens[j].src.strip()) or tokens[j].name == 'NAME':
             tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
             j += 1
 
