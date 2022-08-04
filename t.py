@@ -12,6 +12,7 @@ something is already erasing the function's name...
 we've kept the function name, but somehow the open
 paren is getting erased too
 """
+import sys
 import os
 import argparse
 import subprocess
@@ -41,6 +42,9 @@ from Cython.Compiler.Nodes import (
 from Cython.Compiler.ExprNodes import TypecastNode, AmpersandNode
 import ast
 import re
+
+class CythonLintError(Exception):
+    pass
 
 def _delete_base_type(tokens, i):
     j = i
@@ -721,16 +725,15 @@ def main(code, filename, append_config):
     if False:
         with open(filename, 'w') as fd:
             fd.write(newsrc)
-    print(newsrc)
+    #print(newsrc)
     import sys
     try:
         ast.parse(newsrc)
     except SyntaxError as exp:
         if str(exp).startswith('cannot assign to literal'):
-            print('limitation of cython-lint, sorry')
+            raise CythonLintError('limitation of cython-lint, sorry')
         else:
-            print(f'{filename}: {repr(exp)}')
-        sys.exit(1)
+            raise CythonLintError(f'Couldnt parse file, please report a bug: {repr(exp)}')
 
     fd, path = tempfile.mkstemp(
         dir=os.path.dirname(filename),
@@ -817,12 +820,13 @@ def traverse(tree, filename):
 
         if isinstance(node, CVarDefNode):
             if node.pos[1] != node.end_pos()[1]:
-                raise NotImplementedError(
+                raise CythonLintError(
                     f'{filename}:{node.pos[1]}:{node.pos[2]} '
                     'Variable declarations spanning multiple '
                     'line are not yet supported. '
                     'You might want to declare the variable '
-                    'on one line, and assign it on another.'
+                    'on one line, and assign it on another.\n'
+                    'Skipping this file for now.'
                 )
 
 
@@ -859,4 +863,7 @@ if __name__ == '__main__':
     for path in args.paths:
         with open(path, encoding='utf-8') as fd:
             content = fd.read()
-        main(content, path, args.append_config)
+        try:
+            main(content, path, args.append_config)
+        except CythonLintError:
+            continue
