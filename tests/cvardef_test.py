@@ -1,4 +1,4 @@
-from t import transform
+from t import transform, CythonLintError
 import pytest
 
 @pytest.mark.parametrize(
@@ -104,5 +104,5 @@ def test_cvardef_block(src, expected):
     ],
 )
 def test_cvardef_not_supported(src):
-    with pytest.raises(NotImplementedError, match='not yet supported'):
+    with pytest.raises(CythonLintError, match='not yet supported'):
         transform(src, '')
