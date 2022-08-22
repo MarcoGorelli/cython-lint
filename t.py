@@ -12,6 +12,7 @@ something is already erasing the function's name...
 we've kept the function name, but somehow the open
 paren is getting erased too
 """
+from Cython.Compiler.Errors import CompileError
 import sys
 import os
 import argparse
@@ -38,6 +39,7 @@ from Cython.Compiler.Nodes import (
     TemplatedTypeNode,
     CStructOrUnionDefNode,
     CTypeDefNode,
+    CArrayDeclaratorNode,
 )
 from Cython.Compiler.ExprNodes import TypecastNode, AmpersandNode
 import ast
@@ -391,6 +393,8 @@ def visit_cvardefnode(node):
             declarator = declarator.base
         while isinstance(declarator, CPtrDeclaratorNode):
             declarator = declarator.base
+        if isinstance(declarator, CArrayDeclaratorNode):
+            declarator = declarator.base
         varnames.append(declarator.name)
         if first_declarator is None:
             first_declarator = declarator
@@ -635,7 +639,10 @@ def transform(code, filename):
                 j += 1
     code = tokens_to_src(tokens)
     code = ''.join([line for i, line in enumerate(code.splitlines(keepends=True), start=1) if i not in exclude_lines])
-    tree = parse_from_strings(filename, code)
+    try:
+        tree = parse_from_strings(filename, code)
+    except CompileError:
+        raise CythonLintError(f'Could not parse file {filename}')
     replacements = traverse(tree, filename)
     tokens = src_to_tokens(code)
     tokenize_replacements(tokens)
