@@ -12,6 +12,8 @@ something is already erasing the function's name...
 we've kept the function name, but somehow the open
 paren is getting erased too
 """
+from __future__ import annotations
+
 from Cython.Compiler.Errors import CompileError
 import sys
 import os
@@ -750,7 +752,7 @@ def main(code, filename, append_config):
     try:
         with open(fd, 'w', encoding='utf-8') as f:
             f.write(newsrc)
-        command = ['python', '-m', 'flake8', path]
+        command = ['python', '-m', 'flake8', path, '--select=F841,E226']
         if append_config is not None:
             command += ['--append-config', append_config]
         output = subprocess.run(command, capture_output=True, text=True)
