@@ -35,6 +35,7 @@ from Cython.Compiler.Nodes import (
     CStructOrUnionDefNode,
     CTypeDefNode,
     CArrayDeclaratorNode,
+    FromImportStatNode,
 )
 from Cython.Compiler.ExprNodes import TypecastNode, AmpersandNode, NameNode, ImportNode
 import ast
@@ -54,6 +55,7 @@ BUILTIN_NAMES = frozenset((
     'hasattr',
     'set',
     'list',
+    'frozenset',
     'abs',
     'str',
     'isinstance',
@@ -167,13 +169,20 @@ def visit_funcdef(node, imported_names, globals, filename):
     children = list(traverse(node))[1:]
     names = [(i.name, *i.pos[1:]) for i in children if isinstance(i, NameNode) if (i.name and i.name not in BUILTIN_NAMES)]
     defs = [(i.name, *i.pos[1:]) for i in children if isinstance(i, CNameDeclaratorNode) if i.name]
+    simple_assignments = []
+    for i in children:
+        if isinstance(i, SingleAssignmentNode):
+            if isinstance(i.lhs, NameNode):
+                simple_assignments.append((i.lhs.name, *i.lhs.pos[1:]))
+    # also need for-loops
+    defs = [*defs, *simple_assignments]
     args = []
     for i in children:
         if isinstance(i, CArgDeclNode):
             if isinstance(i.declarator, CNameDeclaratorNode):
                 if i.declarator.name:
                     args.append((i.declarator.name, *i.declarator.pos[1:]))
-                elif isinstance(i.base_type, CNameDeclaratorNode):
+                elif isinstance(i.base_type, (CNameDeclaratorNode, CSimpleBaseTypeNode)):
                     args.append((i.base_type.name, *i.base_type.pos[1:]))
             elif isinstance(i.declarator, CPtrDeclaratorNode):
                 args.append((i.declarator.base.name, *i.declarator.base.pos[1:]))
@@ -183,8 +192,7 @@ def visit_funcdef(node, imported_names, globals, filename):
         if _def[0] not in [i[0] for i in names] and _def[0] != func_name:
             print(f'{filename}:{_def[1]}:{_def[2]}: Name {_def[0]} defined but unused')
     
-    defs = [*defs, *imported_names, *globals]
-    names = [*names, *args]
+    defs = [*defs, *imported_names, *globals, *args]
     names = sorted(names, key=lambda x: (x[1], x[2]))
     defs = sorted(defs, key=lambda x: (x[1], x[2]))
 
@@ -232,6 +240,9 @@ def transform(code, filename):
                 isinstance(node, SingleAssignmentNode)
                 and isinstance(node.rhs, ImportNode)):
             imported_names.append((node.lhs.name, *node.lhs.pos[1:]))
+        elif isinstance(node, FromImportStatNode):
+            imported_names.extend([(i[0], *node.pos[1:]) for i in node.items])
+
     imported_names = sorted(imported_names, key=lambda x: (x[1], x[2]))
 
     # find global variables
