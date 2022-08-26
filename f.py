@@ -216,7 +216,7 @@ def visit_funcdef(node, imported_names, globals, filename):
             breakpoint()
 
     for _def in defs:
-        if _def[0] not in [i[0] for i in names] and _def[0] != func_name:
+        if _def[0] not in [i[0] for i in names] and _def[0] != func_name and _def[0] not in [i[0] for i in args]:
             print(f'{filename}:{_def[1]}:{_def[2]}: Name {_def[0]} defined but unused')
     return  # todo: remove
     
@@ -317,8 +317,6 @@ def transform(code, filename):
 
 
 def main(code, filename, append_config):
-    print('*'*10)
-    print('filename', filename)
     newsrc = transform(code, filename)
 
 def get_name(node: NameNode):
