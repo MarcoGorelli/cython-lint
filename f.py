@@ -14,6 +14,7 @@ import tempfile
 from Cython.Compiler.TreeFragment import parse_from_strings
 from Cython.Compiler.Nodes import (
     StatListNode,
+    PyClassDefNode,
     CVarDefNode,
     SingleAssignmentNode,
     CFuncDefNode,
@@ -49,7 +50,7 @@ from tokenize_rt import src_to_tokens, tokens_to_src, reversed_enumerate, Token
 # let's have...let's do...
 # some list of replacements
 
-BUILTIN_NAMES = frozenset(('len', 'range', 'TypeError'))
+BUILTIN_NAMES = frozenset(('len', 'range', 'TypeError', 'object'))
 
 def tokenize_replacements(tokens):
     in_cdef = False
@@ -83,10 +84,23 @@ def tokenize_replacements(tokens):
             tokens[j] = Token(name='PLACEHOLDER', src='', line=tokens[j].line, utf8_byte_offset=tokens[j].utf8_byte_offset)
 
 
-def visit_funcdef(node, imported_names, globals):
+def visit_funcdef(node, imported_names, globals, filename):
     children = list(traverse(node))[1:]
     names = [(i.name, *i.pos[1:]) for i in children if isinstance(i, NameNode) if i.name not in BUILTIN_NAMES]
-    defs = [(i.name, *i.pos[1:]) for i in children if isinstance(i, CNameDeclaratorNode)]
+    defs = [(i.name, *i.pos[1:]) for i in children if isinstance(i, CNameDeclaratorNode) if i.name]
+    args = []
+    for i in children:
+        if isinstance(i, CArgDeclNode):
+            if isinstance(i.declarator, CNameDeclaratorNode):
+                args.append((i.declarator.name, *i.declarator.pos[1:]))
+            elif isinstance(i.declarator, CPtrDeclaratorNode):
+                args.append((i.declarator.base.name, *i.declarator.base.pos[1:]))
+    func_name = node.declarator.base.name
+
+    for _def in defs:
+        if _def[0] not in [i[0] for i in names] and _def[0] != func_name:
+            print(f'{filename}:{_def[1]}:{_def[2]}: Name {_def[0]} defined but unused')
+    
     defs = [*defs, *imported_names, *globals]
     names = sorted(names, key=lambda x: (x[1], x[2]))
     defs = sorted(defs, key=lambda x: (x[1], x[2]))
@@ -96,7 +110,7 @@ def visit_funcdef(node, imported_names, globals):
         _name, _line, _col = name
         _def = [i for i in defs if i[0] == _name]
         if not _def or (_def[1:] > [_line, _col]):
-            print(f'Name {_name} undefined, {_line} {_col}')
+            print(f'{filename}:{_line}:{_col}: Name {_name} undefined')
 
 def transform(code, filename):
     tokens = src_to_tokens(code)
@@ -123,7 +137,6 @@ def transform(code, filename):
 
     imported_names = []
     globals = []
-
     # find imported variables
     for node in nodes:
         if isinstance(node, FromCImportStatNode):
@@ -143,10 +156,14 @@ def transform(code, filename):
             if all(isinstance(i, CVarDefNode) for i in node.stats):
                 for i in node.stats:
                     globals.extend([(decl.name, *decl.pos[1:]) for decl in i.declarators])
+        elif isinstance(node, CFuncDefNode):
+            globals.append((node.declarator.base.name, *node.declarator.base.pos[1:]))
+        elif isinstance(node, PyClassDefNode):
+            globals.append((node.name, *node.pos[1:]))
 
     for node in nodes:
         if isinstance(node, CFuncDefNode):
-            visit_funcdef(node, imported_names, globals)
+            visit_funcdef(node, imported_names, globals, filename)
 
 
 def main(code, filename, append_config):
