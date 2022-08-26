@@ -50,7 +50,86 @@ from tokenize_rt import src_to_tokens, tokens_to_src, reversed_enumerate, Token
 # let's have...let's do...
 # some list of replacements
 
-BUILTIN_NAMES = frozenset(('len', 'range', 'TypeError', 'object'))
+BUILTIN_NAMES = frozenset((
+    'hasattr',
+    'set',
+    'list',
+    'abs',
+    'str',
+    'isinstance',
+    'self',
+    'dict',
+    'len',
+    'min',
+    'max',
+    'range',
+    'TypeError',
+    'AssertionError',
+    'object',
+ 'SystemExit',
+ 'KeyboardInterrupt',
+ 'GeneratorExit',
+ 'Exception',
+      'StopIteration',
+      'StopAsyncIteration',
+      'ArithmeticError',
+      'FloatingPointError',
+      'OverflowError',
+      'ZeroDivisionError',
+      'AssertionError',
+      'AttributeError',
+      'BufferError',
+      'EOFError',
+      'ImportError',
+      'ModuleNotFoundError',
+      'LookupError',
+      'IndexError',
+      'KeyError',
+      'MemoryError',
+      'NameError',
+      'UnboundLocalError',
+      'OSError',
+      'BlockingIOError',
+      'ChildProcessError',
+      'ConnectionError',
+      'BrokenPipeError',
+      'ConnectionAbortedError',
+      'ConnectionRefusedError',
+      'ConnectionResetError',
+      'FileExistsError',
+      'FileNotFoundError',
+      'InterruptedError',
+      'IsADirectoryError',
+      'NotADirectoryError',
+      'PermissionError',
+      'ProcessLookupError',
+      'TimeoutError',
+      'ReferenceError',
+      'RuntimeError',
+      'NotImplementedError',
+      'RecursionError',
+      'SyntaxError',
+      'IndentationError',
+      'TabError',
+      'SystemError',
+      'TypeError',
+      'ValueError',
+      'UnicodeError',
+      'UnicodeDecodeError',
+      'UnicodeEncodeError',
+      'UnicodeTranslateError',
+           'DeprecationWarning',
+           'PendingDeprecationWarning',
+           'RuntimeWarning',
+           'SyntaxWarning',
+           'UserWarning',
+           'FutureWarning',
+           'ImportWarning',
+           'UnicodeWarning',
+           'BytesWarning',
+           'EncodingWarning',
+           'ResourceWarning',
+))
 
 def tokenize_replacements(tokens):
     in_cdef = False
@@ -86,13 +165,16 @@ def tokenize_replacements(tokens):
 
 def visit_funcdef(node, imported_names, globals, filename):
     children = list(traverse(node))[1:]
-    names = [(i.name, *i.pos[1:]) for i in children if isinstance(i, NameNode) if i.name not in BUILTIN_NAMES]
+    names = [(i.name, *i.pos[1:]) for i in children if isinstance(i, NameNode) if (i.name and i.name not in BUILTIN_NAMES)]
     defs = [(i.name, *i.pos[1:]) for i in children if isinstance(i, CNameDeclaratorNode) if i.name]
     args = []
     for i in children:
         if isinstance(i, CArgDeclNode):
             if isinstance(i.declarator, CNameDeclaratorNode):
-                args.append((i.declarator.name, *i.declarator.pos[1:]))
+                if i.declarator.name:
+                    args.append((i.declarator.name, *i.declarator.pos[1:]))
+                elif isinstance(i.base_type, CNameDeclaratorNode):
+                    args.append((i.base_type.name, *i.base_type.pos[1:]))
             elif isinstance(i.declarator, CPtrDeclaratorNode):
                 args.append((i.declarator.base.name, *i.declarator.base.pos[1:]))
     func_name = node.declarator.base.name
@@ -102,6 +184,7 @@ def visit_funcdef(node, imported_names, globals, filename):
             print(f'{filename}:{_def[1]}:{_def[2]}: Name {_def[0]} defined but unused')
     
     defs = [*defs, *imported_names, *globals]
+    names = [*names, *args]
     names = sorted(names, key=lambda x: (x[1], x[2]))
     defs = sorted(defs, key=lambda x: (x[1], x[2]))
 
@@ -109,7 +192,7 @@ def visit_funcdef(node, imported_names, globals, filename):
     for name in names:
         _name, _line, _col = name
         _def = [i for i in defs if i[0] == _name]
-        if not _def or (_def[1:] > [_line, _col]):
+        if not _def or (_def[0][1:] > (_line, _col)):
             print(f'{filename}:{_line}:{_col}: Name {_name} undefined')
 
 def transform(code, filename):
@@ -138,6 +221,7 @@ def transform(code, filename):
     imported_names = []
     globals = []
     # find imported variables
+    # add more here, we're on to something
     for node in nodes:
         if isinstance(node, FromCImportStatNode):
             for imp in node.imported_names:
@@ -151,11 +235,17 @@ def transform(code, filename):
     imported_names = sorted(imported_names, key=lambda x: (x[1], x[2]))
 
     # find global variables
-    for node in tree.body.stats:
+    if isinstance(tree.body, StatListNode):
+        stats = tree.body.stats
+    else:
+        stats = [tree.body]
+    for node in stats:
         if isinstance(node, StatListNode):
             if all(isinstance(i, CVarDefNode) for i in node.stats):
                 for i in node.stats:
                     globals.extend([(decl.name, *decl.pos[1:]) for decl in i.declarators])
+        elif isinstance(node, CVarDefNode):
+            globals.extend([(decl.name, *decl.pos[1:]) for decl in node.declarators])
         elif isinstance(node, CFuncDefNode):
             globals.append((node.declarator.base.name, *node.declarator.base.pos[1:]))
         elif isinstance(node, PyClassDefNode):
