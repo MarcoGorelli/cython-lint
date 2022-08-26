@@ -5,56 +5,34 @@ really, just need:
 """
 from __future__ import annotations
 
-from Cython.Compiler.Errors import CompileError
-import sys
-import os
 import argparse
-import subprocess
-import tempfile
-from Cython.Compiler.TreeFragment import parse_from_strings
+
+from Cython.Compiler.Errors import CompileError
+from Cython.Compiler.ExprNodes import ImportNode, NameNode, TupleNode
 from Cython.Compiler.Nodes import (
-    StatListNode,
-    RaiseStatNode,
-    PyClassDefNode,
-    CVarDefNode,
-    SingleAssignmentNode,
+    CArgDeclNode,
+    CFuncDeclaratorNode,
     CFuncDefNode,
     CImportStatNode,
+    CNameDeclaratorNode,
+    CPtrDeclaratorNode,
+    CSimpleBaseTypeNode,
     ForInStatNode,
     FromCImportStatNode,
-    CSimpleBaseTypeNode,
-    MemoryViewSliceTypeNode,
-    CPtrDeclaratorNode,
-    GILStatNode,
-    FusedTypeNode,
-    CClassDefNode,
-    CArgDeclNode,
-    CNameDeclaratorNode,
-    CEnumDefNode,
-    CTupleBaseTypeNode,
-    CFuncDeclaratorNode,
-    TemplatedTypeNode,
-    CStructOrUnionDefNode,
-    CTypeDefNode,
-    CArrayDeclaratorNode,
     FromImportStatNode,
+    RaiseStatNode,
+    SingleAssignmentNode,
 )
-from Cython.Compiler.ExprNodes import (
-    TypecastNode,
-    AmpersandNode,
-    NameNode,
-    ImportNode,
-    TupleNode,
-)
-import ast
-import re
+from Cython.Compiler.TreeFragment import parse_from_strings
 
 
 class CythonLintError(Exception):
     pass
+class ParseError(Exception):
+    pass
 
 
-from tokenize_rt import src_to_tokens, tokens_to_src, reversed_enumerate, Token
+from tokenize_rt import Token, src_to_tokens, tokens_to_src
 
 
 def tokenize_replacements(tokens):
@@ -149,22 +127,6 @@ def visit_funcdef(node, filename):
             print(f"{filename}:{_def[1]}:{_def[2]}: Name {_def[0]} defined but unused")
 
 
-def _cname_declarator_from_cptrdeclarator(node):
-    while isinstance(node, CPtrDeclaratorNode):
-        node = node.base
-    if isinstance(node, CNameDeclaratorNode):
-        return node
-    raise CythonLintError("Unexpected error")
-
-
-def _cname_declarator_from_cfuncdef(node):
-    while isinstance(node, CFuncDeclaratorNode):
-        node = node.base
-    if isinstance(node, CNameDeclaratorNode):
-        return node
-    raise CythonLintError("Unexpected error")
-
-
 def _name_from_tuple(node):
     nodes = [node]
     while nodes:
@@ -211,10 +173,7 @@ def transform(code, filename):
             if i not in exclude_lines
         ]
     )
-    try:
-        tree = parse_from_strings(filename, code)
-    except CompileError:
-        raise CythonLintError(f"Could not parse file {filename}")
+    tree = parse_from_strings(filename, code)
     nodes = list(traverse(tree))
 
     imported_names = []
@@ -262,12 +221,11 @@ def traverse(tree):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("paths", nargs="*")
-    parser.add_argument("--append-config", required=False)
     args = parser.parse_args()
     for path in args.paths:
         with open(path, encoding="utf-8") as fd:
             content = fd.read()
         try:
             main(content, path)
-        except CythonLintError:
+        except CompileError:
             continue
