@@ -14,11 +14,13 @@ import tempfile
 from Cython.Compiler.TreeFragment import parse_from_strings
 from Cython.Compiler.Nodes import (
     StatListNode,
+    RaiseStatNode,
     PyClassDefNode,
     CVarDefNode,
     SingleAssignmentNode,
     CFuncDefNode,
     CImportStatNode,
+    ForInStatNode,
     FromCImportStatNode,
     CSimpleBaseTypeNode,
     MemoryViewSliceTypeNode,
@@ -37,7 +39,7 @@ from Cython.Compiler.Nodes import (
     CArrayDeclaratorNode,
     FromImportStatNode,
 )
-from Cython.Compiler.ExprNodes import TypecastNode, AmpersandNode, NameNode, ImportNode
+from Cython.Compiler.ExprNodes import TypecastNode, AmpersandNode, NameNode, ImportNode, TupleNode
 import ast
 import re
 
@@ -53,8 +55,11 @@ from tokenize_rt import src_to_tokens, tokens_to_src, reversed_enumerate, Token
 
 BUILTIN_NAMES = frozenset((
     'hasattr',
+    'getattr',
+    'setattr',
     'set',
     'list',
+    'tuple',
     'frozenset',
     'abs',
     'str',
@@ -166,6 +171,10 @@ def tokenize_replacements(tokens):
 
 
 def visit_funcdef(node, imported_names, globals, filename):
+    if isinstance(node, RaiseStatNode):
+        # if it just raises not implementederror, return early
+        return
+    
     children = list(traverse(node))[1:]
     names = [(i.name, *i.pos[1:]) for i in children if isinstance(i, NameNode) if (i.name and i.name not in BUILTIN_NAMES)]
     defs = [(i.name, *i.pos[1:]) for i in children if isinstance(i, CNameDeclaratorNode) if i.name]
@@ -174,8 +183,20 @@ def visit_funcdef(node, imported_names, globals, filename):
         if isinstance(i, SingleAssignmentNode):
             if isinstance(i.lhs, NameNode):
                 simple_assignments.append((i.lhs.name, *i.lhs.pos[1:]))
-    # also need for-loops
-    defs = [*defs, *simple_assignments]
+    for_loop_vars = []
+    for i in children:
+        if isinstance(i, ForInStatNode):
+            if isinstance(i.target, NameNode):
+                for_loop_vars.append((i.target.name, *i.pos[1:]))
+            elif isinstance(i.target, TupleNode):
+                for _arg in i.target.args:
+                    if isinstance(_arg, NameNode):
+                        for_loop_vars.append((_arg.name, *_arg.pos[1:]))
+                    elif isinstance(_arg, TupleNode):
+                        for __arg in _arg.args:
+                            if isinstance(__arg, NameNode):
+                                for_loop_vars.append((__arg.name, *__arg.pos[1:]))
+    defs = [*defs, *simple_assignments, *for_loop_vars]
     args = []
     for i in children:
         if isinstance(i, CArgDeclNode):
@@ -186,11 +207,18 @@ def visit_funcdef(node, imported_names, globals, filename):
                     args.append((i.base_type.name, *i.base_type.pos[1:]))
             elif isinstance(i.declarator, CPtrDeclaratorNode):
                 args.append((i.declarator.base.name, *i.declarator.base.pos[1:]))
-    func_name = node.declarator.base.name
+    if isinstance(node.declarator.base, CNameDeclaratorNode):
+        func_name = node.declarator.base.name
+    elif isinstance(node.declarator.base, CFuncDeclaratorNode):
+        if isinstance(node.declarator.base.base, CNameDeclaratorNode):
+            func_name = node.declarator.base.base.name
+        else:
+            breakpoint()
 
     for _def in defs:
         if _def[0] not in [i[0] for i in names] and _def[0] != func_name:
             print(f'{filename}:{_def[1]}:{_def[2]}: Name {_def[0]} defined but unused')
+    return  # todo: remove
     
     defs = [*defs, *imported_names, *globals, *args]
     names = sorted(names, key=lambda x: (x[1], x[2]))
@@ -254,11 +282,32 @@ def transform(code, filename):
         if isinstance(node, StatListNode):
             if all(isinstance(i, CVarDefNode) for i in node.stats):
                 for i in node.stats:
-                    globals.extend([(decl.name, *decl.pos[1:]) for decl in i.declarators])
+                    for _decl in i.declarators:
+                        if isinstance(_decl, CNameDeclaratorNode):
+                            globals.append((_decl.name, *_decl.pos[1:]))
+                        elif isinstance(_decl, CPtrDeclaratorNode):
+                            if isinstance(_decl.base, CNameDeclaratorNode):
+                                globals.append((_decl.base.name, *_decl.base.pos[1:]))
+                            else:
+                                breakpoint()
         elif isinstance(node, CVarDefNode):
-            globals.extend([(decl.name, *decl.pos[1:]) for decl in node.declarators])
+            for _decl in node.declarators:
+                if isinstance(_decl, CNameDeclaratorNode):
+                    globals.append((_decl.name, *_decl.pos[1:]))
+                elif isinstance(_decl, CPtrDeclaratorNode):
+                    if isinstance(_decl.base, CNameDeclaratorNode):
+                        globals.append((_decl.base.name, *_decl.base.pos[1:]))
+                    else:
+                        breakpoint()
         elif isinstance(node, CFuncDefNode):
-            globals.append((node.declarator.base.name, *node.declarator.base.pos[1:]))
+            if isinstance(node.declarator.base, CNameDeclaratorNode):
+                globals.append((node.declarator.base.name, *node.declarator.base.pos[1:]))
+            elif isinstance(node.declarator.base, CFuncDeclaratorNode):
+                if isinstance(node.declarator.base.base, CNameDeclaratorNode):
+                    globals.append((node.declarator.base.base.name, *node.declarator.base.base.pos[1:]))
+                else:
+                    breakpoint()
+
         elif isinstance(node, PyClassDefNode):
             globals.append((node.name, *node.pos[1:]))
 
@@ -268,6 +317,8 @@ def transform(code, filename):
 
 
 def main(code, filename, append_config):
+    print('*'*10)
+    print('filename', filename)
     newsrc = transform(code, filename)
 
 def get_name(node: NameNode):
