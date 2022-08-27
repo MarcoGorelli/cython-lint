@@ -8,15 +8,17 @@ from __future__ import annotations
 import argparse
 
 from Cython.Compiler.Errors import CompileError
-from Cython.Compiler.ExprNodes import ImportNode, NameNode, TupleNode
+from Cython.Compiler.ExprNodes import ImportNode, NameNode, TupleNode, TypecastNode, GeneratorExpressionNode, LambdaNode
 from Cython.Compiler.Nodes import (
     CArgDeclNode,
     CFuncDeclaratorNode,
+    CClassDefNode,
     CFuncDefNode,
     CImportStatNode,
     CNameDeclaratorNode,
     CPtrDeclaratorNode,
     CSimpleBaseTypeNode,
+    FusedTypeNode,
     ForInStatNode,
     FromCImportStatNode,
     FromImportStatNode,
@@ -74,13 +76,13 @@ def tokenize_replacements(tokens):
             )
 
 
-def visit_funcdef(node, filename):
+def visit_funcdef(node, filename, lines):
     if isinstance(node, RaiseStatNode):
         # if it just raises not implementederror, return early
         return
 
     children = list(traverse(node))[1:]
-    names = [(i.name, *i.pos[1:]) for i in children if isinstance(i, NameNode)]
+    names = [(i.name, *i.pos[1:]) for i in children if isinstance(i, (NameNode, CSimpleBaseTypeNode))]
     defs = [
         (i.name, *i.pos[1:])
         for i in children
@@ -124,8 +126,9 @@ def visit_funcdef(node, filename):
             and _def[0] != func_name
             and _def[0] not in [i[0] for i in args]
         ):
-            print(f"{filename}:{_def[1]}:{_def[2]}: Name {_def[0]} defined but unused")
-
+            if '# no-lint' not in lines[_def[1]-1]:
+                print(f"{filename}:{_def[1]}:{_def[2]}: Name {_def[0]} defined but unused")
+    
 
 def _name_from_tuple(node):
     nodes = [node]
@@ -166,21 +169,36 @@ def transform(code, filename):
                 j += 1
 
     code = tokens_to_src(tokens)
-    code = "".join(
+    lines = (
         [
             line
             for i, line in enumerate(code.splitlines(keepends=True), start=1)
             if i not in exclude_lines
         ]
     )
+    import os
+    _dir = os.path.dirname(filename)
+    included_files = (
+        [
+            os.path.join(_dir, line.split()[-1].strip('\'"')+'.in')
+            for i, line in enumerate(code.splitlines(keepends=True), start=1)
+            if i in exclude_lines
+        ]
+    )
+    included_text = ''
+    for _file in included_files:
+        with open(_file, encoding='utf-8') as fd:
+            content = fd.read()
+        included_text += content
+    code = ''.join(lines)
+
     tree = parse_from_strings(filename, code)
     nodes = list(traverse(tree))
-
     imported_names = []
     for node in nodes:
         if isinstance(node, FromCImportStatNode):
             for imp in node.imported_names:
-                imported_names.append((imp[1], *node.pos[1:]))
+                imported_names.append((imp[2] or imp[1], *imp[0][1:]))
         elif isinstance(node, CImportStatNode):
             imported_names.append((node.as_name or node.module_name, *node.pos[1:]))
         elif isinstance(node, SingleAssignmentNode) and isinstance(
@@ -188,12 +206,22 @@ def transform(code, filename):
         ):
             imported_names.append((node.lhs.name, *node.lhs.pos[1:]))
         elif isinstance(node, FromImportStatNode):
-            imported_names.extend([(i[0], *node.pos[1:]) for i in node.items])
+            for imp in node.items:
+                imported_names.append((imp[1].name, *imp[1].pos[1:]))
     imported_names = sorted(imported_names, key=lambda x: (x[1], x[2]))
 
     for node in nodes:
         if isinstance(node, CFuncDefNode):
-            visit_funcdef(node, filename)
+            visit_funcdef(node, filename, lines)
+
+    names = [(i.name, *i.pos[1:]) for i in nodes if isinstance(i, (NameNode, CSimpleBaseTypeNode))]
+    for _import in imported_names:
+        if (
+            _import[0] not in [i[0] for i in names]
+            and _import[0] not in included_text
+            and '# no-cython-lint' not in lines[_import[1]-1]
+        ):
+            print(f"{filename}:{_import[1]}:{_import[2]+1}: Name {_import[0]} imported but unused")
 
 
 def main(code, filename):
@@ -208,7 +236,21 @@ def traverse(tree):
         if node is None:
             continue
 
-        child_attrs = node.child_attrs
+        import copy
+        child_attrs = copy.deepcopy(node.child_attrs)
+
+        if isinstance(node, CClassDefNode):
+            child_attrs.extend(['bases', 'decorators'])
+        elif isinstance(node, TypecastNode):
+            child_attrs.append('base_type')
+        elif isinstance(node, GeneratorExpressionNode):
+            if hasattr(node, 'loop'):
+                child_attrs.append('loop')
+        elif isinstance(node, CFuncDefNode):
+            child_attrs.append('decorators')
+        elif isinstance(node, FusedTypeNode):
+            child_attrs.append('types')
+        
         for attr in child_attrs:
             child = getattr(node, attr)
             if isinstance(child, list):
