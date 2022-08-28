@@ -3,7 +3,7 @@ from typing import Any
 
 import pytest
 
-from cython_lint import main
+from cython_lint import _main
 
 INCLUDE_FILE = os.path.join('tests', 'data', 'foo.pxi')
 
@@ -19,7 +19,7 @@ INCLUDE_FILE = os.path.join('tests', 'data', 'foo.pxi')
     ],
 )
 def test_assigned_unused(capsys: Any, src: str, expected: str) -> None:
-    ret = main(src, 't.py')
+    ret = _main(src, 't.py')
     out, _ = capsys.readouterr()
     assert out == expected
     assert ret == 1
@@ -44,7 +44,7 @@ def test_assigned_unused(capsys: Any, src: str, expected: str) -> None:
     ],
 )
 def test_imported_unused(capsys: Any, src: str, expected: str) -> None:
-    ret = main(src, 't.py')
+    ret = _main(src, 't.py')
     out, _ = capsys.readouterr()
     assert out == expected
     assert ret == 1
@@ -89,7 +89,7 @@ def test_imported_unused(capsys: Any, src: str, expected: str) -> None:
     ],
 )
 def test_noop(capsys: Any, src: str) -> None:
-    ret = main(src, 't.py')
+    ret = _main(src, 't.py')
     out, _ = capsys.readouterr()
     assert out == ''
     assert ret == 0
