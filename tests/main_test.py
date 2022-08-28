@@ -92,6 +92,12 @@ def test_imported_unused(capsys: Any, src: str, expected: str) -> None:
         'import quox\n'
         f'include "{INCLUDE_FILE}"\n',
         'from quox cimport *\n',
+        'cdef inline bool _compare_records(\n'
+        '    const FrontierRecord& left,\n'
+        '    const FrontierRecord& right,\n'
+        '):\n'
+        '    return left.improvement < right.improvement\n',
+
     ],
 )
 def test_noop(capsys: Any, src: str) -> None:

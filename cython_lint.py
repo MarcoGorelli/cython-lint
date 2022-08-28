@@ -5,6 +5,7 @@ import os
 import sys
 from typing import Iterator
 from typing import NamedTuple
+from typing import NoReturn
 from typing import Sequence
 
 from Cython.Compiler.Errors import CompileError
@@ -44,6 +45,14 @@ class CythonLintError(Exception):
     pass
 
 
+def err_msg(node: Node, expected: str) -> NoReturn:
+    raise CythonLintError(
+        f'Unexpected error, please report bug. '
+        f'Expected {expected}, got {node}\n'
+        f'{node}\n',
+    )
+
+
 def visit_funcdef(
     node: CFuncDefNode,
     filename: str,
@@ -81,9 +90,12 @@ def visit_funcdef(
         if isinstance(node.declarator.base.base, CNameDeclaratorNode):
             func_name = node.declarator.base.base.name
         else:  # pragma: no cover
-            raise CythonLintError('Unexpected error')
+            err_msg(node.declarator.base.base, 'CNameDeclaratorNode')
     else:  # pragma: no cover
-        raise CythonLintError()
+        err_msg(
+            node.declarator.base,
+            'CNameDeclaratorNode or CFuncDeclaratorNode',
+        )
 
     for _def in defs:
         if (
@@ -106,7 +118,7 @@ def _name_from_cptrdeclarator(
         node = node.base
     if isinstance(node, CNameDeclaratorNode):
         return node
-    raise CythonLintError('')  # pragma: no cover
+    err_msg(node, 'CNameDeclaratorNode')  # pragma: no cover
 
 
 def _args_from_cargdecl(node: CArgDeclNode) -> Iterator[Token]:
@@ -120,18 +132,10 @@ def _args_from_cargdecl(node: CArgDeclNode) -> Iterator[Token]:
         ):
             yield Token(node.base_type.name, *node.base_type.pos[1:])
         else:  # pragma: no cover
-            raise CythonLintError(
-                'Unexpected error, please report bug. '
-                'Expected CNameDeclaratorNode or CSimpleBaseTypeNode, '
-                f'got {node.base_type}',
+            err_msg(
+                node.base_type,
+                'CNameDeclaratorNode or CSimpleBaseTypeNode',
             )
-    elif isinstance(node.declarator, CPtrDeclaratorNode):
-        yield (
-            Token(
-                node.declarator.base.name,
-                *node.declarator.base.pos[1:],
-            )
-        )
     elif isinstance(node.declarator, CFuncDeclaratorNode):
         for _arg in node.declarator.args:
             yield from _args_from_cargdecl(_arg)
@@ -146,11 +150,16 @@ def _args_from_cargdecl(node: CArgDeclNode) -> Iterator[Token]:
                 node.declarator.base.name,
                 *node.declarator.base.pos[1:],
             )
+        else:  # pragma: no cover
+            err_msg(node.declarator.base, 'CNameDeclarator')
     else:  # pragma: no cover
-        raise CythonLintError(
-            f'Unexpected error, please report bug. '
-            f'Expected CPtrDeclaratorNode, got {node.declarator}\n'
-            f'{node.declarator.pos}\n',
+        err_msg(
+            node.declarator,
+            'CNameDeclarator, '
+            'CPtrDeclarator, '
+            'CFuncDeclarator, '
+            'CReferenceDeclarator, or '
+            'CArrayDeclarator',
         )
 
 
@@ -255,7 +264,7 @@ def traverse(tree: ModuleNode) -> Node:
             if hasattr(node, 'loop'):
                 child_attrs.append('loop')
             else:  # pragma: no cover
-                raise CythonLintError()
+                err_msg(node, 'GeneratorExpressionNode with loop attribute')
         elif isinstance(node, CFuncDefNode):
             child_attrs.append('decorators')
         elif isinstance(node, FusedTypeNode):
@@ -272,7 +281,7 @@ def traverse(tree: ModuleNode) -> Node:
         yield node
 
 
-def main(argv: Sequence[str] | None = None) -> int:
+def main(argv: Sequence[str] | None = None) -> int:  # pragma: no cover
     parser = argparse.ArgumentParser()
     parser.add_argument('paths', nargs='*')
     args = parser.parse_args(argv)
