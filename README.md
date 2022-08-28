@@ -38,3 +38,10 @@ my_file_2.pyx:1112:38: 'mod' defined but unused
 ## Configuration
 
 Exclude lines by include a ``# no-cython-lint`` comment (analogous to ``# noqa`` in ``flake8``).
+
+Currently, the following checks are implemented:
+
+- variable defined but unused
+- variable imported but unused
+
+More to come! Requests welcome!

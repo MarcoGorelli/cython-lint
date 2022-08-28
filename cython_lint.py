@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import copy
 import os
 import sys
 from typing import Iterator
@@ -178,7 +179,6 @@ def _main(code: str, filename: str) -> int:
         for i, line in enumerate(code.splitlines(keepends=True), start=1)
         if i not in exclude_lines
     ]
-    import os
 
     _dir = os.path.dirname(filename)
     included_files = [
@@ -196,8 +196,9 @@ def _main(code: str, filename: str) -> int:
     code = ''.join(lines)
 
     tree = parse_from_strings(filename, code)
-    nodes = list(traverse(tree))
+    nodes = traverse(tree)
     imported_names: list[Token] = []
+    names: list[Token] = []
     for node in nodes:
         if isinstance(node, FromCImportStatNode):
             imported_names.extend(
@@ -214,19 +215,18 @@ def _main(code: str, filename: str) -> int:
         ):
             imported_names.append(Token(node.lhs.name, *node.lhs.pos[1:]))
         elif isinstance(node, FromImportStatNode):
-            for imp in node.items:
-                imported_names.append(Token(imp[1].name, *imp[1].pos[1:]))
-    imported_names = sorted(imported_names, key=lambda x: (x[1], x[2]))
+            imported_names.extend(
+                Token(imp[1].name, *imp[1].pos[1:]) for imp in node.items
+            )
 
-    for node in nodes:
         if isinstance(node, CFuncDefNode):
             ret |= visit_funcdef(node, filename, lines)
 
-    names = [
-        (i.name, *i.pos[1:])
-        for i in nodes
-        if isinstance(i, (NameNode, CSimpleBaseTypeNode))
-    ]
+        if isinstance(node, (NameNode, CSimpleBaseTypeNode)):
+            names.append(Token(node.name, *node.pos[1:]))
+
+    imported_names = sorted(imported_names, key=lambda x: (x[1], x[2]))
+
     for _import in imported_names:
         if _import[0] == '*':
             continue
@@ -251,8 +251,6 @@ def traverse(tree: ModuleNode) -> Node:
         node = nodes.pop()
         if node is None:
             continue
-
-        import copy
 
         child_attrs = copy.deepcopy(node.child_attrs)
 
