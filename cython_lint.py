@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from typing import Iterator
 from typing import NamedTuple
@@ -262,6 +263,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parser.parse_args(argv)
     ret = 0
     for path in args.paths:
+        _, ext = os.path.splitext(path)
+        if ext != '.pyx':
+            continue
         with open(path, encoding='utf-8') as fd:
             content = fd.read()
         try:
