@@ -14,7 +14,7 @@ INCLUDE_FILE = os.path.join('tests', 'data', 'foo.pxi')
         (
             'cdef bint foo():\n'
             '    cdef int a\n',
-            't.py:2:13: \'a\' defined but unused\n',
+            't.py:2:14: \'a\' defined but unused\n',
         ),
     ],
 )
@@ -40,6 +40,11 @@ def test_assigned_unused(capsys: Any, src: str, expected: str) -> None:
             'from foo import bar, bar2\n',
             't.py:1:17: \'bar\' imported but unused\n'
             't.py:1:22: \'bar2\' imported but unused\n',
+        ),
+        (
+            'cimport quox\n'
+            'include "foo.pxi"\n',
+            't.py:1:9: \'quox\' imported but unused\n',
         ),
     ],
 )
@@ -86,6 +91,7 @@ def test_imported_unused(capsys: Any, src: str, expected: str) -> None:
         '    int32_t\n',
         'import quox\n'
         f'include "{INCLUDE_FILE}"\n',
+        'from quox cimport *\n',
     ],
 )
 def test_noop(capsys: Any, src: str) -> None:

@@ -14,12 +14,14 @@ from Cython.Compiler.ExprNodes import NameNode
 from Cython.Compiler.ExprNodes import TypecastNode
 from Cython.Compiler.ModuleNode import ModuleNode
 from Cython.Compiler.Nodes import CArgDeclNode
+from Cython.Compiler.Nodes import CArrayDeclaratorNode
 from Cython.Compiler.Nodes import CClassDefNode
 from Cython.Compiler.Nodes import CFuncDeclaratorNode
 from Cython.Compiler.Nodes import CFuncDefNode
 from Cython.Compiler.Nodes import CImportStatNode
 from Cython.Compiler.Nodes import CNameDeclaratorNode
 from Cython.Compiler.Nodes import CPtrDeclaratorNode
+from Cython.Compiler.Nodes import CReferenceDeclaratorNode
 from Cython.Compiler.Nodes import CSimpleBaseTypeNode
 from Cython.Compiler.Nodes import ForInStatNode
 from Cython.Compiler.Nodes import FromCImportStatNode
@@ -90,7 +92,7 @@ def visit_funcdef(
             and _def[0] not in [i[0] for i in args]
         ) and '# no-lint' not in lines[_def[1] - 1]:
             print(
-                f'{filename}:{_def[1]}:{_def[2]}: '
+                f'{filename}:{_def[1]}:{_def[2]+1}: '
                 f"'{_def[0]}' defined but unused",
             )
             ret = 1
@@ -108,9 +110,10 @@ def _name_from_cptrdeclarator(
 
 
 def _args_from_cargdecl(node: CArgDeclNode) -> Iterator[Token]:
-    if isinstance(node.declarator, CNameDeclaratorNode):
-        if node.declarator.name:
-            yield Token(node.declarator.name, *node.declarator.pos[1:])
+    if isinstance(node.declarator, (CNameDeclaratorNode, CPtrDeclaratorNode)):
+        _decl = _name_from_cptrdeclarator(node.declarator)
+        if _decl.name:
+            yield Token(_decl.name, *_decl.pos[1:])
         elif isinstance(
             node.base_type,
             (CNameDeclaratorNode, CSimpleBaseTypeNode),
@@ -134,7 +137,15 @@ def _args_from_cargdecl(node: CArgDeclNode) -> Iterator[Token]:
             yield from _args_from_cargdecl(_arg)
         _base = _name_from_cptrdeclarator(node.declarator.base)
         yield Token(_base.name, *_base.pos[1:])
-
+    elif isinstance(
+        node.declarator,
+        (CReferenceDeclaratorNode, CArrayDeclaratorNode),
+    ):
+        if isinstance(node.declarator.base, CNameDeclaratorNode):
+            yield Token(
+                node.declarator.base.name,
+                *node.declarator.base.pos[1:],
+            )
     else:  # pragma: no cover
         raise CythonLintError(
             f'Unexpected error, please report bug. '
@@ -168,6 +179,8 @@ def _main(code: str, filename: str) -> int:
     ]
     included_text = ''
     for _file in included_files:
+        if not os.path.exists(_file):
+            continue
         with open(_file, encoding='utf-8') as fd:
             content = fd.read()
         included_text += content
@@ -206,6 +219,8 @@ def _main(code: str, filename: str) -> int:
         if isinstance(i, (NameNode, CSimpleBaseTypeNode))
     ]
     for _import in imported_names:
+        if _import[0] == '*':
+            continue
         if (
             _import[0] not in [i[0] for i in names]
             and _import[0] not in included_text
