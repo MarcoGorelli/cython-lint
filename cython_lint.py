@@ -142,7 +142,7 @@ def _args_from_cargdecl(node: CArgDeclNode) -> Iterator[Token]:
         )
 
 
-def main(code: str, filename: str) -> int:
+def _main(code: str, filename: str) -> int:
     ret = 0
     tokens = src_to_tokens(code)
     exclude_lines = {
@@ -256,16 +256,20 @@ def traverse(tree: ModuleNode) -> Node:
         yield node
 
 
-if __name__ == '__main__':
+def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument('paths', nargs='*')
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     ret = 0
     for path in args.paths:
         with open(path, encoding='utf-8') as fd:
             content = fd.read()
         try:
-            ret |= main(content, path)
+            ret |= _main(content, path)
         except CompileError:
             continue
-    sys.exit(ret)
+    return ret
+
+
+if __name__ == '__main__':
+    sys.exit(main())
