@@ -95,20 +95,19 @@ def _name_from_cptrdeclarator(node):
         node = node.base
     if isinstance(node, CNameDeclaratorNode):
         return node
-    raise CythonLintError('')  # pragma: no cover
+    raise CythonLintError("")  # pragma: no cover
+
 
 def _args_from_cargdecl(i):
     args = []
     if isinstance(i.declarator, CNameDeclaratorNode):
         if i.declarator.name:
             args.append((i.declarator.name, *i.declarator.pos[1:]))
-        elif isinstance(
-            i.base_type, (CNameDeclaratorNode, CSimpleBaseTypeNode)
-        ):
+        elif isinstance(i.base_type, (CNameDeclaratorNode, CSimpleBaseTypeNode)):
             args.append((i.base_type.name, *i.base_type.pos[1:]))
         else:  # pragma: no cover
             raise CythonLintError(
-                f'Unexpected error, please report bug. Expected CNameDeclaratorNode or CSimpleBaseTypeNode, got {i.base_type}'
+                f"Unexpected error, please report bug. Expected CNameDeclaratorNode or CSimpleBaseTypeNode, got {i.base_type}"
             )
     elif isinstance(i.declarator, CPtrDeclaratorNode):
         args.append((i.declarator.base.name, *i.declarator.base.pos[1:]))
@@ -118,16 +117,13 @@ def _args_from_cargdecl(i):
         _base = _name_from_cptrdeclarator(i.declarator.base)
         args.append((_base.name, *_base.pos[1:]))
 
-        
     else:  # pragma: no cover
         raise CythonLintError(
-            f'Unexpected error, please report bug. '
-            f'Expected CPtrDeclaratorNode, got {i.declarator}\n'
-            f'{i.declarator.pos}\n'
+            f"Unexpected error, please report bug. "
+            f"Expected CPtrDeclaratorNode, got {i.declarator}\n"
+            f"{i.declarator.pos}\n"
         )
     return args
-    
-
 
 
 def main(code, filename):
@@ -165,8 +161,10 @@ def main(code, filename):
     imported_names = []
     for node in nodes:
         if isinstance(node, FromCImportStatNode):
-            for imp in node.imported_names:
-                imported_names.append((imp[2] or imp[1], *imp[0][1:]))
+            imported_names.extend(
+                (imp[2] or imp[1], *imp[0][1:]) for imp in node.imported_names
+            )
+
         elif isinstance(node, CImportStatNode):
             imported_names.append((node.as_name or node.module_name, *node.pos[1:]))
         elif isinstance(node, SingleAssignmentNode) and isinstance(
@@ -220,12 +218,14 @@ def traverse(tree):
         elif isinstance(node, GeneratorExpressionNode):
             if hasattr(node, "loop"):
                 child_attrs.append("loop")
+            else:  # pragma: no cover
+                raise CythonLintError()
         elif isinstance(node, CFuncDefNode):
             child_attrs.append("decorators")
         elif isinstance(node, FusedTypeNode):
             child_attrs.append("types")
         elif isinstance(node, ForInStatNode):
-            child_attrs.append('target')
+            child_attrs.append("target")
 
         for attr in child_attrs:
             child = getattr(node, attr)
