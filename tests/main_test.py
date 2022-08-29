@@ -5,7 +5,8 @@ import pytest
 
 from cython_lint import _main
 
-INCLUDE_FILE = os.path.join('tests', 'data', 'foo.pxi')
+INCLUDE_FILE_0 = os.path.join('tests', 'data', 'foo.pxi')
+INCLUDE_FILE_1 = os.path.join('tests', 'data', 'bar.pxi')
 
 
 @pytest.mark.parametrize(
@@ -90,7 +91,9 @@ def test_imported_unused(capsys: Any, src: str, expected: str) -> None:
         '    int64_t\n'
         '    int32_t\n',
         'import quox\n'
-        f'include "{INCLUDE_FILE}"\n',
+        f'include "{INCLUDE_FILE_0}"\n',
+        'import quox\n'
+        f'include "{INCLUDE_FILE_1}"\n',
         'from quox cimport *\n',
         'cdef inline bool _compare_records(\n'
         '    const FrontierRecord& left,\n'

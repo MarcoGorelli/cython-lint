@@ -9,6 +9,7 @@ from typing import NamedTuple
 from typing import NoReturn
 from typing import Sequence
 
+from Cython import Tempita
 from Cython.Compiler.Errors import CompileError
 from Cython.Compiler.ExprNodes import GeneratorExpressionNode
 from Cython.Compiler.ExprNodes import ImportNode
@@ -164,37 +165,17 @@ def _args_from_cargdecl(node: CArgDeclNode) -> Iterator[Token]:
         )
 
 
-def _main(code: str, filename: str) -> int:
+def _traverse_file(
+        code: str,
+        filename: str,
+        lines: Sequence[str],
+        *,
+        skip_check: bool = False,
+) -> tuple[list[Token], list[Token], int]:
+    """
+    skip_check: only for when traversing an included file
+    """
     ret = 0
-    tokens = src_to_tokens(code)
-    exclude_lines = {
-        token.line
-        for token in tokens
-        if token.name == 'NAME' and token.src == 'include'
-    }
-
-    code = tokens_to_src(tokens)
-    lines = [
-        line
-        for i, line in enumerate(code.splitlines(keepends=True), start=1)
-        if i not in exclude_lines
-    ]
-
-    _dir = os.path.dirname(filename)
-    included_files = [
-        os.path.join(_dir, line.split()[-1].strip("'\"") + '.in')
-        for i, line in enumerate(code.splitlines(keepends=True), start=1)
-        if i in exclude_lines
-    ]
-    included_text = ''
-    for _file in included_files:
-        if not os.path.exists(_file):
-            continue
-        with open(_file, encoding='utf-8') as fd:
-            content = fd.read()
-        included_text += content
-    code = ''.join(lines)
-
     tree = parse_from_strings(filename, code)
     nodes = traverse(tree)
     imported_names: list[Token] = []
@@ -219,20 +200,60 @@ def _main(code: str, filename: str) -> int:
                 Token(imp[1].name, *imp[1].pos[1:]) for imp in node.items
             )
 
-        if isinstance(node, CFuncDefNode):
+        if isinstance(node, CFuncDefNode) and not skip_check:
             ret |= visit_funcdef(node, filename, lines)
 
         if isinstance(node, (NameNode, CSimpleBaseTypeNode)):
             names.append(Token(node.name, *node.pos[1:]))
 
-    imported_names = sorted(imported_names, key=lambda x: (x[1], x[2]))
+    return names, imported_names, ret
+
+
+def _main(code: str, filename: str) -> int:
+    tokens = src_to_tokens(code)
+    exclude_lines = {
+        token.line
+        for token in tokens
+        if token.name == 'NAME' and token.src == 'include'
+    }
+
+    code = tokens_to_src(tokens)
+    lines = []
+    _dir = os.path.dirname(filename)
+    included_texts = []
+    for i, line in enumerate(code.splitlines(keepends=True), start=1):
+        if i in exclude_lines:
+            _file = os.path.join(_dir, line.split()[-1].strip("'\""))
+            if os.path.exists(f'{_file}.in'):
+                with open(f'{_file}.in', encoding='utf-8') as fd:
+                    content = fd.read()
+                pyxcontent = Tempita.sub(content)
+                included_texts.append(pyxcontent)
+            elif os.path.exists(_file):
+                with open(_file, encoding='utf-8') as fd:
+                    content = fd.read()
+                included_texts.append(content)
+            lines.append('\n')
+        else:
+            lines.append(line)
+
+    code = ''.join(lines)
+
+    names, imported_names, ret = _traverse_file(code, filename, lines)
+
+    included_names = []
+    for _code in included_texts:
+        _included_names, _, __ = _traverse_file(
+            _code, filename, _code.splitlines(), skip_check=True,
+        )
+        included_names.extend(_included_names)
 
     for _import in imported_names:
         if _import[0] == '*':
             continue
         if (
             _import[0] not in [i[0] for i in names]
-            and _import[0] not in included_text
+            and _import[0] not in [i[0] for i in included_names]
             and '# no-cython-lint' not in lines[_import[1] - 1]
         ):
             print(
