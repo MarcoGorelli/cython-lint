@@ -100,6 +100,9 @@ def test_imported_unused(capsys: Any, src: str, expected: str) -> None:
         '    const FrontierRecord& right,\n'
         '):\n'
         '    return left.improvement < right.improvement\n',
+        'from foo import bar\n'
+        'ctypedef fused quox:\n'
+        '    bar\n',
 
     ],
 )

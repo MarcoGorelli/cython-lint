@@ -63,29 +63,34 @@ def visit_funcdef(
     ret = 0
 
     children = list(traverse(node))[1:]
-    names = [
-        (i.name, *i.pos[1:])
-        for i in children
-        if isinstance(i, (NameNode, CSimpleBaseTypeNode))
-    ]
+
+    # e.g. cdef int a = 3
     defs = [
-        (i.name, *i.pos[1:])
+        Token(i.name, *i.pos[1:])
         for i in children
         if isinstance(i, CNameDeclaratorNode)
         if i.name
     ]
+    # e.g. a = 3
     simple_assignments = [
-        (i.lhs.name, *i.lhs.pos[1:])
+        Token(i.lhs.name, *i.lhs.pos[1:])
         for i in children
         if isinstance(i, SingleAssignmentNode) and isinstance(i.lhs, NameNode)
     ]
     defs = [*defs, *simple_assignments]
+
+    names = [
+        Token(i.name, *i.pos[1:])
+        for i in children
+        if isinstance(i, NameNode)
+    ]
 
     args = []
     for i in children:
         if isinstance(i, CArgDeclNode):
             for _arg in _args_from_cargdecl(i):
                 args.append(_arg)
+
     if isinstance(node.declarator.base, CNameDeclaratorNode):
         func_name = node.declarator.base.name
     elif isinstance(node.declarator.base, CFuncDeclaratorNode):
@@ -100,6 +105,7 @@ def visit_funcdef(
         )
 
     for _def in defs:
+        # we don't report on unused function args
         if (
             _def[0] not in [i[0] for i in names]
             and _def[0] != func_name
@@ -125,6 +131,7 @@ def _name_from_cptrdeclarator(
 
 def _args_from_cargdecl(node: CArgDeclNode) -> Iterator[Token]:
     if isinstance(node.declarator, (CNameDeclaratorNode, CPtrDeclaratorNode)):
+        # e.g. foo(int a), foo(int* a)
         _decl = _name_from_cptrdeclarator(node.declarator)
         if _decl.name:
             yield Token(_decl.name, *_decl.pos[1:])
