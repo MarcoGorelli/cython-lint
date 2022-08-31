@@ -1,10 +1,6 @@
 # type: ignore
-import sys
 
-from Cython.Compiler.TreeFragment import parse_from_strings
-
-
-def _print(name, node, indent):
+def _print(name, node, indent):  # pragma: no cover
     if node is None:
         return
     if hasattr(node, 'pos'):
@@ -19,11 +15,14 @@ def _print(name, node, indent):
                 _print(attr, children, indent+1)
 
 
-def pretty_print(path):
+def pretty_print(path):  # pragma: no cover
+    from Cython.Compiler.TreeFragment import parse_from_strings
     with open(path, encoding='utf-8') as fd:
         content = fd.read()
     tree = parse_from_strings(path, content)
     _print('tree', tree, indent=0)
 
 
-pretty_print(sys.argv[1])
+if __name__ == '__main__':
+    import sys
+    pretty_print(sys.argv[1])
