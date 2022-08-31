@@ -17,7 +17,6 @@ from Cython.Compiler.ExprNodes import NameNode
 from Cython.Compiler.ExprNodes import TypecastNode
 from Cython.Compiler.ModuleNode import ModuleNode
 from Cython.Compiler.Nodes import CArgDeclNode
-from Cython.Compiler.Nodes import CArrayDeclaratorNode
 from Cython.Compiler.Nodes import CClassDefNode
 from Cython.Compiler.Nodes import CFuncDeclaratorNode
 from Cython.Compiler.Nodes import CFuncDefNode
@@ -92,8 +91,10 @@ def visit_funcdef(
                 args.append(_arg)
 
     if isinstance(node.declarator.base, CNameDeclaratorNode):
+        # e.g. cdef int foo()
         func_name = node.declarator.base.name
     elif isinstance(node.declarator.base, CFuncDeclaratorNode):
+        # e.g. cdef int* foo()
         if isinstance(node.declarator.base.base, CNameDeclaratorNode):
             func_name = node.declarator.base.base.name
         else:  # pragma: no cover
@@ -139,6 +140,7 @@ def _args_from_cargdecl(node: CArgDeclNode) -> Iterator[Token]:
             node.base_type,
             (CNameDeclaratorNode, CSimpleBaseTypeNode),
         ):
+            # e.g. foo(a)
             yield Token(node.base_type.name, *node.base_type.pos[1:])
         else:  # pragma: no cover
             err_msg(
@@ -146,14 +148,13 @@ def _args_from_cargdecl(node: CArgDeclNode) -> Iterator[Token]:
                 'CNameDeclaratorNode or CSimpleBaseTypeNode',
             )
     elif isinstance(node.declarator, CFuncDeclaratorNode):
+        # e.g. cdef foo(object (*operation)(int64_t value))
         for _arg in node.declarator.args:
             yield from _args_from_cargdecl(_arg)
         _base = _name_from_cptrdeclarator(node.declarator.base)
         yield Token(_base.name, *_base.pos[1:])
-    elif isinstance(
-        node.declarator,
-        (CReferenceDeclaratorNode, CArrayDeclaratorNode),
-    ):
+    elif isinstance(node.declarator, CReferenceDeclaratorNode):
+        # e.g. cdef foo(vector[FrontierRecord]& frontier)
         if isinstance(node.declarator.base, CNameDeclaratorNode):
             yield Token(
                 node.declarator.base.name,
@@ -166,9 +167,8 @@ def _args_from_cargdecl(node: CArgDeclNode) -> Iterator[Token]:
             node.declarator,
             'CNameDeclarator, '
             'CPtrDeclarator, '
-            'CFuncDeclarator, '
-            'CReferenceDeclarator, or '
-            'CArrayDeclarator',
+            'CFuncDeclarator, or '
+            'CReferenceDeclarator',
         )
 
 
@@ -201,8 +201,10 @@ def _traverse_file(
         elif isinstance(node, SingleAssignmentNode) and isinstance(
             node.rhs, ImportNode,
         ):
+            # e.g. import numpy as np
             imported_names.append(Token(node.lhs.name, *node.lhs.pos[1:]))
         elif isinstance(node, FromImportStatNode):
+            # from numpy import array
             imported_names.extend(
                 Token(imp[1].name, *imp[1].pos[1:]) for imp in node.items
             )
