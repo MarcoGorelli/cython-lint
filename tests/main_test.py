@@ -106,7 +106,11 @@ def test_imported_unused(capsys: Any, src: str, expected: str) -> None:
         'from foo import bar\n'
         'ctypedef fused quox:\n'
         '    bar\n',
-
+        'cimport cython\n'
+        'ctypedef fused int_or_float:\n'
+        '    cython.integral\n'
+        '    cython.floating\n'
+        '    signed long long\n',
     ],
 )
 def test_noop(capsys: Any, src: str) -> None:

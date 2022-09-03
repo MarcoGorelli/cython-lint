@@ -85,11 +85,10 @@ def visit_funcdef(
         if isinstance(_child, NameNode)
     ]
 
-    args = []
+    args: list[Token] = []
     for _child in children:
         if isinstance(_child, CArgDeclNode):
-            for _arg in _args_from_cargdecl(_child):
-                args.append(_arg)
+            args.extend(_args_from_cargdecl(_child))
 
     if isinstance(node.declarator.base, CNameDeclaratorNode):
         # e.g. cdef int foo()
@@ -214,7 +213,15 @@ def _traverse_file(
             ret |= visit_funcdef(node, filename, lines)
 
         if isinstance(node, (NameNode, CSimpleBaseTypeNode)):
+            # do we need node.module_path?
             names.append(Token(node.name, *node.pos[1:]))
+            # need this for:
+            # ctypedef fused foo:
+            #     bar.quox
+            names.extend([
+                Token(_module, *node.pos[1:])
+                for _module in getattr(node, 'module_path', [])
+            ])
 
     return names, imported_names, ret
 
