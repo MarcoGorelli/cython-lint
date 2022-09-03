@@ -47,6 +47,10 @@ def test_assigned_unused(capsys: Any, src: str, expected: str) -> None:
             'include "foo.pxi"\n',
             't.py:1:9: \'quox\' imported but unused\n',
         ),
+        (
+            'import numpy as np\n',
+            't.py:1:8: \'np\' imported but unused\n',
+        ),
     ],
 )
 def test_imported_unused(capsys: Any, src: str, expected: str) -> None:
@@ -77,7 +81,6 @@ def test_imported_unused(capsys: Any, src: str, expected: str) -> None:
         '    for i, j in bar: pass\n',
         'cdef bint foo(object (*operation)(int64_t value, object right)):\n'
         '   pass\n',
-        'import numpy as np\n',  # todo: should detect this
         'class Foo: pass\n',
         'cdef class Foo: pass\n',
         'cdef bint foo(a):\n'

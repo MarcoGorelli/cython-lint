@@ -72,22 +72,23 @@ def visit_funcdef(
     ]
     # e.g. a = 3
     simple_assignments = [
-        Token(i.lhs.name, *i.lhs.pos[1:])
-        for i in children
-        if isinstance(i, SingleAssignmentNode) and isinstance(i.lhs, NameNode)
+        Token(_child.lhs.name, *_child.lhs.pos[1:])
+        for _child in children
+        if isinstance(_child, SingleAssignmentNode)
+        and isinstance(_child.lhs, NameNode)
     ]
     defs = [*defs, *simple_assignments]
 
     names = [
-        Token(i.name, *i.pos[1:])
-        for i in children
-        if isinstance(i, NameNode)
+        Token(_child.name, *_child.pos[1:])
+        for _child in children
+        if isinstance(_child, NameNode)
     ]
 
     args = []
-    for i in children:
-        if isinstance(i, CArgDeclNode):
-            for _arg in _args_from_cargdecl(i):
+    for _child in children:
+        if isinstance(_child, CArgDeclNode):
+            for _arg in _args_from_cargdecl(_child):
                 args.append(_arg)
 
     if isinstance(node.declarator.base, CNameDeclaratorNode):
@@ -108,7 +109,7 @@ def visit_funcdef(
     for _def in defs:
         # we don't report on unused function args
         if (
-            _def[0] not in [i[0] for i in names]
+            _def[0] not in [_name[0] for _name in names if _def != _name]
             and _def[0] != func_name
             and _def[0] not in [i[0] for i in args]
         ) and '# no-lint' not in lines[_def[1] - 1]:
@@ -261,8 +262,8 @@ def _main(code: str, filename: str) -> int:
         if _import[0] == '*':
             continue
         if (
-            _import[0] not in [i[0] for i in names]
-            and _import[0] not in [i[0] for i in included_names]
+            _import[0] not in [_name[0] for _name in names if _import != _name]
+            and _import[0] not in [_name[0] for _name in included_names]
             and '# no-cython-lint' not in lines[_import[1] - 1]
         ):
             print(
