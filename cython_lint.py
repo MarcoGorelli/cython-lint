@@ -59,6 +59,7 @@ def visit_funcdef(
     node: CFuncDefNode,
     filename: str,
     lines: Sequence[str],
+    violations: list[tuple[int, int, str]],
 ) -> int:
     ret = 0
 
@@ -113,10 +114,11 @@ def visit_funcdef(
             and _def[0] != func_name
             and _def[0] not in [i[0] for i in args]
         ) and '# no-lint' not in lines[_def[1] - 1]:
-            print(
-                f'{filename}:{_def[1]}:{_def[2]+1}: '
-                f"'{_def[0]}' defined but unused",
-            )
+
+            violations.append((
+                _def[1], _def[2]+1,
+                f'\'{_def[0]}\' defined but unused',
+            ))
             ret = 1
     return ret
 
@@ -183,6 +185,7 @@ def _traverse_file(
         lines: Sequence[str],
         *,
         skip_check: bool = False,
+        violations: list[tuple[int, int, str]] | None = None,
 ) -> tuple[list[Token], list[Token], int]:
     """
     skip_check: only for when traversing an included file
@@ -215,7 +218,8 @@ def _traverse_file(
             )
 
         if isinstance(node, CFuncDefNode) and not skip_check:
-            ret |= visit_funcdef(node, filename, lines)
+            assert violations is not None
+            ret |= visit_funcdef(node, filename, lines, violations=violations)
 
         if isinstance(node, (NameNode, CSimpleBaseTypeNode)):
             # do we need node.module_path?
@@ -232,6 +236,7 @@ def _traverse_file(
 
 
 def _main(code: str, filename: str) -> int:
+    violations: list[tuple[int, int, str]] = []
     tokens = src_to_tokens(code)
     exclude_lines = {
         token.line
@@ -261,7 +266,9 @@ def _main(code: str, filename: str) -> int:
 
     code = ''.join(lines)
 
-    names, imported_names, ret = _traverse_file(code, filename, lines)
+    names, imported_names, ret = _traverse_file(
+        code, filename, lines, violations=violations,
+    )
 
     included_names = []
     for _code in included_texts:
@@ -278,11 +285,14 @@ def _main(code: str, filename: str) -> int:
             and _import[0] not in [_name[0] for _name in included_names]
             and '# no-cython-lint' not in lines[_import[1] - 1]
         ):
-            print(
-                f'{filename}:{_import[1]}:{_import[2]+1}: '
+            violations.append((
+                _import[1], _import[2]+1,
                 f'\'{_import[0]}\' imported but unused',
-            )
+            ))
             ret = 1
+
+    for lineno, col, message in sorted(violations):
+        print(f'{filename}:{lineno}:{col}: {message}')
 
     return ret
 
