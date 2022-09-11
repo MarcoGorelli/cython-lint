@@ -111,6 +111,10 @@ def test_imported_unused(capsys: Any, src: str, expected: str) -> None:
         '    cython.integral\n'
         '    cython.floating\n'
         '    signed long long\n',
+        'cdef inline bool _compare_records(\n'
+        '    double x[],\n'
+        '):\n'
+        '    return 1\n',
     ],
 )
 def test_noop(capsys: Any, src: str) -> None:

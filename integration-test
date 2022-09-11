@@ -2,4 +2,5 @@
 cd ../numpy-dev && git ls-files | grep '\.pyx$' | xargs cython-lint
 cd ../cupy-dev && git ls-files | grep '\.pyx$' | xargs cython-lint
 cd ../scikit-learn-dev && git ls-files | grep '\.pyx$' | xargs cython-lint
+cd ../scipy-dev && git ls-files | grep '\.pyx$' | xargs cython-lint
 cd ../pandas-marco && git ls-files | grep '\.pyx$' | xargs cython-lint

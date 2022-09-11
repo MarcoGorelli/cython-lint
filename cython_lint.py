@@ -17,6 +17,7 @@ from Cython.Compiler.ExprNodes import NameNode
 from Cython.Compiler.ExprNodes import TypecastNode
 from Cython.Compiler.ModuleNode import ModuleNode
 from Cython.Compiler.Nodes import CArgDeclNode
+from Cython.Compiler.Nodes import CArrayDeclaratorNode
 from Cython.Compiler.Nodes import CClassDefNode
 from Cython.Compiler.Nodes import CFuncDeclaratorNode
 from Cython.Compiler.Nodes import CFuncDefNode
@@ -153,8 +154,12 @@ def _args_from_cargdecl(node: CArgDeclNode) -> Iterator[Token]:
             yield from _args_from_cargdecl(_arg)
         _base = _name_from_cptrdeclarator(node.declarator.base)
         yield Token(_base.name, *_base.pos[1:])
-    elif isinstance(node.declarator, CReferenceDeclaratorNode):
+    elif isinstance(
+        node.declarator,
+        (CReferenceDeclaratorNode, CArrayDeclaratorNode),
+    ):
         # e.g. cdef foo(vector[FrontierRecord]& frontier)
+        # e.g. cdef foo(double x[])
         if isinstance(node.declarator.base, CNameDeclaratorNode):
             yield Token(
                 node.declarator.base.name,
