@@ -115,6 +115,9 @@ def test_imported_unused(capsys: Any, src: str, expected: str) -> None:
         '    double x[],\n'
         '):\n'
         '    return 1\n',
+        'cimport foo.bar\n'
+        'cdef bool quox():\n'
+        '    foo.bar.ni()\n',
     ],
 )
 def test_noop(capsys: Any, src: str) -> None:

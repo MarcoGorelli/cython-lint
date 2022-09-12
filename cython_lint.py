@@ -280,7 +280,12 @@ def _main(code: str, filename: str) -> int:
     for _import in imported_names:
         if _import[0] == '*':
             continue
-        if (
+        elif '.' in _import[0]:
+            # e.g. import foo.bar
+            # foo.bar.bat()
+            # skip for now so there's no false negative
+            continue
+        elif (
             _import[0] not in [_name[0] for _name in names if _import != _name]
             and _import[0] not in [_name[0] for _name in included_names]
             and '# no-cython-lint' not in lines[_import[1] - 1]
