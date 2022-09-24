@@ -14,6 +14,7 @@ from Cython.Compiler.Errors import CompileError
 from Cython.Compiler.ExprNodes import GeneratorExpressionNode
 from Cython.Compiler.ExprNodes import ImportNode
 from Cython.Compiler.ExprNodes import NameNode
+from Cython.Compiler.ExprNodes import NewExprNode
 from Cython.Compiler.ExprNodes import TypecastNode
 from Cython.Compiler.ModuleNode import ModuleNode
 from Cython.Compiler.Nodes import CArgDeclNode
@@ -327,6 +328,8 @@ def traverse(tree: ModuleNode) -> Node:
             child_attrs.append('types')
         elif isinstance(node, ForInStatNode):
             child_attrs.append('target')
+        elif isinstance(node, NewExprNode):
+            child_attrs.append('cppclass')
 
         for attr in child_attrs:
             child = getattr(node, attr)

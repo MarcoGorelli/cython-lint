@@ -118,6 +118,9 @@ def test_imported_unused(capsys: Any, src: str, expected: str) -> None:
         'cimport foo.bar\n'
         'cdef bool quox():\n'
         '    foo.bar.ni()\n',
+        'from foo cimport CTaskArgByReference\n'
+        'cdef baz():\n'
+        '    bar(new CTaskArgByReference())\n',
     ],
 )
 def test_noop(capsys: Any, src: str) -> None:
