@@ -121,6 +121,14 @@ def test_imported_unused(capsys: Any, src: str, expected: str) -> None:
         'from foo cimport CTaskArgByReference\n'
         'cdef baz():\n'
         '    bar(new CTaskArgByReference())\n',
+        'cdef PyObject** make_kind_names(list strings):\n'
+        '    cdef PyObject** array = <PyObject**>mem.alloc(len(strings), sizeof(PyObject*))\n'  # noqa: E501
+        '    cdef object name\n'
+        '    for i, string in enumerate(strings):\n'
+        '        name = intern(string)\n'
+        '        Py_XINCREF(<PyObject*>name)\n'
+        '        array[i] = <PyObject*>name\n'
+        '    return <PyObject**>array\n',
     ],
 )
 def test_noop(capsys: Any, src: str) -> None:

@@ -49,10 +49,15 @@ class CythonLintError(Exception):
 
 
 def err_msg(node: Node, expected: str) -> NoReturn:
-    raise CythonLintError(
+    msg = (
         f'Unexpected error, please report bug. '
         f'Expected {expected}, got {node}\n'
-        f'{node}\n',
+        f'{node}\n'
+    )
+    if hasattr(node, 'pos'):
+        msg += f'pos: {node.pos}\n'
+    raise CythonLintError(
+        msg,
     )
 
 
@@ -96,12 +101,16 @@ def visit_funcdef(
     if isinstance(node.declarator.base, CNameDeclaratorNode):
         # e.g. cdef int foo()
         func_name = node.declarator.base.name
-    elif isinstance(node.declarator.base, CFuncDeclaratorNode):
+    elif isinstance(
+        node.declarator.base,
+        (CPtrDeclaratorNode, CFuncDeclaratorNode),
+    ):
         # e.g. cdef int* foo()
-        if isinstance(node.declarator.base.base, CNameDeclaratorNode):
-            func_name = node.declarator.base.base.name
+        func = _func_from_cptrdeclarator(node.declarator.base)
+        if isinstance(func.base, CNameDeclaratorNode):
+            func_name = func.base.name
         else:  # pragma: no cover
-            err_msg(node.declarator.base.base, 'CNameDeclaratorNode')
+            err_msg(func.base, 'CNameDeclaratorNode')
     else:  # pragma: no cover
         err_msg(
             node.declarator.base,
@@ -132,6 +141,16 @@ def _name_from_cptrdeclarator(
     if isinstance(node, CNameDeclaratorNode):
         return node
     err_msg(node, 'CNameDeclaratorNode')  # pragma: no cover
+
+
+def _func_from_cptrdeclarator(
+    node: CPtrDeclaratorNode | CFuncDeclaratorNode,
+) -> CFuncDeclaratorNode:
+    while isinstance(node, CPtrDeclaratorNode):
+        node = node.base
+    if isinstance(node, CFuncDeclaratorNode):
+        return node
+    err_msg(node, 'CFuncDeclaratorNode')  # pragma: no cover
 
 
 def _args_from_cargdecl(node: CArgDeclNode) -> Iterator[Token]:
