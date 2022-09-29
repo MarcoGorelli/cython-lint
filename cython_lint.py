@@ -366,10 +366,16 @@ def main(argv: Sequence[str] | None = None) -> int:  # pragma: no cover
     ret = 0
     for path in args.paths:
         _, ext = os.path.splitext(path)
-        if ext != '.pyx':
+        if ext == '.tp':
+            with open(path, encoding='utf-8') as fd:
+                content = fd.read()
+            content = Tempita.sub(content)
+            path = path[:-3]  # remove .tp suffix
+        elif ext == '.pyx':
+            with open(path, encoding='utf-8') as fd:
+                content = fd.read()
+        else:
             continue
-        with open(path, encoding='utf-8') as fd:
-            content = fd.read()
         try:
             ret |= _main(content, path)
         except CompileError:
