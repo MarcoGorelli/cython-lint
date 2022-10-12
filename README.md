@@ -21,7 +21,7 @@ Sample `.pre-commit-config.yaml`:
 
 ```yaml
 -   repo: https://github.com/MarcoGorelli/cython-lint
-    rev: v0.1.9
+    rev: v0.1.10
     hooks:
     -   id: cython-lint
 ```

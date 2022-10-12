@@ -91,7 +91,7 @@ def visit_funcdef(
     names = [
         Token(_child.name, *_child.pos[1:])
         for _child in children
-        if isinstance(_child, (NameNode, CNameDeclaratorNode))
+        if isinstance(_child, NameNode)
     ]
 
     args: list[Token] = []

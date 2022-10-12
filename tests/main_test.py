@@ -17,6 +17,12 @@ INCLUDE_FILE_1 = os.path.join('tests', 'data', 'bar.pxi')
             '    cdef int a\n',
             't.py:2:14: \'a\' defined but unused\n',
         ),
+        (
+            'cdef bint foo():\n'
+            '    cdef int a\n'
+            '    a = 3\n',
+            't.py:3:5: \'a\' defined but unused\n',
+        ),
     ],
 )
 def test_assigned_unused(capsys: Any, src: str, expected: str) -> None:
@@ -131,10 +137,8 @@ def test_imported_unused(capsys: Any, src: str, expected: str) -> None:
         '    return <PyObject**>array\n',
         'cdef bint foo():\n'
         '    cdef int i\n'
-        '    i = 3\n',
-        'def foo():\n'
-        '    cdef int i\n'
-        '    i = 3\n',
+        '    i = 3\n'
+        '    print(i)\n',
     ],
 )
 def test_noop(capsys: Any, src: str) -> None:
