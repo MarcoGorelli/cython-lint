@@ -129,6 +129,12 @@ def test_imported_unused(capsys: Any, src: str, expected: str) -> None:
         '        Py_XINCREF(<PyObject*>name)\n'
         '        array[i] = <PyObject*>name\n'
         '    return <PyObject**>array\n',
+        'cdef bint foo():\n'
+        '    cdef int i\n'
+        '    i = 3\n',
+        'def foo():\n'
+        '    cdef int i\n'
+        '    i = 3\n',
     ],
 )
 def test_noop(capsys: Any, src: str) -> None:

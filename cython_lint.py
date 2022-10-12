@@ -27,6 +27,7 @@ from Cython.Compiler.Nodes import CNameDeclaratorNode
 from Cython.Compiler.Nodes import CPtrDeclaratorNode
 from Cython.Compiler.Nodes import CReferenceDeclaratorNode
 from Cython.Compiler.Nodes import CSimpleBaseTypeNode
+from Cython.Compiler.Nodes import DefNode
 from Cython.Compiler.Nodes import ForInStatNode
 from Cython.Compiler.Nodes import FromCImportStatNode
 from Cython.Compiler.Nodes import FromImportStatNode
@@ -62,7 +63,7 @@ def err_msg(node: Node, expected: str) -> NoReturn:
 
 
 def visit_funcdef(
-    node: CFuncDefNode,
+    node: CFuncDefNode | DefNode,
     filename: str,
     lines: Sequence[str],
     violations: list[tuple[int, int, str]],
@@ -90,7 +91,7 @@ def visit_funcdef(
     names = [
         Token(_child.name, *_child.pos[1:])
         for _child in children
-        if isinstance(_child, NameNode)
+        if isinstance(_child, (NameNode, CNameDeclaratorNode))
     ]
 
     args: list[Token] = []
@@ -98,24 +99,27 @@ def visit_funcdef(
         if isinstance(_child, CArgDeclNode):
             args.extend(_args_from_cargdecl(_child))
 
-    if isinstance(node.declarator.base, CNameDeclaratorNode):
-        # e.g. cdef int foo()
-        func_name = node.declarator.base.name
-    elif isinstance(
-        node.declarator.base,
-        (CPtrDeclaratorNode, CFuncDeclaratorNode),
-    ):
-        # e.g. cdef int* foo()
-        func = _func_from_cptrdeclarator(node.declarator.base)
-        if isinstance(func.base, CNameDeclaratorNode):
-            func_name = func.base.name
-        else:  # pragma: no cover
-            err_msg(func.base, 'CNameDeclaratorNode')
-    else:  # pragma: no cover
-        err_msg(
+    if isinstance(node, CFuncDefNode):
+        if isinstance(node.declarator.base, CNameDeclaratorNode):
+            # e.g. cdef int foo()
+            func_name = node.declarator.base.name
+        elif isinstance(
             node.declarator.base,
-            'CNameDeclaratorNode or CFuncDeclaratorNode',
-        )
+            (CPtrDeclaratorNode, CFuncDeclaratorNode),
+        ):
+            # e.g. cdef int* foo()
+            func = _func_from_cptrdeclarator(node.declarator.base)
+            if isinstance(func.base, CNameDeclaratorNode):
+                func_name = func.base.name
+            else:  # pragma: no cover
+                err_msg(func.base, 'CNameDeclaratorNode')
+        else:  # pragma: no cover
+            err_msg(
+                node.declarator.base,
+                'CNameDeclaratorNode or CFuncDeclaratorNode',
+            )
+    else:
+        func_name = node.name
 
     for _def in defs:
         # we don't report on unused function args
@@ -237,7 +241,7 @@ def _traverse_file(
                 Token(imp[1].name, *imp[1].pos[1:]) for imp in node.items
             )
 
-        if isinstance(node, CFuncDefNode) and not skip_check:
+        if isinstance(node, (CFuncDefNode, DefNode)) and not skip_check:
             assert violations is not None
             ret |= visit_funcdef(node, filename, lines, violations=violations)
 
