@@ -70,6 +70,8 @@ def test_pycodestyle(tmpdir: Any, capsys: Any) -> None:
     file = os.path.join(tmpdir, 't.py')
     with open(file, 'w', encoding='utf-8') as fd:
         fd.write('while True: pass\n')
+    with open(os.path.join(tmpdir, 'tox.ini'), 'w') as fd:
+        fd.write('[pycodestyle]\nstatistics=True\n')
     src = ''
     ret = _main(src, file)
     out, _ = capsys.readouterr()

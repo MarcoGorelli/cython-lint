@@ -365,6 +365,10 @@ def _main(
 
         extra_lines = output.stdout.splitlines()
         for extra_line in extra_lines:
+            import re
+            if re.search(r'^\d+:\d+:', extra_line) is None:
+                # could be an extra line with pycodestyle statistics
+                continue
             _lineno, _col, message = extra_line.split(':', maxsplit=2)
             violations.append((int(_lineno), int(_col), message))
 
