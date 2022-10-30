@@ -37,11 +37,33 @@ my_file_2.pyx:1112:38: 'mod' defined but unused
 
 ## Configuration
 
-Exclude lines by include a ``# no-cython-lint`` comment (analogous to ``# noqa`` in ``flake8``).
+The following configuration options are available:
+- exclude lines by including a ``# no-cython-lint`` comment (analogous to ``# noqa`` in ``flake8``);
+- use the command-line argument ``--max-line-length`` to control the maximum line length used by pycodestyle;
+- use the command-line argument ``--no-pycodestyle`` if you don't want the pycodestyle checks.
 
 Currently, the following checks are implemented:
 
 - variable defined but unused
 - variable imported but unused
+- pycodestyle checks, except these that aren't in general applicable to Cython code:
+    - E121 continuation line under-indented for hanging indent
+    - E123 closing bracket does not match indentation of opening bracket’s line
+    - E126 continuation line over-indented for hanging indent
+    - E133 closing bracket is missing indentation
+    - E203 whitespace before ‘,’, ‘;’, or ‘:’
+    - E211 whitespace before '('
+    - E225 missing whitespace around operator
+    - E226 missing whitespace around arithmetic operator
+    - E227 missing whitespace around bitwise or shift operator
+    - E241 multiple spaces after ‘,’
+    - E242 tab after ‘,’
+    - E271 multiple spaces after keyword
+    - E272 multiple spaces before keyword
+    - E275 missing whitespace after keyword
+    - E4 imports (``isort`` supports Cython code, best to just use that)
+    - E704 multiple statements on one line (def)
+    - E9 runtime
+    - W5 line break warning
 
 More to come! Requests welcome!

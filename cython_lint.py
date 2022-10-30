@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import copy
 import os
+import subprocess
 import sys
 from typing import Iterator
 from typing import NamedTuple
@@ -37,6 +38,28 @@ from Cython.Compiler.Nodes import SingleAssignmentNode
 from Cython.Compiler.TreeFragment import parse_from_strings
 from tokenize_rt import src_to_tokens
 from tokenize_rt import tokens_to_src
+
+# generate these with python generate_pycodestyle_codes.py
+PYCODESTYLE_CODES = frozenset((
+    'E121',
+    'E123',
+    'E126',
+    'E133',
+    'E203',
+    'E211',
+    'E225',
+    'E226',
+    'E227',
+    'E241',
+    'E242',
+    'E271',
+    'E272',
+    'E275',
+    'E4',
+    'E704',
+    'E9',
+    'W5',
+))
 
 
 class Token(NamedTuple):
@@ -259,7 +282,13 @@ def _traverse_file(
     return names, imported_names, ret
 
 
-def _main(code: str, filename: str) -> int:
+def _main(
+    code: str,
+    filename: str,
+    *,
+    line_length: int = 88,
+    no_pycodestyle: bool = False,
+) -> int:
     violations: list[tuple[int, int, str]] = []
     tokens = src_to_tokens(code)
     exclude_lines = {
@@ -320,6 +349,25 @@ def _main(code: str, filename: str) -> int:
             ))
             ret = 1
 
+    if not no_pycodestyle:
+        output = subprocess.run(
+            [
+                'pycodestyle',
+                f'--ignore={",".join(PYCODESTYLE_CODES)}',
+                f'--max-line-length={line_length}',
+                '--format=%(row)d:%(col)d: %(code)s %(text)s',
+                filename,
+            ],
+            text=True,
+            capture_output=True,
+        )
+        ret = ret | bool(output.returncode)
+
+        extra_lines = output.stdout.splitlines()
+        for extra_line in extra_lines:
+            _lineno, _col, message = extra_line.split(':', maxsplit=2)
+            violations.append((int(_lineno), int(_col), message))
+
     for lineno, col, message in sorted(violations):
         print(f'{filename}:{lineno}:{col}: {message}')
 
@@ -366,6 +414,9 @@ def traverse(tree: ModuleNode) -> Node:
 def main(argv: Sequence[str] | None = None) -> int:  # pragma: no cover
     parser = argparse.ArgumentParser()
     parser.add_argument('paths', nargs='*')
+    # default from black formatter
+    parser.add_argument('--max-line-length', type=int, default=88)
+    parser.add_argument('--no-pycodestyle', action='store_true')
     args = parser.parse_args(argv)
     ret = 0
     for path in args.paths:
@@ -375,7 +426,10 @@ def main(argv: Sequence[str] | None = None) -> int:  # pragma: no cover
         with open(path, encoding='utf-8') as fd:
             content = fd.read()
         try:
-            ret |= _main(content, path)
+            ret |= _main(
+                content, path, line_length=args.max_line_length,
+                no_pycodestyle=args.no_pycodestyle,
+            )
         except CompileError:
             continue
     return ret

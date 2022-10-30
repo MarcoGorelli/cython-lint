@@ -26,7 +26,7 @@ INCLUDE_FILE_1 = os.path.join('tests', 'data', 'bar.pxi')
     ],
 )
 def test_assigned_unused(capsys: Any, src: str, expected: str) -> None:
-    ret = _main(src, 't.py')
+    ret = _main(src, 't.py', no_pycodestyle=True)
     out, _ = capsys.readouterr()
     assert out == expected
     assert ret == 1
@@ -62,6 +62,20 @@ def test_assigned_unused(capsys: Any, src: str, expected: str) -> None:
 def test_imported_unused(capsys: Any, src: str, expected: str) -> None:
     ret = _main(src, 't.py')
     out, _ = capsys.readouterr()
+    assert out == expected
+    assert ret == 1
+
+
+def test_pycodestyle(tmpdir: Any, capsys: Any) -> None:
+    file = os.path.join(tmpdir, 't.py')
+    with open(file, 'w', encoding='utf-8') as fd:
+        fd.write('while True: pass\n')
+    src = ''
+    ret = _main(src, file)
+    out, _ = capsys.readouterr()
+    expected = (
+        f'{file}:1:11:  E701 multiple statements on one line (colon)\n'
+    )
     assert out == expected
     assert ret == 1
 
