@@ -155,6 +155,8 @@ def test_pycodestyle(tmpdir: Any, capsys: Any) -> None:
         '    cdef int i\n'
         '    i = 3\n'
         '    print(i)\n',
+        'def foo(int a[1][1]):\n'
+        '    pass\n',
     ],
 )
 def test_noop(capsys: Any, src: str) -> None:

@@ -11,7 +11,6 @@ from typing import NoReturn
 from typing import Sequence
 
 from Cython import Tempita
-from Cython.Compiler.Errors import CompileError
 from Cython.Compiler.ExprNodes import GeneratorExpressionNode
 from Cython.Compiler.ExprNodes import ImportNode
 from Cython.Compiler.ExprNodes import NameNode
@@ -69,6 +68,10 @@ class Token(NamedTuple):
 
 
 class CythonLintError(Exception):
+    pass
+
+
+class CythonParseError(Exception):
     pass
 
 
@@ -180,6 +183,16 @@ def _func_from_cptrdeclarator(
     err_msg(node, 'CFuncDeclaratorNode')  # pragma: no cover
 
 
+def _name_from_array_declarator(
+    node: CArrayDeclaratorNode | CReferenceDeclaratorNode,
+) -> CNameDeclaratorNode:
+    while isinstance(node, (CArrayDeclaratorNode, CReferenceDeclaratorNode)):
+        node = node.base
+    if isinstance(node, CNameDeclaratorNode):
+        return node
+    err_msg(node, 'CNameDeclaratorNode')  # pragma: no cover
+
+
 def _args_from_cargdecl(node: CArgDeclNode) -> Iterator[Token]:
     if isinstance(node.declarator, (CNameDeclaratorNode, CPtrDeclaratorNode)):
         # e.g. foo(int a), foo(int* a)
@@ -209,13 +222,11 @@ def _args_from_cargdecl(node: CArgDeclNode) -> Iterator[Token]:
     ):
         # e.g. cdef foo(vector[FrontierRecord]& frontier)
         # e.g. cdef foo(double x[])
-        if isinstance(node.declarator.base, CNameDeclaratorNode):
-            yield Token(
-                node.declarator.base.name,
-                *node.declarator.base.pos[1:],
-            )
-        else:  # pragma: no cover
-            err_msg(node.declarator.base, 'CNameDeclarator')
+        _base = _name_from_array_declarator(node.declarator)
+        yield Token(
+            _base.name,
+            *_base.pos[1:],
+        )
     else:  # pragma: no cover
         err_msg(
             node.declarator,
@@ -238,7 +249,11 @@ def _traverse_file(
     skip_check: only for when traversing an included file
     """
     ret = 0
-    tree = parse_from_strings(filename, code)
+    try:
+        tree = parse_from_strings(filename, code)
+    except:  # pragma: no cover  # noqa: E722
+        # If Cython can't parse this file, just skip it.
+        raise CythonParseError
     nodes = traverse(tree)
     imported_names: list[Token] = []
     names: list[Token] = []
@@ -434,7 +449,7 @@ def main(argv: Sequence[str] | None = None) -> int:  # pragma: no cover
                 content, path, line_length=args.max_line_length,
                 no_pycodestyle=args.no_pycodestyle,
             )
-        except CompileError:
+        except CythonParseError:
             continue
     return ret
 
