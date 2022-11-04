@@ -46,6 +46,7 @@ Currently, the following checks are implemented:
 
 - variable defined but unused
 - variable imported but unused
+- comma after base type definition (e.g. ``cdef ndarray, arr``)
 - pycodestyle checks, except these that aren't in general applicable to Cython code:
     - E121 continuation line under-indented for hanging indent
     - E123 closing bracket does not match indentation of opening bracket’s line
