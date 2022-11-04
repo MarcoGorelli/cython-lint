@@ -323,7 +323,7 @@ def _traverse_file(
             assert violations is not None
             ret |= visit_funcdef(node, filename, lines, violations=violations)
 
-        if isinstance(node, CVarDefNode):
+        if isinstance(node, CVarDefNode) and not skip_check:
             assert violations is not None
             ret |= visit_cvardef(node, lines, violations)
 
