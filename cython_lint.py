@@ -5,12 +5,17 @@ import copy
 import os
 import subprocess
 import sys
+import warnings
 from typing import Iterator
 from typing import NamedTuple
 from typing import NoReturn
 from typing import Sequence
-
-from Cython import Tempita
+with warnings.catch_warnings():
+    # DeprecationWarning: 'cgi' is deprecated and slated for
+    # removal in Python 3.13
+    # needs fixing in Cython
+    warnings.simplefilter('ignore', DeprecationWarning)
+    from Cython import Tempita
 from Cython.Compiler.ExprNodes import GeneratorExpressionNode
 from Cython.Compiler.ExprNodes import ImportNode
 from Cython.Compiler.ExprNodes import NameNode
