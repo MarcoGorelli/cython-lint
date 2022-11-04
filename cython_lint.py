@@ -27,6 +27,7 @@ from Cython.Compiler.Nodes import CArrayDeclaratorNode
 from Cython.Compiler.Nodes import CClassDefNode
 from Cython.Compiler.Nodes import CFuncDeclaratorNode
 from Cython.Compiler.Nodes import CFuncDefNode
+from Cython.Compiler.Nodes import CConstTypeNode
 from Cython.Compiler.Nodes import CImportStatNode
 from Cython.Compiler.Nodes import CNameDeclaratorNode
 from Cython.Compiler.Nodes import CPtrDeclaratorNode
@@ -245,6 +246,18 @@ def _args_from_cargdecl(node: CArgDeclNode) -> Iterator[Token]:
         ):
             # e.g. foo(a)
             yield Token(node.base_type.name, *node.base_type.pos[1:])
+        elif isinstance(node.base_type, (CConstTypeNode)):
+            # e.g. foo(int bar(const char))
+            if isinstance(
+                node.base_type.base_type,
+                ((CNameDeclaratorNode, CSimpleBaseTypeNode)),
+            ):
+                yield Token(_decl.name, *_decl.pos[1:])
+            else:  # pragma: no cover
+                err_msg(
+                    node.base_type.base_type,
+                    'CNameDeclaratorNode or CSimpleBaseTypeNode',
+                )
         else:  # pragma: no cover
             err_msg(
                 node.base_type,
