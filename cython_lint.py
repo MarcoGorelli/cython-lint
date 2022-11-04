@@ -16,6 +16,7 @@ with warnings.catch_warnings():
     # needs fixing in Cython
     warnings.simplefilter('ignore', DeprecationWarning)
     from Cython import Tempita
+import Cython
 from Cython.Compiler.ExprNodes import GeneratorExpressionNode
 from Cython.Compiler.ExprNodes import ImportNode
 from Cython.Compiler.ExprNodes import NameNode
@@ -27,7 +28,12 @@ from Cython.Compiler.Nodes import CArrayDeclaratorNode
 from Cython.Compiler.Nodes import CClassDefNode
 from Cython.Compiler.Nodes import CFuncDeclaratorNode
 from Cython.Compiler.Nodes import CFuncDefNode
-from Cython.Compiler.Nodes import CConstTypeNode
+if tuple(Cython.__version__.split('.')) > ('3',):
+    from Cython.Compiler.Nodes import (
+        CConstOrVolatileTypeNode as CConstTypeNode,
+    )
+else:
+    from Cython.Compiler.Nodes import CConstTypeNode
 from Cython.Compiler.Nodes import CImportStatNode
 from Cython.Compiler.Nodes import CNameDeclaratorNode
 from Cython.Compiler.Nodes import CPtrDeclaratorNode
