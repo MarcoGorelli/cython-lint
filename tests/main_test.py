@@ -66,6 +66,35 @@ def test_imported_unused(capsys: Any, src: str, expected: str) -> None:
     assert ret == 1
 
 
+@pytest.mark.parametrize(
+    'src, expected',
+    [
+        (
+            'cdef a, b\n',
+            't.py:1:5: comma after base type in definition\n',
+        ),
+        (
+            'cdef a[0, 1], b\n',
+            't.py:1:5: comma after base type in definition\n',
+        ),
+        (
+            'cdef a(0, 1), b\n',
+            't.py:1:5: comma after base type in definition\n',
+        ),
+        (
+            'cdef:\n'
+            '    a, b\n',
+            't.py:2:4: comma after base type in definition\n',
+        ),
+    ],
+)
+def test_misplaced_comma(capsys: Any, src: str, expected: str) -> None:
+    ret = _main(src, 't.py', no_pycodestyle=True)
+    out, _ = capsys.readouterr()
+    assert out == expected
+    assert ret == 1
+
+
 def test_pycodestyle(tmpdir: Any, capsys: Any) -> None:
     file = os.path.join(tmpdir, 't.py')
     with open(file, 'w', encoding='utf-8') as fd:
@@ -157,6 +186,8 @@ def test_pycodestyle(tmpdir: Any, capsys: Any) -> None:
         '    print(i)\n',
         'def foo(int a[1][1]):\n'
         '    pass\n',
+        'cdef:\n'
+        '    thread()\n',
     ],
 )
 def test_noop(capsys: Any, src: str) -> None:
