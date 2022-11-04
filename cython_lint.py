@@ -28,11 +28,11 @@ from Cython.Compiler.Nodes import CArrayDeclaratorNode
 from Cython.Compiler.Nodes import CClassDefNode
 from Cython.Compiler.Nodes import CFuncDeclaratorNode
 from Cython.Compiler.Nodes import CFuncDefNode
-if tuple(Cython.__version__.split('.')) > ('3',):
+if tuple(Cython.__version__.split('.')) > ('3',):  # pragma: no cover
     from Cython.Compiler.Nodes import (
         CConstOrVolatileTypeNode as CConstTypeNode,
     )
-else:
+else:  # pragma: no cover
     from Cython.Compiler.Nodes import CConstTypeNode
 from Cython.Compiler.Nodes import CImportStatNode
 from Cython.Compiler.Nodes import CNameDeclaratorNode
