@@ -5,12 +5,17 @@ import copy
 import os
 import subprocess
 import sys
+import warnings
 from typing import Iterator
 from typing import NamedTuple
 from typing import NoReturn
 from typing import Sequence
-
-from Cython import Tempita
+with warnings.catch_warnings():
+    # DeprecationWarning: 'cgi' is deprecated and slated for
+    # removal in Python 3.13
+    # needs fixing in Cython
+    warnings.simplefilter('ignore', DeprecationWarning)
+    from Cython import Tempita
 from Cython.Compiler.ExprNodes import GeneratorExpressionNode
 from Cython.Compiler.ExprNodes import ImportNode
 from Cython.Compiler.ExprNodes import NameNode
@@ -27,6 +32,7 @@ from Cython.Compiler.Nodes import CNameDeclaratorNode
 from Cython.Compiler.Nodes import CPtrDeclaratorNode
 from Cython.Compiler.Nodes import CReferenceDeclaratorNode
 from Cython.Compiler.Nodes import CSimpleBaseTypeNode
+from Cython.Compiler.Nodes import CVarDefNode
 from Cython.Compiler.Nodes import DefNode
 from Cython.Compiler.Nodes import ForInStatNode
 from Cython.Compiler.Nodes import FromCImportStatNode
@@ -86,6 +92,40 @@ def err_msg(node: Node, expected: str) -> NoReturn:
     raise CythonLintError(
         msg,
     )
+
+
+def visit_cvardef(
+    node: CVarDefNode,
+    lines: Sequence[str],
+    violations: list[tuple[int, int, str]],
+) -> int:
+    _base = lines[node.pos[1]-1][node.pos[2]:]
+    ret = 0
+    round_parens = 0
+    square_parens = 0
+    _base_type = ''
+    for _ch in _base:
+        if _ch == '(':
+            round_parens += 1
+        elif _ch == ')':
+            round_parens -= 1
+        elif _ch == '[':
+            square_parens += 1
+        elif _ch == ']':
+            square_parens -= 1
+        if _ch == ' ' and not round_parens and not square_parens:
+            break
+        _base_type += _ch
+    if (
+            _base_type.endswith(',')
+            and '# no-lint' not in lines[node.pos[1]-1]
+    ):
+        violations.append((
+            node.pos[1], node.pos[2],
+            'comma after base type in definition',
+        ))
+        ret = 1
+    return ret
 
 
 def visit_funcdef(
@@ -282,6 +322,10 @@ def _traverse_file(
         if isinstance(node, (CFuncDefNode, DefNode)) and not skip_check:
             assert violations is not None
             ret |= visit_funcdef(node, filename, lines, violations=violations)
+
+        if isinstance(node, CVarDefNode) and not skip_check:
+            assert violations is not None
+            ret |= visit_cvardef(node, lines, violations)
 
         if isinstance(node, (NameNode, CSimpleBaseTypeNode)):
             # do we need node.module_path?
