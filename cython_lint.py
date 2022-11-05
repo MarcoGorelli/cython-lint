@@ -213,7 +213,7 @@ def visit_funcdef(
 def _name_from_cptrdeclarator(
     node: CPtrDeclaratorNode | CNameDeclaratorNode,
 ) -> CNameDeclaratorNode:
-    while isinstance(node, CPtrDeclaratorNode):
+    while hasattr(node, 'base'):
         node = node.base
     if isinstance(node, CNameDeclaratorNode):
         return node
@@ -223,7 +223,7 @@ def _name_from_cptrdeclarator(
 def _func_from_cptrdeclarator(
     node: CPtrDeclaratorNode | CFuncDeclaratorNode,
 ) -> CFuncDeclaratorNode:
-    while isinstance(node, CPtrDeclaratorNode):
+    while hasattr(node, 'base') and not isinstance(node, CFuncDeclaratorNode):
         node = node.base
     if isinstance(node, CFuncDeclaratorNode):
         return node
@@ -312,6 +312,7 @@ def _traverse_file(
         tree = parse_from_strings(filename, code)
     except:  # pragma: no cover  # noqa: E722
         # If Cython can't parse this file, just skip it.
+        print('cant parse', filename)
         raise CythonParseError
     nodes = traverse(tree)
     imported_names: list[Token] = []

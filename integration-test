@@ -4,3 +4,4 @@ cd ../cupy-dev && git ls-files | grep '\.pyx$' | xargs cython-lint
 cd ../scikit-learn-dev && git ls-files | grep '\.pyx$' | xargs cython-lint
 cd ../scipy-dev && git ls-files | grep '\.pyx$' | xargs cython-lint
 cd ../pandas-dev && git ls-files | grep '\.pyx$' | xargs cython-lint
+cd ../cudf-dev && git ls-files | grep '\.pyx$' | xargs cython-lint
