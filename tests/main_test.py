@@ -212,10 +212,23 @@ def test_pycodestyle(tmpdir: Any, capsys: Any) -> None:
         'cdef foo[1, 1] bar\n',
         'cdef int foo(int bar(const char*)):pass\n',
         'cdef void f(char *argv[]): pass\n',
-        'cdef int&& bar(): pass\n',
     ],
 )
 def test_noop(capsys: Any, src: str) -> None:
+    ret = _main(src, 't.py')
+    out, _ = capsys.readouterr()
+    assert out == ''
+    assert ret == 0
+
+
+@pytest.mark.parametrize(
+    'src', ['cdef int&& bar(): pass\n'],
+)
+@pytest.mark.skipif(
+    tuple(Cython.__version__.split('.')) > ('3',),
+    reason='invalid syntax in new Cython',
+)
+def test_noop_old_cython(capsys: Any, src: str) -> None:
     ret = _main(src, 't.py')
     out, _ = capsys.readouterr()
     assert out == ''
