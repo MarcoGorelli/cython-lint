@@ -212,6 +212,7 @@ def test_pycodestyle(tmpdir: Any, capsys: Any) -> None:
         'cdef foo[1, 1] bar\n',
         'cdef int foo(int bar(const char*)):pass\n',
         'cdef void f(char *argv[]): pass\n',
+        'cdef int&& bar(): pass\n',
     ],
 )
 def test_noop(capsys: Any, src: str) -> None:

@@ -178,7 +178,11 @@ def visit_funcdef(
             func_name = node.declarator.base.name
         elif isinstance(
             node.declarator.base,
-            (CPtrDeclaratorNode, CFuncDeclaratorNode),
+            (
+                CPtrDeclaratorNode,
+                CFuncDeclaratorNode,
+                CReferenceDeclaratorNode,
+            ),
         ):
             # e.g. cdef int* foo()
             func = _func_from_cptrdeclarator(node.declarator.base)
