@@ -510,8 +510,11 @@ def main(argv: Sequence[str] | None = None) -> int:  # pragma: no cover
         _, ext = os.path.splitext(path)
         if ext != '.pyx':
             continue
-        with open(path, encoding='utf-8') as fd:
-            content = fd.read()
+        try:
+            with open(path, encoding='utf-8') as fd:
+                content = fd.read()
+        except UnicodeDecodeError:
+            continue
         try:
             ret |= _main(
                 content, path, line_length=args.max_line_length,
