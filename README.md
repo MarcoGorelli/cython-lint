@@ -47,24 +47,7 @@ Currently, the following checks are implemented:
 - variable defined but unused
 - variable imported but unused
 - comma after base type definition (e.g. ``cdef ndarray, arr``)
-- pycodestyle checks, except these that aren't in general applicable to Cython code:
-    - E121 continuation line under-indented for hanging indent
-    - E123 closing bracket does not match indentation of opening bracket’s line
-    - E126 continuation line over-indented for hanging indent
-    - E133 closing bracket is missing indentation
-    - E203 whitespace before ‘,’, ‘;’, or ‘:’
-    - E211 whitespace before '('
-    - E225 missing whitespace around operator
-    - E226 missing whitespace around arithmetic operator
-    - E227 missing whitespace around bitwise or shift operator
-    - E241 multiple spaces after ‘,’
-    - E242 tab after ‘,’
-    - E271 multiple spaces after keyword
-    - E272 multiple spaces before keyword
-    - E275 missing whitespace after keyword
-    - E4 imports (``isort`` supports Cython code, best to just use that)
-    - E704 multiple statements on one line (def)
-    - E9 runtime
-    - W5 line break warning
+- f-string without placeholders
+- ``pycodestyle`` checks, except these that aren't in general applicable to Cython code
 
 More to come! Requests welcome!

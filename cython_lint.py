@@ -18,6 +18,8 @@ with warnings.catch_warnings():
     from Cython import Tempita
 import Cython
 from Cython.Compiler.ExprNodes import GeneratorExpressionNode
+from Cython.Compiler.ExprNodes import FormattedValueNode
+from Cython.Compiler.ExprNodes import JoinedStrNode
 from Cython.Compiler.ExprNodes import ImportNode
 from Cython.Compiler.ExprNodes import NameNode
 from Cython.Compiler.ExprNodes import NewExprNode
@@ -64,6 +66,7 @@ PYCODESTYLE_CODES = frozenset((
     'E227',
     'E241',
     'E242',
+    'E251',
     'E271',
     'E272',
     'E275',
@@ -72,6 +75,11 @@ PYCODESTYLE_CODES = frozenset((
     'E9',
     'W5',
 ))
+
+
+class NodeParent(NamedTuple):
+    node: Node
+    parent: Node | None
 
 
 class Token(NamedTuple):
@@ -143,7 +151,7 @@ def visit_funcdef(
 ) -> int:
     ret = 0
 
-    children = list(traverse(node))[1:]
+    children = [i.node for i in traverse(node)][1:]
 
     # e.g. cdef int a = 3
     defs = [
@@ -321,7 +329,8 @@ def _traverse_file(
     nodes = traverse(tree)
     imported_names: list[Token] = []
     names: list[Token] = []
-    for node in nodes:
+    for node_parent in nodes:
+        node = node_parent.node
         if isinstance(node, FromCImportStatNode):
             imported_names.extend(
                 Token(imp[2] or imp[1], *imp[0][1:])
@@ -350,6 +359,24 @@ def _traverse_file(
         if isinstance(node, CVarDefNode) and not skip_check:
             assert violations is not None
             ret |= visit_cvardef(node, lines, violations)
+
+        if (
+            isinstance(node, JoinedStrNode)
+            and not any(
+                isinstance(_child, FormattedValueNode)
+                for _child in node.values
+            )
+            and not isinstance(node_parent.parent, FormattedValueNode)
+            and not skip_check
+        ):
+            assert violations is not None
+            violations.append(
+                (
+                    node.pos[1], node.pos[2],
+                    'f-string without any placeholders',
+                ),
+            )
+            ret |= 1
 
         if isinstance(node, (NameNode, CSimpleBaseTypeNode)):
             # do we need node.module_path?
@@ -462,10 +489,11 @@ def _main(
 
 
 def traverse(tree: ModuleNode) -> Node:
-    nodes = [tree]
+    nodes = [NodeParent(tree, None)]
 
     while nodes:
-        node = nodes.pop()
+        node_parent = nodes.pop()
+        node = node_parent.node
         if node is None:
             continue
 
@@ -492,10 +520,10 @@ def traverse(tree: ModuleNode) -> Node:
         for attr in child_attrs:
             child = getattr(node, attr)
             if isinstance(child, list):
-                nodes.extend(child)
+                nodes.extend([NodeParent(_child, node) for _child in child])
             else:
-                nodes.append(child)
-        yield node
+                nodes.append(NodeParent(child, node))
+        yield node_parent
 
 
 def main(argv: Sequence[str] | None = None) -> int:  # pragma: no cover

@@ -43,11 +43,3 @@ repos:
     rev: v0.982
     hooks:
     -   id: mypy
--   repo: local
-    hooks:
-    -   id: pycodestyle-codes
-        name: pycodestyle-codes
-        language: python
-        entry: python generate_pycodestyle_codes.py
-        pass_filenames: false
-        additional_dependencies: ['Cython', 'tokenize-rt']
