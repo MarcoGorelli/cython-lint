@@ -116,6 +116,26 @@ def test_misplaced_comma_old_cython(
     assert ret == 1
 
 
+@pytest.mark.parametrize(
+    'src, expected',
+    [
+        (
+            'cdef void(): f"abc"\n',
+            't.py:1:13: f-string without any placeholders\n',
+        ),
+    ],
+)
+def test_f_string_not_formatted(
+    capsys: Any,
+    src: str,
+    expected: str,
+) -> None:
+    ret = _main(src, 't.py', no_pycodestyle=True)
+    out, _ = capsys.readouterr()
+    assert out == expected
+    assert ret == 1
+
+
 def test_pycodestyle(tmpdir: Any, capsys: Any) -> None:
     file = os.path.join(tmpdir, 't.py')
     with open(file, 'w', encoding='utf-8') as fd:
@@ -212,6 +232,8 @@ def test_pycodestyle(tmpdir: Any, capsys: Any) -> None:
         'cdef foo[1, 1] bar\n',
         'cdef int foo(int bar(const char*)):pass\n',
         'cdef void f(char *argv[]): pass\n',
+        'cdef void foo(): f"{a}"\n',
+        'cdef void foo(): f"{a:02d}"\n',
     ],
 )
 def test_noop(capsys: Any, src: str) -> None:
