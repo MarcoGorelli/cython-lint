@@ -21,6 +21,7 @@ with warnings.catch_warnings():
     from Cython import Tempita
 import Cython
 from Cython.Compiler.ExprNodes import GeneratorExpressionNode
+from Cython.Compiler.ExprNodes import TupleNode
 from Cython.Compiler.ExprNodes import DictNode
 from Cython.Compiler.ExprNodes import FormattedValueNode
 from Cython.Compiler.ExprNodes import JoinedStrNode
@@ -30,7 +31,9 @@ from Cython.Compiler.ExprNodes import NewExprNode
 from Cython.Compiler.ExprNodes import TypecastNode
 from Cython.Compiler.ModuleNode import ModuleNode
 from Cython.Compiler.Nodes import CArgDeclNode
+from Cython.Compiler.Nodes import AssertStatNode
 from Cython.Compiler.Nodes import CArrayDeclaratorNode
+from Cython.Compiler.Nodes import IfClauseNode
 from Cython.Compiler.Nodes import StatListNode
 from Cython.Compiler.Nodes import CClassDefNode
 from Cython.Compiler.Nodes import CFuncDeclaratorNode
@@ -436,6 +439,22 @@ def _traverse_file(
         if isinstance(node, DictNode) and not skip_check:
             assert violations is not None
             ret |= _visit_dict_node(node, violations)
+
+        if isinstance(node, (IfClauseNode, AssertStatNode)) and not skip_check:
+            assert violations is not None
+            if isinstance(node.condition, TupleNode):
+                if isinstance(node, IfClauseNode):
+                    statement = 'if-statement'
+                else:
+                    statement = 'assert statement'
+                violations.append(
+                    (
+                        node.pos[1], node.pos[2],
+                        f'{statement} with tuple as condition is always '
+                        'true - perhaps remove comma?',
+                    ),
+                )
+                ret |= 1
 
         if (
             isinstance(node, JoinedStrNode)
