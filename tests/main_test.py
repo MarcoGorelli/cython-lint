@@ -136,6 +136,40 @@ def test_f_string_not_formatted(
     assert ret == 1
 
 
+@pytest.mark.parametrize(
+    'src, expected',
+    [
+        (
+            'import foo\n'
+            'foo()\n'
+            'def bar(foo): pass\n',
+            "t.py:3:9: 'foo' shadows global import on line 1 col 8\n",
+        ),
+        (
+            'import foo\n'
+            'foo()\n'
+            'def bar(baz):\n'
+            '    foo = 3\n'
+            '    return foo\n',
+            "t.py:4:5: 'foo' shadows global import on line 1 col 8\n",
+        ),
+    ],
+)
+def test_shadows_import(
+    capsys: Any,
+    src: str,
+    expected: str,
+) -> None:
+    ret = _main(src, 't.py', no_pycodestyle=True)
+    out, _ = capsys.readouterr()
+    if tuple(Cython.__version__.split('.')) < ('3',):  # pragma: no cover
+        # old Cython records the location slightly differently
+        # no big deal
+        expected = expected.replace('t.py:3:9', 't.py:3:12')
+    assert out == expected
+    assert ret == 1
+
+
 def test_pycodestyle(tmpdir: Any, capsys: Any) -> None:
     file = os.path.join(tmpdir, 't.py')
     with open(file, 'w', encoding='utf-8') as fd:
