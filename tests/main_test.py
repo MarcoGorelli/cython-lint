@@ -194,6 +194,40 @@ def test_repeated_dict_keys(
     assert ret == 1
 
 
+@pytest.mark.parametrize(
+    'src, expected',
+    [
+        (
+            'if (False,): pass\n',
+            't.py:1:3: if-statement with tuple as condition is always true - '
+            'perhaps remove comma?\n',
+        ),
+        (
+            'if False:\n'
+            '    pass\n'
+            'elif (False,):\n'
+            '    pass\n',
+            't.py:3:5: if-statement with tuple as condition is always true - '
+            'perhaps remove comma?\n',
+        ),
+        (
+            'assert (False,)\n',
+            't.py:1:0: assert statement with tuple as condition is always '
+            'true - perhaps remove comma?\n',
+        ),
+    ],
+)
+def test_always_true(
+    capsys: Any,
+    src: str,
+    expected: str,
+) -> None:
+    ret = _main(src, 't.py', no_pycodestyle=True)
+    out, _ = capsys.readouterr()
+    assert out == expected
+    assert ret == 1
+
+
 def test_pycodestyle(tmpdir: Any, capsys: Any) -> None:
     file = os.path.join(tmpdir, 't.py')
     with open(file, 'w', encoding='utf-8') as fd:
