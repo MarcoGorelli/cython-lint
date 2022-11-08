@@ -170,6 +170,30 @@ def test_shadows_import(
     assert ret == 1
 
 
+@pytest.mark.parametrize(
+    'src, expected',
+    [
+        (
+            '{0: 1, 0: 2}\n',
+            't.py:1:1: dict key 0 repeated 2 times\n',
+        ),
+        (
+            '{a: 1, a: 2}\n',
+            't.py:1:1: dict key variable a repeated 2 times\n',
+        ),
+    ],
+)
+def test_repeated_dict_keys(
+    capsys: Any,
+    src: str,
+    expected: str,
+) -> None:
+    ret = _main(src, 't.py', no_pycodestyle=True)
+    out, _ = capsys.readouterr()
+    assert out == expected
+    assert ret == 1
+
+
 def test_pycodestyle(tmpdir: Any, capsys: Any) -> None:
     file = os.path.join(tmpdir, 't.py')
     with open(file, 'w', encoding='utf-8') as fd:
@@ -268,6 +292,8 @@ def test_pycodestyle(tmpdir: Any, capsys: Any) -> None:
         'cdef void f(char *argv[]): pass\n',
         'cdef void foo(): f"{a}"\n',
         'cdef void foo(): f"{a:02d}"\n',
+        '{"a": 0, a: 1}\n',
+        '{a.b: 0, a: 1}\n',
     ],
 )
 def test_noop(capsys: Any, src: str) -> None:
