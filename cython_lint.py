@@ -27,6 +27,7 @@ from Cython.Compiler.ExprNodes import TypecastNode
 from Cython.Compiler.ModuleNode import ModuleNode
 from Cython.Compiler.Nodes import CArgDeclNode
 from Cython.Compiler.Nodes import CArrayDeclaratorNode
+from Cython.Compiler.Nodes import StatListNode
 from Cython.Compiler.Nodes import CClassDefNode
 from Cython.Compiler.Nodes import CFuncDeclaratorNode
 from Cython.Compiler.Nodes import CFuncDefNode
@@ -147,6 +148,7 @@ def visit_funcdef(
     node: CFuncDefNode | DefNode,
     filename: str,
     lines: Sequence[str],
+    global_imports: list[Token],
     violations: list[tuple[int, int, str]],
 ) -> int:
     ret = 0
@@ -217,6 +219,16 @@ def visit_funcdef(
             violations.append((
                 _def[1], _def[2]+1,
                 f'\'{_def[0]}\' defined but unused',
+            ))
+            ret = 1
+        if _def[0] in [_import[0] for _import in global_imports]:
+            _global_import = [
+                _import for _import in global_imports if _import[0] == _def[0]
+            ][0]
+            violations.append((
+                _def[1], _def[2]+1,
+                f'\'{_def[0]}\' shadows global import on line '
+                f'{_global_import[1]} col {_global_import[2]+1}',
             ))
             ret = 1
     return ret
@@ -308,6 +320,29 @@ def _args_from_cargdecl(node: CArgDeclNode) -> Iterator[Token]:
         )
 
 
+def _record_imports(node: Node) -> Iterator[Token]:
+    if isinstance(node, FromCImportStatNode):
+        yield from (
+            Token(imp[2] or imp[1], *imp[0][1:])
+            for imp in node.imported_names
+        )
+
+    elif isinstance(node, CImportStatNode):
+        yield (
+            Token(node.as_name or node.module_name, *node.pos[1:])
+        )
+    elif isinstance(node, SingleAssignmentNode) and isinstance(
+        node.rhs, ImportNode,
+    ):
+        # e.g. import numpy as np
+        yield (Token(node.lhs.name, *node.lhs.pos[1:]))
+    elif isinstance(node, FromImportStatNode):
+        # from numpy import array
+        yield from (
+            Token(imp[1].name, *imp[1].pos[1:]) for imp in node.items
+        )
+
+
 def _traverse_file(
         code: str,
         filename: str,
@@ -326,35 +361,29 @@ def _traverse_file(
         # If Cython can't parse this file, just skip it.
         print('cant parse', filename)
         raise CythonParseError
-    nodes = traverse(tree)
+    nodes = list(traverse(tree))
     imported_names: list[Token] = []
+    global_imports: list[Token] = []
+
+    if isinstance(tree.body, StatListNode):
+        for node in tree.body.stats:
+            if isinstance(node, StatListNode):
+                for _node in node.stats:
+                    global_imports.extend(_record_imports(_node))
+            global_imports.extend(_record_imports(node))
+
     names: list[Token] = []
     for node_parent in nodes:
         node = node_parent.node
-        if isinstance(node, FromCImportStatNode):
-            imported_names.extend(
-                Token(imp[2] or imp[1], *imp[0][1:])
-                for imp in node.imported_names
-            )
-
-        elif isinstance(node, CImportStatNode):
-            imported_names.append(
-                Token(node.as_name or node.module_name, *node.pos[1:]),
-            )
-        elif isinstance(node, SingleAssignmentNode) and isinstance(
-            node.rhs, ImportNode,
-        ):
-            # e.g. import numpy as np
-            imported_names.append(Token(node.lhs.name, *node.lhs.pos[1:]))
-        elif isinstance(node, FromImportStatNode):
-            # from numpy import array
-            imported_names.extend(
-                Token(imp[1].name, *imp[1].pos[1:]) for imp in node.items
-            )
-
+        imported_names.extend(_record_imports(node))
+    for node_parent in nodes:
+        node = node_parent.node
         if isinstance(node, (CFuncDefNode, DefNode)) and not skip_check:
             assert violations is not None
-            ret |= visit_funcdef(node, filename, lines, violations=violations)
+            ret |= visit_funcdef(
+                node, filename, lines,
+                global_imports, violations=violations,
+            )
 
         if isinstance(node, CVarDefNode) and not skip_check:
             assert violations is not None
