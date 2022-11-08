@@ -442,7 +442,16 @@ def _traverse_file(
 
         if isinstance(node, (IfClauseNode, AssertStatNode)) and not skip_check:
             assert violations is not None
-            if isinstance(node.condition, TupleNode):
+            version = tuple(Cython.__version__.split('.'))
+            if version > ('3',):  # pragma: no cover
+                test = isinstance(node.condition, TupleNode)
+            elif isinstance(node, IfClauseNode):  # pragma: no cover
+                test = isinstance(node.condition, TupleNode)
+            else:  # pragma: no cover
+                # Cython renamed this in version 3
+                test = isinstance(node.cond, TupleNode)
+
+            if test:
                 if isinstance(node, IfClauseNode):
                     statement = 'if-statement'
                 else:
