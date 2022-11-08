@@ -162,6 +162,10 @@ def test_shadows_import(
 ) -> None:
     ret = _main(src, 't.py', no_pycodestyle=True)
     out, _ = capsys.readouterr()
+    if tuple(Cython.__version__.split('.')) < ('3',):
+        # old Cython records the location slightly differently
+        # no big deal
+        expected = expected.replace('t.py:3:9', 't.py:3:12')
     assert out == expected
     assert ret == 1
 
