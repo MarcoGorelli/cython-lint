@@ -21,7 +21,7 @@ Sample `.pre-commit-config.yaml`:
 
 ```yaml
 -   repo: https://github.com/MarcoGorelli/cython-lint
-    rev: v0.4.0
+    rev: v0.5.0
     hooks:
     -   id: cython-lint
 ```
@@ -42,12 +42,16 @@ The following configuration options are available:
 - use the command-line argument ``--max-line-length`` to control the maximum line length used by pycodestyle;
 - use the command-line argument ``--no-pycodestyle`` if you don't want the pycodestyle checks.
 
-Currently, the following checks are implemented:
+## Which checks are implemented?
 
 - variable defined but unused
 - variable imported but unused
 - comma after base type definition (e.g. ``cdef ndarray, arr``)
 - f-string without placeholders
-- ``pycodestyle`` checks, except these that aren't in general applicable to Cython code
+- dict key repeated
+- dict key variable repeated
+- if-statement with tuple condition (always true...)
+- assert statement with tuple condition (always true...)
+- ``pycodestyle`` nitpicks, which you can turn off with ``--no-pycodestyle``
 
 More to come! Requests welcome!
