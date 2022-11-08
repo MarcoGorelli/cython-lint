@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import argparse
+import collections
 import copy
 import os
 import subprocess
 import sys
 import warnings
+from typing import Hashable
 from typing import Iterator
+from typing import MutableMapping
 from typing import NamedTuple
 from typing import NoReturn
 from typing import Sequence
@@ -18,6 +21,7 @@ with warnings.catch_warnings():
     from Cython import Tempita
 import Cython
 from Cython.Compiler.ExprNodes import GeneratorExpressionNode
+from Cython.Compiler.ExprNodes import DictNode
 from Cython.Compiler.ExprNodes import FormattedValueNode
 from Cython.Compiler.ExprNodes import JoinedStrNode
 from Cython.Compiler.ExprNodes import ImportNode
@@ -343,6 +347,45 @@ def _record_imports(node: Node) -> Iterator[Token]:
         )
 
 
+def _visit_dict_node(
+    node: DictNode,
+    violations: list[tuple[int, int, str]],
+) -> int:
+    ret = 0
+    literal_counts: MutableMapping[
+        Hashable,
+        int,
+    ] = collections.Counter()
+    variable_counts: MutableMapping[
+        Hashable,
+        int,
+    ] = collections.Counter()
+    for key_value_pair in node.key_value_pairs:
+        if getattr(key_value_pair.key, 'value', None) is not None:
+            literal_counts[key_value_pair.key.value] += 1
+        elif getattr(key_value_pair.key, 'name', None) is not None:
+            variable_counts[key_value_pair.key.name] += 1
+    for key, value in literal_counts.items():
+        if value > 1:
+            violations.append(
+                (
+                    node.pos[1], node.pos[2],
+                    f'dict key {key} repeated {value} times',
+                ),
+            )
+            ret = 1
+    for key, value in variable_counts.items():
+        if value > 1:
+            violations.append(
+                (
+                    node.pos[1], node.pos[2],
+                    f'dict key variable {key} repeated {value} times',
+                ),
+            )
+            ret = 1
+    return ret
+
+
 def _traverse_file(
         code: str,
         filename: str,
@@ -376,6 +419,7 @@ def _traverse_file(
     for node_parent in nodes:
         node = node_parent.node
         imported_names.extend(_record_imports(node))
+
     for node_parent in nodes:
         node = node_parent.node
         if isinstance(node, (CFuncDefNode, DefNode)) and not skip_check:
@@ -388,6 +432,10 @@ def _traverse_file(
         if isinstance(node, CVarDefNode) and not skip_check:
             assert violations is not None
             ret |= visit_cvardef(node, lines, violations)
+
+        if isinstance(node, DictNode) and not skip_check:
+            assert violations is not None
+            ret |= _visit_dict_node(node, violations)
 
         if (
             isinstance(node, JoinedStrNode)
