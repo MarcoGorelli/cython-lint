@@ -356,6 +356,8 @@ def test_pycodestyle(tmpdir: Any, capsys: Any) -> None:
         '\n'
         'def bar():\n'
         '    import foo.bat\n',
+        'def foo():\n'
+        '    _ = bar()\n',
     ],
 )
 def test_noop(capsys: Any, src: str) -> None:

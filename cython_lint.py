@@ -226,6 +226,7 @@ def visit_funcdef(
             _def[0] not in [_name[0] for _name in names if _def != _name]
             and _def[0] != func_name
             and _def[0] not in [i[0] for i in args]
+            and not _def[0].startswith('_')
         ) and '# no-lint' not in lines[_def[1] - 1]:
 
             violations.append((
