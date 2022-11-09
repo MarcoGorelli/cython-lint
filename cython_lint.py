@@ -178,6 +178,8 @@ def visit_funcdef(
         for _child in children
         if isinstance(_child, SingleAssignmentNode)
         and isinstance(_child.lhs, NameNode)
+        # e.g. import numpy as np
+        and not isinstance(_child.rhs, ImportNode)
     ]
     defs = [*defs, *simple_assignments]
 

@@ -352,6 +352,10 @@ def test_pycodestyle(tmpdir: Any, capsys: Any) -> None:
         'cdef void foo(): f"{a:02d}"\n',
         '{"a": 0, a: 1}\n',
         '{a.b: 0, a: 1}\n',
+        'import foo\n'
+        '\n'
+        'def bar():\n'
+        '    import foo.bat\n',
     ],
 )
 def test_noop(capsys: Any, src: str) -> None:
