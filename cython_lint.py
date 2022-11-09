@@ -23,6 +23,7 @@ import Cython
 from Cython.Compiler.ExprNodes import GeneratorExpressionNode
 from Cython.Compiler.ExprNodes import TupleNode
 from Cython.Compiler.ExprNodes import DictNode
+from Cython.Compiler.ExprNodes import ListNode
 from Cython.Compiler.ExprNodes import FormattedValueNode
 from Cython.Compiler.ExprNodes import JoinedStrNode
 from Cython.Compiler.ExprNodes import ImportNode
@@ -482,6 +483,17 @@ def _traverse_file(
                 ),
             )
             ret |= 1
+
+        if isinstance(node, CArgDeclNode) and not skip_check:
+            assert violations is not None
+            if isinstance(node.default, (ListNode, DictNode)):
+                violations.append(
+                    (
+                        node.pos[1], node.pos[2]+1,
+                        'dangerous default value!',
+                    ),
+                )
+                ret = 1
 
         if isinstance(node, (NameNode, CSimpleBaseTypeNode)):
             # do we need node.module_path?

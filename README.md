@@ -21,7 +21,7 @@ Sample `.pre-commit-config.yaml`:
 
 ```yaml
 -   repo: https://github.com/MarcoGorelli/cython-lint
-    rev: v0.5.1
+    rev: v0.6.0
     hooks:
     -   id: cython-lint
 ```
@@ -52,6 +52,7 @@ The following configuration options are available:
 - dict key variable repeated
 - if-statement with tuple condition (always true...)
 - assert statement with tuple condition (always true...)
+- dangerous default value
 - ``pycodestyle`` nitpicks, which you can turn off with ``--no-pycodestyle``
 
 More to come! Requests welcome!
