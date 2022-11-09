@@ -14,13 +14,13 @@ from typing import NamedTuple
 from typing import NoReturn
 from typing import Sequence
 
-from Cython.Compiler.TreeFragment import StringParseContext
 with warnings.catch_warnings():
     # DeprecationWarning: 'cgi' is deprecated and slated for
     # removal in Python 3.13
     # needs fixing in Cython
     warnings.simplefilter('ignore', DeprecationWarning)
     from Cython import Tempita
+    from Cython.Compiler.TreeFragment import StringParseContext
 import Cython
 from Cython.Compiler.ExprNodes import GeneratorExpressionNode
 from Cython.Compiler.ExprNodes import TupleNode
@@ -618,25 +618,25 @@ def traverse(tree: ModuleNode) -> Node:
         if node is None:
             continue
 
-        child_attrs = copy.deepcopy(node.child_attrs)
+        child_attrs = set(copy.deepcopy(node.child_attrs))
 
         if isinstance(node, CClassDefNode):
-            child_attrs.extend(['bases', 'decorators'])
+            child_attrs.update(['bases', 'decorators'])
         elif isinstance(node, TypecastNode):
-            child_attrs.append('base_type')
+            child_attrs.add('base_type')
         elif isinstance(node, GeneratorExpressionNode):
             if hasattr(node, 'loop'):
-                child_attrs.append('loop')
+                child_attrs.add('loop')
             else:  # pragma: no cover
                 err_msg(node, 'GeneratorExpressionNode with loop attribute')
         elif isinstance(node, CFuncDefNode):
-            child_attrs.append('decorators')
+            child_attrs.add('decorators')
         elif isinstance(node, FusedTypeNode):
-            child_attrs.append('types')
+            child_attrs.add('types')
         elif isinstance(node, ForInStatNode):
-            child_attrs.append('target')
+            child_attrs.add('target')
         elif isinstance(node, NewExprNode):
-            child_attrs.append('cppclass')
+            child_attrs.add('cppclass')
 
         for attr in child_attrs:
             child = getattr(node, attr)
