@@ -13,6 +13,8 @@ from typing import MutableMapping
 from typing import NamedTuple
 from typing import NoReturn
 from typing import Sequence
+
+from Cython.Compiler.TreeFragment import StringParseContext
 with warnings.catch_warnings():
     # DeprecationWarning: 'cgi' is deprecated and slated for
     # removal in Python 3.13
@@ -403,10 +405,12 @@ def _traverse_file(
     """
     ret = 0
     try:
-        tree = parse_from_strings(filename, code)
-    except:  # pragma: no cover  # noqa: E722
+        context = StringParseContext(filename)
+        context.set_language_level(3)
+        tree = parse_from_strings(filename, code, context=context)
+    except Exception as exp:  # pragma: no cover  # noqa: E722
         # If Cython can't parse this file, just skip it.
-        print('cant parse', filename)
+        print(f'cant parse {filename}: {repr(exp)}')
         raise CythonParseError
     nodes = list(traverse(tree))
     imported_names: list[Token] = []
