@@ -53,6 +53,7 @@ The following configuration options are available:
 - if-statement with tuple condition (always true...)
 - assert statement with tuple condition (always true...)
 - dangerous default value
+- late-binding closures https://docs.python-guide.org/writing/gotchas/#late-binding-closures
 - ``pycodestyle`` nitpicks, which you can turn off with ``--no-pycodestyle``
 
 More to come! Requests welcome!
