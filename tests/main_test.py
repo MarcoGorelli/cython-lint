@@ -252,6 +252,46 @@ def test_always_true(
     assert ret == 1
 
 
+@pytest.mark.parametrize(
+    'src, expected',
+    [
+        (
+            'def create_multipliers():\n'
+            '    return [lambda x : i * x for i in range(5)]\n',
+            't.py:2:12: Late binding closure! Careful '
+            'https://docs.python-guide.org/writing/gotchas/'
+            '#late-binding-closures\n',
+        ),
+        (
+            'def create_multipliers():\n'
+            '    return {i: lambda x : i * x for i in range(5)}\n',
+            't.py:2:12: Late binding closure! Careful '
+            'https://docs.python-guide.org/writing/gotchas/'
+            '#late-binding-closures\n',
+        ),
+        (
+            'lst = []\n'
+            'for i in range(5):\n'
+            '    def foo(a):\n'
+            '        return i * a\n'
+            '    lst.append(foo(a))\n',
+            't.py:2:1: Late binding closure! Careful '
+            'https://docs.python-guide.org/writing/gotchas/'
+            '#late-binding-closures\n',
+        ),
+    ],
+)
+def test_late_binding_closure(
+    capsys: Any,
+    src: str,
+    expected: str,
+) -> None:
+    ret = _main(src, 't.py', no_pycodestyle=True)
+    out, _ = capsys.readouterr()
+    assert out == expected
+    assert ret == 1
+
+
 def test_pycodestyle(tmpdir: Any, capsys: Any) -> None:
     file = os.path.join(tmpdir, 't.py')
     with open(file, 'w', encoding='utf-8') as fd:
@@ -358,6 +398,17 @@ def test_pycodestyle(tmpdir: Any, capsys: Any) -> None:
         '    import foo.bat\n',
         'def foo():\n'
         '    _ = bar()\n',
+        'def create_multipliers():\n'
+        '    return 3\n',
+        'def create_multipliers():\n'
+        '    return [f"a{3}" for i in range(10)]\n',
+        'def create_multipliers():\n'
+        '    return [lambda x: y for i in range(10)]\n',
+        'lst = []\n'
+        'for i in range(5):\n'
+        '    def foo(a):\n'
+        '        return b * a\n'
+        '    lst.append(foo(a))\n',
     ],
 )
 def test_noop(capsys: Any, src: str) -> None:
