@@ -23,6 +23,9 @@ with warnings.catch_warnings():
     from Cython.Compiler.TreeFragment import StringParseContext
 import Cython
 from Cython.Compiler.ExprNodes import GeneratorExpressionNode
+from Cython.Compiler.ExprNodes import ComprehensionNode
+from Cython.Compiler.ExprNodes import ComprehensionAppendNode
+from Cython.Compiler.ExprNodes import DictComprehensionAppendNode
 from Cython.Compiler.ExprNodes import TupleNode
 from Cython.Compiler.ExprNodes import DictNode
 from Cython.Compiler.ExprNodes import ListNode
@@ -31,6 +34,7 @@ from Cython.Compiler.ExprNodes import JoinedStrNode
 from Cython.Compiler.ExprNodes import ImportNode
 from Cython.Compiler.ExprNodes import NameNode
 from Cython.Compiler.ExprNodes import NewExprNode
+from Cython.Compiler.ExprNodes import LambdaNode
 from Cython.Compiler.ExprNodes import TypecastNode
 from Cython.Compiler.ModuleNode import ModuleNode
 from Cython.Compiler.Nodes import CArgDeclNode
@@ -502,6 +506,60 @@ def _traverse_file(
                 )
                 ret = 1
 
+        if (
+            isinstance(node, ComprehensionNode)
+            and isinstance(node.loop.target, NameNode)
+            and isinstance(node.loop.body, ComprehensionAppendNode)
+            and not skip_check
+        ):
+            if isinstance(node.loop.body, DictComprehensionAppendNode):
+                expr = node.loop.body.value_expr
+            else:
+                expr = node.loop.body.expr
+            if isinstance(expr, LambdaNode):
+                assert violations is not None
+                _children = [j.node for j in traverse(expr)]
+                _names = [
+                    _child.name for _child in _children if isinstance(
+                        _child, NameNode,
+                    )
+                ]
+                if node.loop.target.name in _names:
+                    violations.append(
+                        (
+                            node.pos[1], node.pos[2]+1,
+                            'Late binding closure! Careful '
+                            'https://docs.python-guide.org/writing/gotchas/'
+                            '#late-binding-closures',
+                        ),
+                    )
+                    ret = 1
+
+        if (
+            isinstance(node, ForInStatNode)
+            and isinstance(node.target, NameNode)
+            and isinstance(node.body, StatListNode)
+            and not skip_check
+        ):
+            assert violations is not None
+            for _stat in node.body.stats:
+                if isinstance(_stat, (DefNode, CFuncDefNode)):
+                    expr = _stat.body
+                    _children = [j.node for j in traverse(expr)]
+                    _names = [
+                        i.name for i in _children if isinstance(i, NameNode)
+                    ]
+                    if node.target.name in _names:
+                        violations.append(
+                            (
+                                node.pos[1], node.pos[2]+1,
+                                'Late binding closure! Careful '
+                                'https://docs.python-guide.org/writing/gotchas'
+                                '/#late-binding-closures',
+                            ),
+                        )
+                        ret = 1
+
         if isinstance(node, (NameNode, CSimpleBaseTypeNode)):
             # do we need node.module_path?
             names.append(Token(node.name, *node.pos[1:]))
@@ -640,6 +698,8 @@ def traverse(tree: ModuleNode) -> Node:
             child_attrs.add('target')
         elif isinstance(node, NewExprNode):
             child_attrs.add('cppclass')
+        elif isinstance(node, LambdaNode):
+            child_attrs.update(['args', 'result_expr'])
 
         for attr in child_attrs:
             child = getattr(node, attr)
