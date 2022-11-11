@@ -39,25 +39,17 @@ from Cython.Compiler.ExprNodes import TypecastNode
 from Cython.Compiler.ModuleNode import ModuleNode
 from Cython.Compiler.Nodes import CArgDeclNode
 from Cython.Compiler.Nodes import AssertStatNode
-from Cython.Compiler.Nodes import CArrayDeclaratorNode
 from Cython.Compiler.Nodes import IfClauseNode
 from Cython.Compiler.Nodes import StatListNode
 from Cython.Compiler.Nodes import CClassDefNode
 from Cython.Compiler.Nodes import CFuncDeclaratorNode
 from Cython.Compiler.Nodes import CFuncDefNode
-if tuple(Cython.__version__.split('.')) > ('3',):  # pragma: no cover
-    from Cython.Compiler.Nodes import (
-        CConstOrVolatileTypeNode as CConstTypeNode,
-    )
-else:  # pragma: no cover
-    from Cython.Compiler.Nodes import CConstTypeNode
 from Cython.Compiler.Nodes import CImportStatNode
 from Cython.Compiler.Nodes import CNameDeclaratorNode
-from Cython.Compiler.Nodes import CPtrDeclaratorNode
-from Cython.Compiler.Nodes import CReferenceDeclaratorNode
 from Cython.Compiler.Nodes import CSimpleBaseTypeNode
 from Cython.Compiler.Nodes import CVarDefNode
 from Cython.Compiler.Nodes import DefNode
+
 from Cython.Compiler.Nodes import ForInStatNode
 from Cython.Compiler.Nodes import FromCImportStatNode
 from Cython.Compiler.Nodes import FromImportStatNode
@@ -199,28 +191,8 @@ def visit_funcdef(
             args.extend(_args_from_cargdecl(_child))
 
     if isinstance(node, CFuncDefNode):
-        if isinstance(node.declarator.base, CNameDeclaratorNode):
-            # e.g. cdef int foo()
-            func_name = node.declarator.base.name
-        elif isinstance(
-            node.declarator.base,
-            (
-                CPtrDeclaratorNode,
-                CFuncDeclaratorNode,
-                CReferenceDeclaratorNode,
-            ),
-        ):
-            # e.g. cdef int* foo()
-            func = _func_from_cptrdeclarator(node.declarator.base)
-            if isinstance(func.base, CNameDeclaratorNode):
-                func_name = func.base.name
-            else:  # pragma: no cover
-                err_msg(func.base, 'CNameDeclaratorNode')
-        else:  # pragma: no cover
-            err_msg(
-                node.declarator.base,
-                'CNameDeclaratorNode or CFuncDeclaratorNode',
-            )
+        func = _func_from_base(node.declarator)
+        func_name = _name_from_base(func.base).name
     else:
         func_name = node.name
 
@@ -251,90 +223,42 @@ def visit_funcdef(
     return ret
 
 
-def _name_from_cptrdeclarator(
-    node: CPtrDeclaratorNode | CNameDeclaratorNode,
-) -> CNameDeclaratorNode:
-    while hasattr(node, 'base'):
-        node = node.base
-    if isinstance(node, CNameDeclaratorNode):
-        return node
-    err_msg(node, 'CNameDeclaratorNode')  # pragma: no cover
+def _name_from_base(node: Node) -> Node:
+    while not hasattr(node, 'name'):
+        if hasattr(node, 'base'):
+            node = node.base
+        else:
+            err_msg(node, 'CNameDeclaratorNode')  # pragma: no cover
+    return node
 
 
-def _func_from_cptrdeclarator(
-    node: CPtrDeclaratorNode | CFuncDeclaratorNode,
-) -> CFuncDeclaratorNode:
-    while hasattr(node, 'base') and not isinstance(node, CFuncDeclaratorNode):
-        node = node.base
-    if isinstance(node, CFuncDeclaratorNode):
-        return node
-    err_msg(node, 'CFuncDeclaratorNode')  # pragma: no cover
-
-
-def _name_from_array_declarator(
-    node: CArrayDeclaratorNode | CReferenceDeclaratorNode,
-) -> CNameDeclaratorNode:
-    while isinstance(node, (CArrayDeclaratorNode, CReferenceDeclaratorNode)):
-        node = node.base
-    if isinstance(node, CNameDeclaratorNode):
-        return node
-    err_msg(node, 'CNameDeclaratorNode')  # pragma: no cover
+def _func_from_base(node: Node) -> Node:
+    while not isinstance(node, (CFuncDeclaratorNode, CFuncDefNode)):
+        if hasattr(node, 'base'):
+            node = node.base
+        else:
+            err_msg(node, 'CFuncDeclaratorNode')  # pragma: no cover
+    return node
 
 
 def _args_from_cargdecl(node: CArgDeclNode) -> Iterator[Token]:
-    if isinstance(node.declarator, (CNameDeclaratorNode, CPtrDeclaratorNode)):
-        # e.g. foo(int a), foo(int* a)
-        _decl = _name_from_cptrdeclarator(node.declarator)
-        if _decl.name:
-            yield Token(_decl.name, *_decl.pos[1:])
-        elif isinstance(
-            node.base_type,
-            (CNameDeclaratorNode, CSimpleBaseTypeNode),
-        ):
-            # e.g. foo(a)
-            yield Token(node.base_type.name, *node.base_type.pos[1:])
-        elif isinstance(node.base_type, (CConstTypeNode)):
-            # e.g. foo(int bar(const char))
-            if isinstance(
-                node.base_type.base_type,
-                ((CNameDeclaratorNode, CSimpleBaseTypeNode)),
-            ):
-                yield Token(_decl.name, *_decl.pos[1:])
-            else:  # pragma: no cover
-                err_msg(
-                    node.base_type.base_type,
-                    'CNameDeclaratorNode or CSimpleBaseTypeNode',
-                )
-        else:  # pragma: no cover
-            err_msg(
-                node.base_type,
-                'CNameDeclaratorNode or CSimpleBaseTypeNode',
-            )
-    elif isinstance(node.declarator, CFuncDeclaratorNode):
+    if isinstance(node.declarator, CFuncDeclaratorNode):
         # e.g. cdef foo(object (*operation)(int64_t value))
         for _arg in node.declarator.args:
             yield from _args_from_cargdecl(_arg)
-        _base = _name_from_cptrdeclarator(node.declarator.base)
+        _base = _name_from_base(node.declarator.base)
         yield Token(_base.name, *_base.pos[1:])
-    elif isinstance(
-        node.declarator,
-        (CReferenceDeclaratorNode, CArrayDeclaratorNode),
-    ):
+    elif hasattr(node.declarator, 'base'):
         # e.g. cdef foo(vector[FrontierRecord]& frontier)
         # e.g. cdef foo(double x[])
-        _base = _name_from_array_declarator(node.declarator)
+        _base = _name_from_base(node.declarator)
         yield Token(
             _base.name,
             *_base.pos[1:],
         )
-    else:  # pragma: no cover
-        err_msg(
-            node.declarator,
-            'CNameDeclarator, '
-            'CPtrDeclarator, '
-            'CFuncDeclarator, or '
-            'CReferenceDeclarator',
-        )
+    # e.g. foo(int a), foo(int* a)
+    _decl = _name_from_base(node.declarator)
+    yield Token(_decl.name, *_decl.pos[1:])
 
 
 def _record_imports(node: Node) -> Iterator[Token]:
@@ -343,7 +267,6 @@ def _record_imports(node: Node) -> Iterator[Token]:
             Token(imp[2] or imp[1], *imp[0][1:])
             for imp in node.imported_names
         )
-
     elif isinstance(node, CImportStatNode):
         yield (
             Token(node.as_name or node.module_name, *node.pos[1:])
@@ -437,6 +360,7 @@ def _traverse_file(
 
     for node_parent in nodes:
         node = node_parent.node
+
         if isinstance(node, (CFuncDefNode, DefNode)) and not skip_check:
             assert violations is not None
             ret |= visit_funcdef(
