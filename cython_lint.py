@@ -23,7 +23,12 @@ with warnings.catch_warnings():
     from Cython.Compiler.TreeFragment import StringParseContext
 import Cython
 from Cython.Compiler.ExprNodes import GeneratorExpressionNode
+from Cython.Compiler.ExprNodes import SimpleCallNode
+from Cython.Compiler.ExprNodes import AttributeNode
+from Cython.Compiler.ExprNodes import SetNode
+from Cython.Compiler.ExprNodes import UnicodeNode, IntNode, FloatNode
 from Cython.Compiler.ExprNodes import ComprehensionNode
+from Cython.Compiler.ExprNodes import PrimaryCmpNode
 from Cython.Compiler.ExprNodes import ComprehensionAppendNode
 from Cython.Compiler.ExprNodes import DictComprehensionAppendNode
 from Cython.Compiler.ExprNodes import TupleNode
@@ -82,6 +87,8 @@ PYCODESTYLE_CODES = frozenset((
     'E9',
     'W5',
 ))
+
+CONSTANT_NODE = (UnicodeNode, IntNode, FloatNode)
 
 
 class NodeParent(NamedTuple):
@@ -480,6 +487,57 @@ def _traverse_file(
                                 'Late binding closure! Careful '
                                 'https://docs.python-guide.org/writing/gotchas'
                                 '/#late-binding-closures',
+                            ),
+                        )
+                        ret = 1
+
+        if (
+            isinstance(node, PrimaryCmpNode)
+            and isinstance(node.operand1, CONSTANT_NODE)
+            and isinstance(node.operand2, CONSTANT_NODE)
+            and not skip_check
+        ):
+            assert violations is not None
+            violations.append(
+                (
+                    node.pos[1], node.pos[2]+1,
+                    'Comparison between constants',
+                ),
+            )
+            ret = 1
+
+        if (
+            isinstance(node, SetNode)
+            and not skip_check
+        ):
+            assert violations is not None
+            counts: MutableMapping[object, int] = collections.Counter()
+            for _arg in node.args:
+                if hasattr(_arg, 'value'):
+                    counts[_arg.value] += 1
+            if counts and max(counts.values()) > 1:
+                violations.append(
+                    (
+                        node.pos[1], node.pos[2]+1,
+                        'Repeated element in set',
+                    ),
+                )
+                ret = 1
+
+        if (
+            isinstance(node, SimpleCallNode)
+            and isinstance(node.function, AttributeNode)
+            and not skip_check
+        ):
+            assert violations is not None
+            if node.function.attribute in {'strip', 'rstrip', 'lstrip'}:
+                if node.args and isinstance(node.args[0], UnicodeNode):
+                    if len(set(node.args[0].value)) != len(node.args[0].value):
+                        violations.append(
+                            (
+                                node.pos[1], node.pos[2]+1,
+                                f'Using \'{node.function.attribute}\' with '
+                                'repeated elements',
                             ),
                         )
                         ret = 1

@@ -174,6 +174,26 @@ def test_shadows_import(
     'src, expected',
     [
         (
+            '{0, 0, 1}\n',
+            't.py:1:2: Repeated element in set\n',
+        ),
+    ],
+)
+def test_repeated_set_element(
+    capsys: Any,
+    src: str,
+    expected: str,
+) -> None:
+    ret = _main(src, 't.py', no_pycodestyle=True)
+    out, _ = capsys.readouterr()
+    assert out == expected
+    assert ret == 1
+
+
+@pytest.mark.parametrize(
+    'src, expected',
+    [
+        (
             '{0: 1, 0: 2}\n',
             't.py:1:1: dict key 0 repeated 2 times\n',
         ),
@@ -242,6 +262,58 @@ def test_dangerous_default(
     ],
 )
 def test_always_true(
+    capsys: Any,
+    src: str,
+    expected: str,
+) -> None:
+    ret = _main(src, 't.py', no_pycodestyle=True)
+    out, _ = capsys.readouterr()
+    assert out == expected
+    assert ret == 1
+
+
+@pytest.mark.parametrize(
+    'src, expected',
+    [
+        (
+            'if 0 == 0: pass\n',
+            't.py:1:6: Comparison between constants\n',
+        ),
+        (
+            'if "0" == "0": pass\n',
+            't.py:1:8: Comparison between constants\n',
+        ),
+    ],
+)
+def test_constants_comparison(
+    capsys: Any,
+    src: str,
+    expected: str,
+) -> None:
+    ret = _main(src, 't.py', no_pycodestyle=True)
+    out, _ = capsys.readouterr()
+    assert out == expected
+    assert ret == 1
+
+
+@pytest.mark.parametrize(
+    'src, expected',
+    [
+        (
+            'mystring.strip("aab")\n',
+            "t.py:1:15: Using 'strip' with repeated elements\n",
+        ),
+        (
+            'mystring.lstrip("aab")\n',
+            "t.py:1:16: Using 'lstrip' with repeated elements\n",
+        ),
+        (
+            'mystring.rstrip("aab")\n',
+            "t.py:1:16: Using 'rstrip' with repeated elements\n",
+        ),
+    ],
+)
+def test_strip_repeated_elements(
     capsys: Any,
     src: str,
     expected: str,
@@ -409,6 +481,11 @@ def test_pycodestyle(tmpdir: Any, capsys: Any) -> None:
         '    def foo(a):\n'
         '        return b * a\n'
         '    lst.append(foo(a))\n',
+        '{0: 1, 1: 2}\n',
+        '{0, 1, 2}\n',
+        '{0, f.b}\n',
+        'mystring.rstrip("abc")\n',
+        'mystring.rstrip(suffix)\n',
     ],
 )
 def test_noop(capsys: Any, src: str) -> None:
