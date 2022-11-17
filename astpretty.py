@@ -1,4 +1,6 @@
 # type: ignore
+from Cython.Compiler.TreeFragment import StringParseContext  # pragma: no cover
+
 
 def _print(name, node, indent):  # pragma: no cover
     if node is None:
@@ -19,7 +21,9 @@ def pretty_print(path):  # pragma: no cover
     from Cython.Compiler.TreeFragment import parse_from_strings
     with open(path, encoding='utf-8') as fd:
         content = fd.read()
-    tree = parse_from_strings(path, content)
+    context = StringParseContext(path)
+    context.set_language_level(3)
+    tree = parse_from_strings(path, content, context=context)
     _print('tree', tree, indent=0)
 
 
