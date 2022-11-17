@@ -447,7 +447,9 @@ def _traverse_file(
                 expr = node.loop.body.value_expr
             else:
                 expr = node.loop.body.expr
-            if isinstance(expr, LambdaNode):
+            if isinstance(expr, LambdaNode) and not hasattr(expr, 'loop'):
+                # GeneratorExpressionNode is a LambdaNode, and has a loop
+                # attribute, so need to exclude it.
                 assert violations is not None
                 _children = [j.node for j in traverse(expr)]
                 _names = [
