@@ -486,6 +486,7 @@ def test_pycodestyle(tmpdir: Any, capsys: Any) -> None:
         '{0, f.b}\n',
         'mystring.rstrip("abc")\n',
         'mystring.rstrip(suffix)\n',
+        '[(j for j in i) for i in items]\n',
     ],
 )
 def test_noop(capsys: Any, src: str) -> None:
