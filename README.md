@@ -53,6 +53,9 @@ The following configuration options are available:
 - if-statement with tuple condition (always true...)
 - assert statement with tuple condition (always true...)
 - dangerous default value
+- repeated element in set
+- ``.strip``, ``.rstrip``, or ``.lstrip`` used with repeated characters
+- comparison between constants
 - late-binding closures https://docs.python-guide.org/writing/gotchas/#late-binding-closures
 - ``pycodestyle`` nitpicks, which you can turn off with ``--no-pycodestyle``
 
