@@ -4,3 +4,9 @@
     entry: cython-lint
     language: python
     types: [cython]
+-   id: double-quote-strings
+    name: fix single-quoted strings
+    description: replaces single-quoted strings with double-quoted strings.
+    entry: double-quote-strings
+    language: python
+    types: [cython]
