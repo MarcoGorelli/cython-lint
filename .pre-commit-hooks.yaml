@@ -5,7 +5,7 @@
     language: python
     types: [cython]
 -   id: double-quote-cython-strings
-    name: fix single-quoted strings
+    name: double-quote Cython strings
     description: replaces single-quoted strings with double-quoted strings.
     entry: double-quote-cython-strings
     language: python
