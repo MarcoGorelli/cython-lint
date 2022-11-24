@@ -5,7 +5,7 @@ from typing import Any
 
 import pytest
 
-from string_fixer import main
+from cython_lint.string_fixer import main
 
 TESTS = (
     # Base cases

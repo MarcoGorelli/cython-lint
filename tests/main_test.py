@@ -4,7 +4,7 @@ from typing import Any
 import Cython
 import pytest
 
-from cython_lint import _main
+from cython_lint.cython_lint import _main
 
 INCLUDE_FILE_0 = os.path.join('tests', 'data', 'foo.pxi')
 INCLUDE_FILE_1 = os.path.join('tests', 'data', 'bar.pxi')
