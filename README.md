@@ -24,6 +24,7 @@ Sample `.pre-commit-config.yaml`:
     rev: v0.8.1
     hooks:
     -   id: cython-lint
+    -   id: double-quote-strings
 ```
 
 ## Command-line example
@@ -32,6 +33,8 @@ Sample `.pre-commit-config.yaml`:
 $ cython-lint my_file_1.pyx my_file_2.pyx
 my_file_1.pyx:54:5: 'get_conversion_factor' imported but unused
 my_file_2.pyx:1112:38: 'mod' defined but unused
+my_file_3.pyx:4:9: dangerous default value!
+my_file_3.pyx:5:9: comma after base type in definition
 ```
 
 
@@ -58,5 +61,9 @@ The following configuration options are available:
 - comparison between constants
 - late-binding closures https://docs.python-guide.org/writing/gotchas/#late-binding-closures
 - ``pycodestyle`` nitpicks, which you can turn off with ``--no-pycodestyle``
+
+In addition, the following automated fixers are implemented:
+
+- double-quote-strings (replace single quotes with double quotes, like the ``black`` formatter does)
 
 More to come! Requests welcome!
