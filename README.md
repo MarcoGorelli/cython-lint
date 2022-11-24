@@ -24,7 +24,7 @@ Sample `.pre-commit-config.yaml`:
     rev: v0.9.0
     hooks:
     -   id: cython-lint
-    -   id: double-quote-strings
+    -   id: double-quote-cython-strings
 ```
 
 ## Command-line example
@@ -64,6 +64,6 @@ The following configuration options are available:
 
 In addition, the following automated fixers are implemented:
 
-- double-quote-strings (replace single quotes with double quotes, like the ``black`` formatter does)
+- double-quote-cython-strings (replace single quotes with double quotes, like the ``black`` formatter does)
 
 More to come! Requests welcome!
