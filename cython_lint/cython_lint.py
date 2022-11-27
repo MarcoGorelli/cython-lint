@@ -383,6 +383,29 @@ def _traverse_file(
             assert violations is not None
             ret |= _visit_dict_node(node, violations)
 
+        if isinstance(node, CImportStatNode) and not skip_check:
+            assert violations is not None
+            if node.module_name == node.as_name:
+                violations.append(
+                    (
+                        node.pos[1], node.pos[2]+1,
+                        'Found useless import alias',
+                    ),
+                )
+                ret = 1
+
+        if isinstance(node, FromCImportStatNode) and not skip_check:
+            assert violations is not None
+            for _imported_name in node.imported_names:
+                if _imported_name[1] == _imported_name[2]:
+                    violations.append(
+                        (
+                            _imported_name[0][1], _imported_name[0][1],
+                            'Found useless import alias',
+                        ),
+                    )
+                    ret = 1
+
         if isinstance(node, (IfClauseNode, AssertStatNode)) and not skip_check:
             assert violations is not None
             version = tuple(Cython.__version__.split('.'))
