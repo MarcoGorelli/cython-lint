@@ -88,6 +88,31 @@ def test_misplaced_comma(capsys: Any, src: str, expected: str) -> None:
     assert ret == 1
 
 
+@pytest.mark.parametrize(
+    'src, expected',
+    [
+        (
+            'cimport foo as foo\n\n'
+            'foo\n',
+            't.py:1:9: Found useless import alias\n',
+        ),
+        (
+            'from foo cimport (\n'
+            '    a as a\n,'
+            '    b,\n'
+            ')\n'
+            'a = b\n',
+            't.py:2:2: Found useless import alias\n',
+        ),
+    ],
+)
+def test_useless_alias(capsys: Any, src: str, expected: str) -> None:
+    ret = _main(src, 't.py', no_pycodestyle=True)
+    out, _ = capsys.readouterr()
+    assert out == expected
+    assert ret == 1
+
+
 @pytest.mark.skipif(
     tuple(Cython.__version__.split('.')) > ('3',),
     reason='invalid syntax in new Cython',
