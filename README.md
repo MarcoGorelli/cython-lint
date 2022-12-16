@@ -37,6 +37,18 @@ my_file_3.pyx:4:9: dangerous default value!
 my_file_3.pyx:5:9: comma after base type in definition
 ```
 
+## Used by
+
+Here's some major projects using ``cython-lint`` - is yours missing? Feel free to open a pull request!
+
+- [open library](https://github.com/internetarchive/openlibrary)
+- [pandas](https://github.com/pandas-dev/pandas)
+- [pylibssh](https://github.com/ansible/pylibssh)
+- [pymatgen](https://github.com/materialsproject/pymatgen)
+- [RAPIDS cuspatial](https://github.com/rapidsai/cuspatial)
+- [RAPIDS cudf](https://github.com/rapidsai/cudf)
+- [RAPIDS Memory Manager](https://github.com/rapidsai/rmm)
+- [yt](https://github.com/yt-project/yt)
 
 ## Configuration
 
