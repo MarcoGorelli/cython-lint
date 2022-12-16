@@ -50,6 +50,8 @@ Here's some major projects using ``cython-lint`` - is yours missing? Feel free t
 - [RAPIDS Memory Manager](https://github.com/rapidsai/rmm)
 - [yt](https://github.com/yt-project/yt)
 
+In addition, [it has helped find an actual bug in spaCy](https://github.com/explosion/spaCy/pull/11834).
+
 ## Configuration
 
 The following configuration options are available:
