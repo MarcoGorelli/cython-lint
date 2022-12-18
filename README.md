@@ -7,6 +7,23 @@ cython-lint
 
 A tool and pre-commit hook to lint Cython files.
 
+## Used by
+
+Here's some major projects using ``cython-lint`` - is yours missing? Feel free to open a pull request!
+
+- [open library](https://github.com/internetarchive/openlibrary)
+- [pandas](https://github.com/pandas-dev/pandas)
+- [pylibssh](https://github.com/ansible/pylibssh)
+- [pymatgen](https://github.com/materialsproject/pymatgen)
+- [RAPIDS cuspatial](https://github.com/rapidsai/cuspatial)
+- [RAPIDS cudf](https://github.com/rapidsai/cudf)
+- [RAPIDS Memory Manager](https://github.com/rapidsai/rmm)
+- [yt](https://github.com/yt-project/yt)
+
+In addition:
+- [it found an actual bug in spaCy](https://github.com/explosion/spaCy/pull/11834);
+- [it found a type issue in CuPy](https://github.com/cupy/cupy/pull/7170).
+
 ## Installation
 
 ```console
@@ -36,23 +53,6 @@ my_file_2.pyx:1112:38: 'mod' defined but unused
 my_file_3.pyx:4:9: dangerous default value!
 my_file_3.pyx:5:9: comma after base type in definition
 ```
-
-## Used by
-
-Here's some major projects using ``cython-lint`` - is yours missing? Feel free to open a pull request!
-
-- [open library](https://github.com/internetarchive/openlibrary)
-- [pandas](https://github.com/pandas-dev/pandas)
-- [pylibssh](https://github.com/ansible/pylibssh)
-- [pymatgen](https://github.com/materialsproject/pymatgen)
-- [RAPIDS cuspatial](https://github.com/rapidsai/cuspatial)
-- [RAPIDS cudf](https://github.com/rapidsai/cudf)
-- [RAPIDS Memory Manager](https://github.com/rapidsai/rmm)
-- [yt](https://github.com/yt-project/yt)
-
-In addition:
-- [it found an actual bug in spaCy](https://github.com/explosion/spaCy/pull/11834);
-- [it found a type issue in CuPy](https://github.com/cupy/cupy/pull/7170).
 
 ## Configuration
 
