@@ -23,7 +23,6 @@ with warnings.catch_warnings():
     from Cython.Compiler.TreeFragment import StringParseContext
 import Cython
 from Cython.Compiler.ExprNodes import GeneratorExpressionNode
-from Cython.Compiler.ExprNodes import AnnotationNode
 from Cython.Compiler.ExprNodes import IndexNode
 from Cython.Compiler.ExprNodes import SimpleCallNode
 from Cython.Compiler.ExprNodes import AttributeNode
@@ -66,6 +65,15 @@ from Cython.Compiler.Nodes import SingleAssignmentNode
 from Cython.Compiler.TreeFragment import parse_from_strings
 from tokenize_rt import src_to_tokens
 from tokenize_rt import tokens_to_src
+
+CYTHON_VERSION = tuple(Cython.__version__.split('.'))
+
+if CYTHON_VERSION > ('3',):
+    from Cython.Compiler.ExprNodes import AnnotationNode
+else:
+    class AnnotationNode:  # type: ignore
+        pass
+
 
 # generate these with python generate_pycodestyle_codes.py
 PYCODESTYLE_CODES = frozenset((
@@ -410,8 +418,7 @@ def _traverse_file(
 
         if isinstance(node, (IfClauseNode, AssertStatNode)) and not skip_check:
             assert violations is not None
-            version = tuple(Cython.__version__.split('.'))
-            if version > ('3',):  # pragma: no cover
+            if CYTHON_VERSION > ('3',):  # pragma: no cover
                 test = isinstance(node.condition, TupleNode)
             elif isinstance(node, IfClauseNode):  # pragma: no cover
                 test = isinstance(node.condition, TupleNode)
