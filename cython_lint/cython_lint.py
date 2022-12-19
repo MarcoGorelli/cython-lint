@@ -74,6 +74,8 @@ else:  # pragma: no cover
     class AnnotationNode:  # type: ignore
         pass
 
+VERBOSE = False  # only for debugging
+
 
 # generate these with python generate_pycodestyle_codes.py
 PYCODESTYLE_CODES = frozenset((
@@ -357,7 +359,8 @@ def _traverse_file(
         tree = parse_from_strings(filename, code, context=context)
     except Exception as exp:  # pragma: no cover  # noqa: E722
         # If Cython can't parse this file, just skip it.
-        print(f'cant parse {filename}: {repr(exp)}')
+        if VERBOSE:
+            print(f'cant parse {filename}: {repr(exp)}')
         raise CythonParseError
     nodes = list(traverse(tree))
     imported_names: list[Token] = []
@@ -585,7 +588,7 @@ def _traverse_file(
             violations.append(
                 (
                     node.pos[1], node.pos[2]+1,
-                    'Pointless string statement',
+                    'pointless string statement',
                 ),
             )
             ret = 1
@@ -651,7 +654,7 @@ def _traverse_file(
                             (
                                 index_node.base.pos[1],
                                 index_node.base.pos[2]+1,
-                                'Unnecessary list index lookup: use '
+                                'unnecessary list index lookup: use '
                                 f'`{node.target.args[1].name}` instead of '
                                 f'`{index_node.base.name}'
                                 f'[{index_node.index.name}]`',
