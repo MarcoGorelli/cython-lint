@@ -573,6 +573,10 @@ def test_pycodestyle(tmpdir: Any, capsys: Any) -> None:
         'for i, v in enumerate(values):\n'
         '    a == values[[i]]\n',
         'for i, v in enumerate(values):\n'
+        '    pass\n'
+        '    arr.extend(values[i])\n'
+        '    pass\n',
+        'for i, v in enumerate(values):\n'
         '    b = t[i]\n',
         'import numpy as np\n'
         '\n'

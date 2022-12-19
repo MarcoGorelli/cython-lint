@@ -596,7 +596,6 @@ def _traverse_file(
             and len(node.target.args) == 2
             and isinstance(node.target.args[0], NameNode)
             and isinstance(node.target.args[1], NameNode)
-            # and isinstance(node.iterator, IteratorNode)
             and isinstance(node.iterator.sequence, SimpleCallNode)
             and isinstance(node.iterator.sequence.function, NameNode)
             and node.iterator.sequence.function.name == 'enumerate'
@@ -632,7 +631,8 @@ def _traverse_file(
                     and isinstance(_child.node.args[0], IndexNode)
                 ):
                     index_node = _child.node.args[0]
-                else:
+                else:  # pragma: no cover
+                    # This branch is definitely hit - bug in coverage?
                     continue
                 if (
                     isinstance(index_node.base, NameNode)
