@@ -113,6 +113,64 @@ def test_useless_alias(capsys: Any, src: str, expected: str) -> None:
     assert ret == 1
 
 
+@pytest.mark.parametrize(
+    'src, expected',
+    [
+        (
+            'def foo():\n'
+            '    print()\n'
+            '    "foobar"\n',
+            't.py:3:5: pointless string statement\n',
+        ),
+    ],
+)
+def test_pointless_string_statement(
+        capsys: Any,
+        src: str,
+        expected: str,
+) -> None:
+    ret = _main(src, 't.py', no_pycodestyle=True)
+    out, _ = capsys.readouterr()
+    assert out == expected
+    assert ret == 1
+
+
+@pytest.mark.parametrize(
+    'src, expected',
+    [
+        (
+            'for i, v in enumerate(values):\n'
+            '    a == values[i]\n',
+            't.py:2:10: unnecessary list index lookup: use `v` instead of '
+            '`values[i]`\n',
+        ),
+        (
+            'for i, v in enumerate(values):\n'
+            '    a = values[i]\n',
+            't.py:2:9: unnecessary list index lookup: use `v` instead of '
+            '`values[i]`\n',
+        ),
+        (
+            'for i, v in enumerate(values):\n'
+            '    a.append(values[i])\n',
+            't.py:2:14: unnecessary list index lookup: use `v` instead of '
+            '`values[i]`\n',
+        ),
+        (
+            'for i, v in enumerate(values):\n'
+            '    values[i] == a\n',
+            't.py:2:5: unnecessary list index lookup: use `v` instead of '
+            '`values[i]`\n',
+        ),
+    ],
+)
+def test_unnecessary_index(capsys: Any, src: str, expected: str) -> None:
+    ret = _main(src, 't.py', no_pycodestyle=True)
+    out, _ = capsys.readouterr()
+    assert out == expected
+    assert ret == 1
+
+
 @pytest.mark.skipif(
     tuple(Cython.__version__.split('.')) > ('3',),
     reason='invalid syntax in new Cython',
@@ -512,6 +570,19 @@ def test_pycodestyle(tmpdir: Any, capsys: Any) -> None:
         'mystring.rstrip("abc")\n',
         'mystring.rstrip(suffix)\n',
         '[(j for j in i) for i in items]\n',
+        'for i, v in enumerate(values):\n'
+        '    a == values[[i]]\n',
+        'for i, v in enumerate(values):\n'
+        '    pass\n'
+        '    arr.extend(values[i])\n'
+        '    pass\n',
+        'for i, v in enumerate(values):\n'
+        '    b = t[i]\n',
+        'import numpy as np\n'
+        '\n'
+        '\n'
+        'def foo() -> np.ndarray:\n'
+        '    pass\n',
     ],
 )
 def test_noop(capsys: Any, src: str) -> None:
