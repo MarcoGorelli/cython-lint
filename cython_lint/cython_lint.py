@@ -68,9 +68,9 @@ from tokenize_rt import tokens_to_src
 
 CYTHON_VERSION = tuple(Cython.__version__.split('.'))
 
-if CYTHON_VERSION > ('3',):
+if CYTHON_VERSION > ('3',):  # pragma: no cover
     from Cython.Compiler.ExprNodes import AnnotationNode
-else:
+else:  # pragma: no cover
     class AnnotationNode:  # type: ignore
         pass
 
