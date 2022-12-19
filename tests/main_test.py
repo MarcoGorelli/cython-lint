@@ -120,7 +120,7 @@ def test_useless_alias(capsys: Any, src: str, expected: str) -> None:
             'def foo():\n'
             '    print()\n'
             '    "foobar"\n',
-            't.py:3:5: Pointless string statement\n',
+            't.py:3:5: pointless string statement\n',
         ),
     ],
 )
@@ -141,25 +141,25 @@ def test_pointless_string_statement(
         (
             'for i, v in enumerate(values):\n'
             '    a == values[i]\n',
-            't.py:2:10: Unnecessary list index lookup: use `v` instead of '
+            't.py:2:10: unnecessary list index lookup: use `v` instead of '
             '`values[i]`\n',
         ),
         (
             'for i, v in enumerate(values):\n'
             '    a = values[i]\n',
-            't.py:2:9: Unnecessary list index lookup: use `v` instead of '
+            't.py:2:9: unnecessary list index lookup: use `v` instead of '
             '`values[i]`\n',
         ),
         (
             'for i, v in enumerate(values):\n'
             '    a.append(values[i])\n',
-            't.py:2:14: Unnecessary list index lookup: use `v` instead of '
+            't.py:2:14: unnecessary list index lookup: use `v` instead of '
             '`values[i]`\n',
         ),
         (
             'for i, v in enumerate(values):\n'
             '    values[i] == a\n',
-            't.py:2:5: Unnecessary list index lookup: use `v` instead of '
+            't.py:2:5: unnecessary list index lookup: use `v` instead of '
             '`values[i]`\n',
         ),
     ],

@@ -63,20 +63,23 @@ The following configuration options are available:
 
 ## Which checks are implemented?
 
-- variable defined but unused
-- variable imported but unused
+- assert statement with tuple condition (always true...)
 - comma after base type definition (e.g. ``cdef ndarray, arr``)
-- f-string without placeholders
+- comparison between constants
+- dangerous default value
 - dict key repeated
 - dict key variable repeated
+- f-string without placeholders
 - if-statement with tuple condition (always true...)
-- assert statement with tuple condition (always true...)
-- dangerous default value
+- late-binding closures https://docs.python-guide.org/writing/gotchas/#late-binding-closures
+- pointless string statement
+- ``pycodestyle`` nitpicks (which you can turn off with ``--no-pycodestyle``)
 - repeated element in set
 - ``.strip``, ``.rstrip``, or ``.lstrip`` used with repeated characters
-- comparison between constants
-- late-binding closures https://docs.python-guide.org/writing/gotchas/#late-binding-closures
-- ``pycodestyle`` nitpicks, which you can turn off with ``--no-pycodestyle``
+- unnecessary list index lookup
+- unnecessary import alias
+- variable defined but unused
+- variable imported but unused
 
 In addition, the following automated fixers are implemented:
 
