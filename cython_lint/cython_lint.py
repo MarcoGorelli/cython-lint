@@ -800,7 +800,7 @@ def traverse(tree: ModuleNode) -> Iterator[NodeParent]:
             child_attrs.add('cppclass')
         elif isinstance(node, LambdaNode):
             child_attrs.update(['args', 'result_expr'])
-        elif isinstance(node, AnnotationNode):
+        elif isinstance(node, AnnotationNode):  # pragma: no cover
             child_attrs.add('expr')
         elif isinstance(node, AttributeNode):
             child_attrs.add('attribute')
