@@ -23,6 +23,8 @@ with warnings.catch_warnings():
     from Cython.Compiler.TreeFragment import StringParseContext
 import Cython
 from Cython.Compiler.ExprNodes import GeneratorExpressionNode
+from Cython.Compiler.ExprNodes import AnnotationNode
+from Cython.Compiler.ExprNodes import IndexNode
 from Cython.Compiler.ExprNodes import SimpleCallNode
 from Cython.Compiler.ExprNodes import AttributeNode
 from Cython.Compiler.ExprNodes import SetNode
@@ -54,7 +56,7 @@ from Cython.Compiler.Nodes import CNameDeclaratorNode
 from Cython.Compiler.Nodes import CSimpleBaseTypeNode
 from Cython.Compiler.Nodes import CVarDefNode
 from Cython.Compiler.Nodes import DefNode
-
+from Cython.Compiler.Nodes import ExprStatNode
 from Cython.Compiler.Nodes import ForInStatNode
 from Cython.Compiler.Nodes import FromCImportStatNode
 from Cython.Compiler.Nodes import FromImportStatNode
@@ -567,6 +569,89 @@ def _traverse_file(
                         )
                         ret = 1
 
+        if (
+            isinstance(node, ExprStatNode)
+            and isinstance(node.expr, UnicodeNode)
+            and not skip_check
+        ):
+            assert violations is not None
+            violations.append(
+                (
+                    node.pos[1], node.pos[2]+1,
+                    'Pointless string statement',
+                ),
+            )
+            ret = 1
+
+        if (
+            isinstance(node, ForInStatNode)
+            and isinstance(node.target, TupleNode)
+            and len(node.target.args) == 2
+            and isinstance(node.target.args[0], NameNode)
+            and isinstance(node.target.args[1], NameNode)
+            # and isinstance(node.iterator, IteratorNode)
+            and isinstance(node.iterator.sequence, SimpleCallNode)
+            and isinstance(node.iterator.sequence.function, NameNode)
+            and node.iterator.sequence.function.name == 'enumerate'
+            and len(node.iterator.sequence.args) == 1
+            and isinstance(node.iterator.sequence.args[0], NameNode)
+            and not skip_check
+        ):
+            assert violations is not None
+            for _child in traverse(node.body):
+                if (
+                        isinstance(_child.node, SingleAssignmentNode)
+                        and isinstance(_child.node.rhs, IndexNode)
+                ):
+                    index_node = _child.node.rhs
+                elif (
+                        isinstance(_child.node, PrimaryCmpNode) and (
+                            isinstance(_child.node.operand1, IndexNode)
+                        )
+                ):
+                    index_node = _child.node.operand1
+                elif (
+                        isinstance(_child.node, PrimaryCmpNode) and (
+                            isinstance(_child.node.operand2, IndexNode)
+                        )
+                ):
+                    index_node = _child.node.operand2
+                elif (
+                    isinstance(_child.node, SimpleCallNode)
+                    and isinstance(_child.node.function, AttributeNode)
+                    and isinstance(_child.node.function.obj, NameNode)
+                    and _child.node.function.attribute == 'append'
+                    and len(_child.node.args) == 1
+                    and isinstance(_child.node.args[0], IndexNode)
+                ):
+                    index_node = _child.node.args[0]
+                else:
+                    continue
+                if (
+                    isinstance(index_node.base, NameNode)
+                    and isinstance(index_node.index, NameNode)
+                ):
+                    if (
+                        (
+                            index_node.base.name
+                            == node.iterator.sequence.args[0].name
+                        ) and (
+                            index_node.index.name
+                            == node.target.args[0].name
+                        )
+                    ):
+                        violations.append(
+                            (
+                                index_node.base.pos[1],
+                                index_node.base.pos[2]+1,
+                                'Unnecessary list index lookup: use '
+                                f'`{node.target.args[1].name}` instead of '
+                                f'`{index_node.base.name}'
+                                f'[{index_node.index.name}]`',
+                            ),
+                        )
+                        ret = 1
+
         if isinstance(node, (NameNode, CSimpleBaseTypeNode)):
             # do we need node.module_path?
             names.append(Token(node.name, *node.pos[1:]))
@@ -595,7 +680,6 @@ def _main(
         for token in tokens
         if token.name == 'NAME' and token.src == 'include'
     }
-
     code = tokens_to_src(tokens)
     lines = []
     _dir = os.path.dirname(filename)
@@ -677,13 +761,15 @@ def _main(
     return ret
 
 
-def traverse(tree: ModuleNode) -> Node:
+def traverse(tree: ModuleNode) -> Iterator[NodeParent]:
     nodes = [NodeParent(tree, None)]
 
     while nodes:
         node_parent = nodes.pop()
         node = node_parent.node
         if node is None:
+            continue
+        if not hasattr(node, 'child_attrs'):
             continue
 
         child_attrs = set(copy.deepcopy(node.child_attrs))
@@ -707,6 +793,10 @@ def traverse(tree: ModuleNode) -> Node:
             child_attrs.add('cppclass')
         elif isinstance(node, LambdaNode):
             child_attrs.update(['args', 'result_expr'])
+        elif isinstance(node, AnnotationNode):
+            child_attrs.add('expr')
+        elif isinstance(node, AttributeNode):
+            child_attrs.add('attribute')
 
         for attr in child_attrs:
             child = getattr(node, attr)
