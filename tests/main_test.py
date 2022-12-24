@@ -583,6 +583,12 @@ def test_pycodestyle(tmpdir: Any, capsys: Any) -> None:
         '\n'
         'def foo() -> np.ndarray:\n'
         '    pass\n',
+        'current_notification = 3\n'
+        '\n'
+        '\n'
+        'def set_fallback_notification(level):\n'
+        '    global current_notification\n'
+        '    current_notification = level\n',
     ],
 )
 def test_noop(capsys: Any, src: str) -> None:

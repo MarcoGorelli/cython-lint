@@ -50,6 +50,7 @@ from Cython.Compiler.Nodes import StatListNode
 from Cython.Compiler.Nodes import CClassDefNode
 from Cython.Compiler.Nodes import CFuncDeclaratorNode
 from Cython.Compiler.Nodes import CFuncDefNode
+from Cython.Compiler.Nodes import GlobalNode
 from Cython.Compiler.Nodes import CImportStatNode
 from Cython.Compiler.Nodes import CNameDeclaratorNode
 from Cython.Compiler.Nodes import CSimpleBaseTypeNode
@@ -171,6 +172,7 @@ def visit_cvardef(
 
 def visit_funcdef(
     node: CFuncDefNode | DefNode,
+    global_names: list[str],
     filename: str,
     lines: Sequence[str],
     global_imports: list[Token],
@@ -222,6 +224,7 @@ def visit_funcdef(
             and _def[0] != func_name
             and _def[0] not in [i[0] for i in args]
             and not _def[0].startswith('_')
+            and _def[0] not in global_names
         ) and '# no-lint' not in lines[_def[1] - 1]:
 
             violations.append((
@@ -348,7 +351,7 @@ def _traverse_file(
         *,
         skip_check: bool = False,
         violations: list[tuple[int, int, str]] | None = None,
-) -> tuple[list[Token], list[Token], int]:
+) -> tuple[list[Token], list[Token], list[str], int]:
     """
     skip_check: only for when traversing an included file
     """
@@ -365,6 +368,7 @@ def _traverse_file(
     nodes = list(traverse(tree))
     imported_names: list[Token] = []
     global_imports: list[Token] = []
+    global_names: list[str] = []
 
     if isinstance(tree.body, StatListNode):
         for node in tree.body.stats:
@@ -377,6 +381,8 @@ def _traverse_file(
     for node_parent in nodes:
         node = node_parent.node
         imported_names.extend(_record_imports(node))
+        if isinstance(node, GlobalNode):
+            global_names.extend(node.names)
 
     for node_parent in nodes:
         node = node_parent.node
@@ -384,7 +390,7 @@ def _traverse_file(
         if isinstance(node, (CFuncDefNode, DefNode)) and not skip_check:
             assert violations is not None
             ret |= visit_funcdef(
-                node, filename, lines,
+                node, global_names, filename, lines,
                 global_imports, violations=violations,
             )
 
@@ -673,7 +679,7 @@ def _traverse_file(
                 for _module in getattr(node, 'module_path', [])
             ])
 
-    return names, imported_names, ret
+    return names, imported_names, global_names, ret
 
 
 def _main(
@@ -712,13 +718,13 @@ def _main(
 
     code = ''.join(lines)
 
-    names, imported_names, ret = _traverse_file(
+    names, imported_names, global_names, ret = _traverse_file(
         code, filename, lines, violations=violations,
     )
 
     included_names = []
     for _code in included_texts:
-        _included_names, _, __ = _traverse_file(
+        _included_names, _, __, ___ = _traverse_file(
             _code, filename, _code.splitlines(), skip_check=True,
         )
         included_names.extend(_included_names)
