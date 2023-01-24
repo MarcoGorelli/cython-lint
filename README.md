@@ -5,6 +5,8 @@
 cython-lint
 ===========
 
+Everything ``flake8`` used to do (by accident), plus much more.
+
 A tool and pre-commit hook to lint Cython files.
 
 ## Used by
