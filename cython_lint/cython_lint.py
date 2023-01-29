@@ -75,8 +75,6 @@ else:  # pragma: no cover
     class AnnotationNode:  # type: ignore
         pass
 
-VERBOSE = False  # only for debugging
-
 
 # generate these with python generate_pycodestyle_codes.py
 PYCODESTYLE_CODES = frozenset((
@@ -362,8 +360,7 @@ def _traverse_file(
         tree = parse_from_strings(filename, code, context=context)
     except Exception as exp:  # pragma: no cover  # noqa: E722
         # If Cython can't parse this file, just skip it.
-        if VERBOSE:
-            print(f'cant parse {filename}: {repr(exp)}')
+        print(f'cant parse {filename}: {repr(exp)}')
         raise CythonParseError
     nodes = list(traverse(tree))
     imported_names: list[Token] = []
@@ -682,14 +679,10 @@ def _traverse_file(
     return names, imported_names, global_names, ret
 
 
-def _main(
-    code: str,
-    filename: str,
-    *,
-    line_length: int = 88,
-    no_pycodestyle: bool = False,
+def run_ast_checks(
+    code: str, filename: str,
+    violations: list[tuple[int, int, str]],
 ) -> int:
-    violations: list[tuple[int, int, str]] = []
     tokens = src_to_tokens(code)
     exclude_lines = {
         token.line
@@ -747,29 +740,55 @@ def _main(
                 f'\'{_import[0]}\' imported but unused',
             ))
             ret = 1
+    return ret
+
+
+def run_pycodestyle(
+    line_length: int, filename: str,
+    violations: list[tuple[int, int, str]],
+) -> int:
+    output = subprocess.run(
+        [
+            'pycodestyle',
+            f'--ignore={",".join(PYCODESTYLE_CODES)}',
+            f'--max-line-length={line_length}',
+            '--format=%(row)d:%(col)d:%(code)s %(text)s',
+            filename,
+        ],
+        text=True,
+        capture_output=True,
+    )
+    ret = bool(output.returncode)
+    extra_lines = output.stdout.splitlines()
+    for extra_line in extra_lines:
+        import re
+        if re.search(r'^\d+:\d+:', extra_line) is None:
+            # could be an extra line with pycodestyle statistics
+            continue
+        _lineno, _col, message = extra_line.split(':', maxsplit=2)
+        violations.append((int(_lineno), int(_col), message))
+    return ret
+
+
+def _main(
+    code: str,
+    filename: str,
+    *,
+    ext: str,
+    line_length: int = 88,
+    no_pycodestyle: bool = False,
+) -> int:
+    violations: list[tuple[int, int, str]] = []
+    ret = 0
 
     if not no_pycodestyle:
-        output = subprocess.run(
-            [
-                'pycodestyle',
-                f'--ignore={",".join(PYCODESTYLE_CODES)}',
-                f'--max-line-length={line_length}',
-                '--format=%(row)d:%(col)d: %(code)s %(text)s',
-                filename,
-            ],
-            text=True,
-            capture_output=True,
-        )
-        ret = ret | bool(output.returncode)
+        ret |= run_pycodestyle(line_length, filename, violations)
 
-        extra_lines = output.stdout.splitlines()
-        for extra_line in extra_lines:
-            import re
-            if re.search(r'^\d+:\d+:', extra_line) is None:
-                # could be an extra line with pycodestyle statistics
-                continue
-            _lineno, _col, message = extra_line.split(':', maxsplit=2)
-            violations.append((int(_lineno), int(_col), message))
+    if ext == '.pyx':
+        try:
+            ret |= run_ast_checks(code, filename, violations)
+        except CythonParseError:  # pragma: no cover
+            pass
 
     for lineno, col, message in sorted(violations):
         print(f'{filename}:{lineno}:{col}: {message}')
@@ -833,20 +852,17 @@ def main(argv: Sequence[str] | None = None) -> int:  # pragma: no cover
     ret = 0
     for path in args.paths:
         _, ext = os.path.splitext(path)
-        if ext != '.pyx':
+        if ext not in ('.pyi', '.pyx', '.pxd'):
             continue
         try:
             with open(path, encoding='utf-8') as fd:
                 content = fd.read()
         except UnicodeDecodeError:
             continue
-        try:
-            ret |= _main(
-                content, path, line_length=args.max_line_length,
-                no_pycodestyle=args.no_pycodestyle,
-            )
-        except CythonParseError:
-            continue
+        ret |= _main(
+            content, path, line_length=args.max_line_length,
+            no_pycodestyle=args.no_pycodestyle, ext=ext,
+        )
     return ret
 
 

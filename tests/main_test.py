@@ -27,7 +27,7 @@ INCLUDE_FILE_1 = os.path.join('tests', 'data', 'bar.pxi')
     ],
 )
 def test_assigned_unused(capsys: Any, src: str, expected: str) -> None:
-    ret = _main(src, 't.py', no_pycodestyle=True)
+    ret = _main(src, 't.py', ext='.pyx', no_pycodestyle=True)
     out, _ = capsys.readouterr()
     assert out == expected
     assert ret == 1
@@ -61,7 +61,7 @@ def test_assigned_unused(capsys: Any, src: str, expected: str) -> None:
     ],
 )
 def test_imported_unused(capsys: Any, src: str, expected: str) -> None:
-    ret = _main(src, 't.py')
+    ret = _main(src, 't.py', ext='.pyx')
     out, _ = capsys.readouterr()
     assert out == expected
     assert ret == 1
@@ -82,7 +82,7 @@ def test_imported_unused(capsys: Any, src: str, expected: str) -> None:
     ],
 )
 def test_misplaced_comma(capsys: Any, src: str, expected: str) -> None:
-    ret = _main(src, 't.py', no_pycodestyle=True)
+    ret = _main(src, 't.py', ext='.pyx', no_pycodestyle=True)
     out, _ = capsys.readouterr()
     assert out == expected
     assert ret == 1
@@ -107,7 +107,7 @@ def test_misplaced_comma(capsys: Any, src: str, expected: str) -> None:
     ],
 )
 def test_useless_alias(capsys: Any, src: str, expected: str) -> None:
-    ret = _main(src, 't.py', no_pycodestyle=True)
+    ret = _main(src, 't.py', ext='.pyx', no_pycodestyle=True)
     out, _ = capsys.readouterr()
     assert out == expected
     assert ret == 1
@@ -129,7 +129,7 @@ def test_pointless_string_statement(
         src: str,
         expected: str,
 ) -> None:
-    ret = _main(src, 't.py', no_pycodestyle=True)
+    ret = _main(src, 't.py', ext='.pyx', no_pycodestyle=True)
     out, _ = capsys.readouterr()
     assert out == expected
     assert ret == 1
@@ -165,7 +165,7 @@ def test_pointless_string_statement(
     ],
 )
 def test_unnecessary_index(capsys: Any, src: str, expected: str) -> None:
-    ret = _main(src, 't.py', no_pycodestyle=True)
+    ret = _main(src, 't.py', ext='.pyx', no_pycodestyle=True)
     out, _ = capsys.readouterr()
     assert out == expected
     assert ret == 1
@@ -193,7 +193,7 @@ def test_misplaced_comma_old_cython(
     src: str,
     expected: str,
 ) -> None:
-    ret = _main(src, 't.py', no_pycodestyle=True)
+    ret = _main(src, 't.py', ext='.pyx', no_pycodestyle=True)
     out, _ = capsys.readouterr()
     assert out == expected
     assert ret == 1
@@ -213,7 +213,7 @@ def test_f_string_not_formatted(
     src: str,
     expected: str,
 ) -> None:
-    ret = _main(src, 't.py', no_pycodestyle=True)
+    ret = _main(src, 't.py', ext='.pyx', no_pycodestyle=True)
     out, _ = capsys.readouterr()
     assert out == expected
     assert ret == 1
@@ -243,7 +243,7 @@ def test_shadows_import(
     src: str,
     expected: str,
 ) -> None:
-    ret = _main(src, 't.py', no_pycodestyle=True)
+    ret = _main(src, 't.py', ext='.pyx', no_pycodestyle=True)
     out, _ = capsys.readouterr()
     if tuple(Cython.__version__.split('.')) < ('3',):  # pragma: no cover
         # old Cython records the location slightly differently
@@ -267,7 +267,7 @@ def test_repeated_set_element(
     src: str,
     expected: str,
 ) -> None:
-    ret = _main(src, 't.py', no_pycodestyle=True)
+    ret = _main(src, 't.py', ext='.pyx', no_pycodestyle=True)
     out, _ = capsys.readouterr()
     assert out == expected
     assert ret == 1
@@ -291,7 +291,7 @@ def test_repeated_dict_keys(
     src: str,
     expected: str,
 ) -> None:
-    ret = _main(src, 't.py', no_pycodestyle=True)
+    ret = _main(src, 't.py', ext='.pyx', no_pycodestyle=True)
     out, _ = capsys.readouterr()
     assert out == expected
     assert ret == 1
@@ -315,7 +315,7 @@ def test_dangerous_default(
     src: str,
     expected: str,
 ) -> None:
-    ret = _main(src, 't.py', no_pycodestyle=True)
+    ret = _main(src, 't.py', ext='.pyx', no_pycodestyle=True)
     out, _ = capsys.readouterr()
     assert out == expected
     assert ret == 1
@@ -349,7 +349,7 @@ def test_always_true(
     src: str,
     expected: str,
 ) -> None:
-    ret = _main(src, 't.py', no_pycodestyle=True)
+    ret = _main(src, 't.py', ext='.pyx', no_pycodestyle=True)
     out, _ = capsys.readouterr()
     assert out == expected
     assert ret == 1
@@ -373,7 +373,7 @@ def test_constants_comparison(
     src: str,
     expected: str,
 ) -> None:
-    ret = _main(src, 't.py', no_pycodestyle=True)
+    ret = _main(src, 't.py', ext='.pyx', no_pycodestyle=True)
     out, _ = capsys.readouterr()
     assert out == expected
     assert ret == 1
@@ -401,7 +401,7 @@ def test_strip_repeated_elements(
     src: str,
     expected: str,
 ) -> None:
-    ret = _main(src, 't.py', no_pycodestyle=True)
+    ret = _main(src, 't.py', ext='.pyx', no_pycodestyle=True)
     out, _ = capsys.readouterr()
     assert out == expected
     assert ret == 1
@@ -441,7 +441,7 @@ def test_late_binding_closure(
     src: str,
     expected: str,
 ) -> None:
-    ret = _main(src, 't.py', no_pycodestyle=True)
+    ret = _main(src, 't.py', ext='.pyx', no_pycodestyle=True)
     out, _ = capsys.readouterr()
     assert out == expected
     assert ret == 1
@@ -454,10 +454,41 @@ def test_pycodestyle(tmpdir: Any, capsys: Any) -> None:
     with open(os.path.join(tmpdir, 'tox.ini'), 'w') as fd:
         fd.write('[pycodestyle]\nstatistics=True\n')
     src = ''
-    ret = _main(src, file)
+    ret = _main(src, file, ext='.pxd')
     out, _ = capsys.readouterr()
     expected = (
-        f'{file}:1:11:  E701 multiple statements on one line (colon)\n'
+        f'{file}:1:11: E701 multiple statements on one line (colon)\n'
+    )
+    assert out == expected
+    assert ret == 1
+
+
+@pytest.mark.skipif(
+    tuple(Cython.__version__.split('.')) < ('3',),
+    reason='invalid syntax only in new Cython',
+)
+def test_pycodestyle_when_ast_parsing_fails(
+    tmpdir: Any,
+    capsys: Any,
+) -> None:  # pragma: no cover
+    file = os.path.join(tmpdir, 't.py')
+    src = (
+        'DEF MAXDIM = 21201  # max number of dimensions\n'
+        '\n'
+        '\n'
+        'cdef void draw(const uint_32_64 n):\n'
+        '    l = low_0_bit(num_gen_loc)\n'
+    )
+    with open(file, 'w', encoding='utf-8') as fd:
+        fd.write(src)
+    with open(os.path.join(tmpdir, 'tox.ini'), 'w') as fd:
+        fd.write('[pycodestyle]\nstatistics=True\n')
+    ret = _main(src, file, ext='.pyx')
+    out, _ = capsys.readouterr()
+    expected = (
+        f'cant parse {file}: AttributeError("\'_thread._local\' object has '
+        'no attribute \'cython_errors_listing_file\'")\n'
+        f'{file}:5:5: E741 ambiguous variable name \'l\'\n'
     )
     assert out == expected
     assert ret == 1
@@ -592,7 +623,7 @@ def test_pycodestyle(tmpdir: Any, capsys: Any) -> None:
     ],
 )
 def test_noop(capsys: Any, src: str) -> None:
-    ret = _main(src, 't.py')
+    ret = _main(src, 't.py', ext='.pyx')
     out, _ = capsys.readouterr()
     assert out == ''
     assert ret == 0
@@ -606,7 +637,7 @@ def test_noop(capsys: Any, src: str) -> None:
     reason='invalid syntax in new Cython',
 )
 def test_noop_old_cython(capsys: Any, src: str) -> None:
-    ret = _main(src, 't.py')
+    ret = _main(src, 't.py', ext='.pyx', no_pycodestyle=True)
     out, _ = capsys.readouterr()
     assert out == ''
     assert ret == 0
