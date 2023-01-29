@@ -774,6 +774,7 @@ def _main(
     code: str,
     filename: str,
     *,
+    ext: str,
     line_length: int = 88,
     no_pycodestyle: bool = False,
 ) -> int:
@@ -783,10 +784,11 @@ def _main(
     if not no_pycodestyle:
         ret |= run_pycodestyle(line_length, filename, violations)
 
-    try:
-        ret |= run_ast_checks(code, filename, violations)
-    except CythonParseError:
-        pass
+    if ext == '.pyx':
+        try:
+            ret |= run_ast_checks(code, filename, violations)
+        except CythonParseError:  # pragma: no cover
+            pass
 
     for lineno, col, message in sorted(violations):
         print(f'{filename}:{lineno}:{col}: {message}')
@@ -850,7 +852,7 @@ def main(argv: Sequence[str] | None = None) -> int:  # pragma: no cover
     ret = 0
     for path in args.paths:
         _, ext = os.path.splitext(path)
-        if ext != '.pyx':
+        if ext not in ('.pyi', '.pyx', '.pxd'):
             continue
         try:
             with open(path, encoding='utf-8') as fd:
@@ -859,7 +861,7 @@ def main(argv: Sequence[str] | None = None) -> int:  # pragma: no cover
             continue
         ret |= _main(
             content, path, line_length=args.max_line_length,
-            no_pycodestyle=args.no_pycodestyle,
+            no_pycodestyle=args.no_pycodestyle, ext=ext,
         )
     return ret
 
