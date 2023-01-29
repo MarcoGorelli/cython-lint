@@ -457,7 +457,29 @@ def test_pycodestyle(tmpdir: Any, capsys: Any) -> None:
     ret = _main(src, file)
     out, _ = capsys.readouterr()
     expected = (
-        f'{file}:1:11:  E701 multiple statements on one line (colon)\n'
+        f'{file}:1:11: E701 multiple statements on one line (colon)\n'
+    )
+    assert out == expected
+    assert ret == 1
+
+
+def test_pycodestyle_when_ast_parsing_fails(tmpdir: Any, capsys: Any) -> None:
+    file = os.path.join(tmpdir, 't.py')
+    with open(file, 'w', encoding='utf-8') as fd:
+        fd.write(
+            'DEF MAXDIM = 21201  # max number of dimensions\n'
+            '\n'
+            '\n'
+            'cdef void draw(const uint_32_64 n):\n'
+            '    l = low_0_bit(num_gen_loc)\n',
+        )
+    with open(os.path.join(tmpdir, 'tox.ini'), 'w') as fd:
+        fd.write('[pycodestyle]\nstatistics=True\n')
+    src = ''
+    ret = _main(src, file)
+    out, _ = capsys.readouterr()
+    expected = (
+        f'{file}:5:5: E741 ambiguous variable name \'l\'\n'
     )
     assert out == expected
     assert ret == 1
@@ -606,7 +628,7 @@ def test_noop(capsys: Any, src: str) -> None:
     reason='invalid syntax in new Cython',
 )
 def test_noop_old_cython(capsys: Any, src: str) -> None:
-    ret = _main(src, 't.py')
+    ret = _main(src, 't.py', no_pycodestyle=True)
     out, _ = capsys.readouterr()
     assert out == ''
     assert ret == 0
