@@ -467,7 +467,10 @@ def test_pycodestyle(tmpdir: Any, capsys: Any) -> None:
     tuple(Cython.__version__.split('.')) < ('3',),
     reason='invalid syntax only in new Cython',
 )
-def test_pycodestyle_when_ast_parsing_fails(tmpdir: Any, capsys: Any) -> None:
+def test_pycodestyle_when_ast_parsing_fails(
+    tmpdir: Any,
+    capsys: Any,
+) -> None:  # pragma: no cover
     file = os.path.join(tmpdir, 't.py')
     src = (
         'DEF MAXDIM = 21201  # max number of dimensions\n'
