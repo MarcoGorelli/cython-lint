@@ -852,8 +852,6 @@ def main(argv: Sequence[str] | None = None) -> int:  # pragma: no cover
     ret = 0
     for path in args.paths:
         _, ext = os.path.splitext(path)
-        if ext not in ('.pyi', '.pyx', '.pxd'):
-            continue
         try:
             with open(path, encoding='utf-8') as fd:
                 content = fd.read()
