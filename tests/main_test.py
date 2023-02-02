@@ -620,6 +620,9 @@ def test_pycodestyle_when_ast_parsing_fails(
         'def set_fallback_notification(level):\n'
         '    global current_notification\n'
         '    current_notification = level\n',
+        'def _read_string(GenericStream st, size_t n):\n'
+        '    cdef object obj = st.read_string(n, &d_ptr, True)  '
+        '# no-cython-lint\n',
     ],
 )
 def test_noop(capsys: Any, src: str) -> None:

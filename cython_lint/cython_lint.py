@@ -4,11 +4,13 @@ import argparse
 import collections
 import copy
 import os
+import re
 import subprocess
 import sys
 import warnings
 from typing import Hashable
 from typing import Iterator
+from typing import Mapping
 from typing import MutableMapping
 from typing import NamedTuple
 from typing import NoReturn
@@ -75,6 +77,7 @@ else:  # pragma: no cover
     class AnnotationNode:  # type: ignore
         pass
 
+PRAGMA = r'#\s+no-cython-lint'
 
 # generate these with python generate_pycodestyle_codes.py
 PYCODESTYLE_CODES = frozenset((
@@ -136,11 +139,10 @@ def err_msg(node: Node, expected: str) -> NoReturn:
 
 def visit_cvardef(
     node: CVarDefNode,
-    lines: Sequence[str],
+    lines: Mapping[int, str],
     violations: list[tuple[int, int, str]],
-) -> int:
-    _base = lines[node.pos[1]-1][node.pos[2]:]
-    ret = 0
+) -> None:
+    _base = lines[node.pos[1]][node.pos[2]:]
     round_parens = 0
     square_parens = 0
     _base_type = ''
@@ -156,28 +158,20 @@ def visit_cvardef(
         if _ch == ' ' and not round_parens and not square_parens:
             break
         _base_type += _ch
-    if (
-            _base_type.endswith(',')
-            and '# no-lint' not in lines[node.pos[1]-1]
-    ):
+    if _base_type.endswith(','):
         violations.append((
             node.pos[1], node.pos[2],
             'comma after base type in definition',
         ))
-        ret = 1
-    return ret
 
 
 def visit_funcdef(
     node: CFuncDefNode | DefNode,
     global_names: list[str],
     filename: str,
-    lines: Sequence[str],
     global_imports: list[Token],
     violations: list[tuple[int, int, str]],
-) -> int:
-    ret = 0
-
+) -> None:
     children = [i.node for i in traverse(node)][1:]
 
     # e.g. cdef int a = 3
@@ -223,13 +217,12 @@ def visit_funcdef(
             and _def[0] not in [i[0] for i in args]
             and not _def[0].startswith('_')
             and _def[0] not in global_names
-        ) and '# no-lint' not in lines[_def[1] - 1]:
+        ):
 
             violations.append((
                 _def[1], _def[2]+1,
                 f'\'{_def[0]}\' defined but unused',
             ))
-            ret = 1
         if _def[0] in [_import[0] for _import in global_imports]:
             _global_import = [
                 _import for _import in global_imports if _import[0] == _def[0]
@@ -239,8 +232,6 @@ def visit_funcdef(
                 f'\'{_def[0]}\' shadows global import on line '
                 f'{_global_import[1]} col {_global_import[2]+1}',
             ))
-            ret = 1
-    return ret
 
 
 def _name_from_base(node: Node) -> Node:
@@ -303,11 +294,10 @@ def _record_imports(node: Node) -> Iterator[Token]:
         )
 
 
-def _visit_dict_node(
+def visit_dict_node(
     node: DictNode,
     violations: list[tuple[int, int, str]],
-) -> int:
-    ret = 0
+) -> None:
     literal_counts: MutableMapping[
         Hashable,
         int,
@@ -329,7 +319,6 @@ def _visit_dict_node(
                     f'dict key {key} repeated {value} times',
                 ),
             )
-            ret = 1
     for key, value in variable_counts.items():
         if value > 1:
             violations.append(
@@ -338,22 +327,19 @@ def _visit_dict_node(
                     f'dict key variable {key} repeated {value} times',
                 ),
             )
-            ret = 1
-    return ret
 
 
 def _traverse_file(
         code: str,
         filename: str,
-        lines: Sequence[str],
+        lines: Mapping[int, str],
         *,
         skip_check: bool = False,
         violations: list[tuple[int, int, str]] | None = None,
-) -> tuple[list[Token], list[Token], list[str], int]:
+) -> tuple[list[Token], list[Token], list[str]]:
     """
     skip_check: only for when traversing an included file
     """
-    ret = 0
     try:
         context = StringParseContext(filename)
         context.set_language_level(3)
@@ -383,24 +369,34 @@ def _traverse_file(
 
     for node_parent in nodes:
         node = node_parent.node
+        if isinstance(node, (NameNode, CSimpleBaseTypeNode)):
+            # do we need node.module_path?
+            names.append(Token(node.name, *node.pos[1:]))
+            # need this for:
+            # ctypedef fused foo:
+            #     bar.quox
+            names.extend([
+                Token(_module, *node.pos[1:])
+                for _module in getattr(node, 'module_path', [])
+            ])
 
-        if isinstance(node, (CFuncDefNode, DefNode)) and not skip_check:
-            assert violations is not None
-            ret |= visit_funcdef(
-                node, global_names, filename, lines,
+        if skip_check:
+            continue
+        assert violations is not None  # help mypy
+
+        if isinstance(node, (CFuncDefNode, DefNode)):
+            visit_funcdef(
+                node, global_names, filename,
                 global_imports, violations=violations,
             )
 
-        if isinstance(node, CVarDefNode) and not skip_check:
-            assert violations is not None
-            ret |= visit_cvardef(node, lines, violations)
+        if isinstance(node, CVarDefNode):
+            visit_cvardef(node, lines, violations)
 
-        if isinstance(node, DictNode) and not skip_check:
-            assert violations is not None
-            ret |= _visit_dict_node(node, violations)
+        if isinstance(node, DictNode):
+            visit_dict_node(node, violations)
 
-        if isinstance(node, CImportStatNode) and not skip_check:
-            assert violations is not None
+        if isinstance(node, CImportStatNode):
             if node.module_name == node.as_name:
                 violations.append(
                     (
@@ -408,10 +404,8 @@ def _traverse_file(
                         'Found useless import alias',
                     ),
                 )
-                ret = 1
 
-        if isinstance(node, FromCImportStatNode) and not skip_check:
-            assert violations is not None
+        if isinstance(node, FromCImportStatNode):
             for _imported_name in node.imported_names:
                 if _imported_name[1] == _imported_name[2]:
                     violations.append(
@@ -420,10 +414,8 @@ def _traverse_file(
                             'Found useless import alias',
                         ),
                     )
-                    ret = 1
 
-        if isinstance(node, (IfClauseNode, AssertStatNode)) and not skip_check:
-            assert violations is not None
+        if isinstance(node, (IfClauseNode, AssertStatNode)):
             if CYTHON_VERSION > ('3',):  # pragma: no cover
                 test = isinstance(node.condition, TupleNode)
             elif isinstance(node, IfClauseNode):  # pragma: no cover
@@ -444,7 +436,6 @@ def _traverse_file(
                         'true - perhaps remove comma?',
                     ),
                 )
-                ret |= 1
 
         if (
             isinstance(node, JoinedStrNode)
@@ -453,19 +444,15 @@ def _traverse_file(
                 for _child in node.values
             )
             and not isinstance(node_parent.parent, FormattedValueNode)
-            and not skip_check
         ):
-            assert violations is not None
             violations.append(
                 (
                     node.pos[1], node.pos[2],
                     'f-string without any placeholders',
                 ),
             )
-            ret |= 1
 
         if isinstance(node, CArgDeclNode) and not skip_check:
-            assert violations is not None
             if isinstance(node.default, (ListNode, DictNode)):
                 violations.append(
                     (
@@ -473,13 +460,11 @@ def _traverse_file(
                         'dangerous default value!',
                     ),
                 )
-                ret = 1
 
         if (
             isinstance(node, ComprehensionNode)
             and isinstance(node.loop.target, NameNode)
             and isinstance(node.loop.body, ComprehensionAppendNode)
-            and not skip_check
         ):
             if isinstance(node.loop.body, DictComprehensionAppendNode):
                 expr = node.loop.body.value_expr
@@ -488,7 +473,6 @@ def _traverse_file(
             if isinstance(expr, LambdaNode) and not hasattr(expr, 'loop'):
                 # GeneratorExpressionNode is a LambdaNode, and has a loop
                 # attribute, so need to exclude it.
-                assert violations is not None
                 _children = [j.node for j in traverse(expr)]
                 _names = [
                     _child.name for _child in _children if isinstance(
@@ -504,15 +488,12 @@ def _traverse_file(
                             '#late-binding-closures',
                         ),
                     )
-                    ret = 1
 
         if (
             isinstance(node, ForInStatNode)
             and isinstance(node.target, NameNode)
             and isinstance(node.body, StatListNode)
-            and not skip_check
         ):
-            assert violations is not None
             for _stat in node.body.stats:
                 if isinstance(_stat, (DefNode, CFuncDefNode)):
                     expr = _stat.body
@@ -529,28 +510,22 @@ def _traverse_file(
                                 '/#late-binding-closures',
                             ),
                         )
-                        ret = 1
 
         if (
             isinstance(node, PrimaryCmpNode)
             and isinstance(node.operand1, CONSTANT_NODE)
             and isinstance(node.operand2, CONSTANT_NODE)
-            and not skip_check
         ):
-            assert violations is not None
             violations.append(
                 (
                     node.pos[1], node.pos[2]+1,
                     'Comparison between constants',
                 ),
             )
-            ret = 1
 
         if (
             isinstance(node, SetNode)
-            and not skip_check
         ):
-            assert violations is not None
             counts: MutableMapping[object, int] = collections.Counter()
             for _arg in node.args:
                 if hasattr(_arg, 'value'):
@@ -562,14 +537,11 @@ def _traverse_file(
                         'Repeated element in set',
                     ),
                 )
-                ret = 1
 
         if (
             isinstance(node, SimpleCallNode)
             and isinstance(node.function, AttributeNode)
-            and not skip_check
         ):
-            assert violations is not None
             if node.function.attribute in {'strip', 'rstrip', 'lstrip'}:
                 if node.args and isinstance(node.args[0], UnicodeNode):
                     if len(set(node.args[0].value)) != len(node.args[0].value):
@@ -580,21 +552,17 @@ def _traverse_file(
                                 'repeated elements',
                             ),
                         )
-                        ret = 1
 
         if (
             isinstance(node, ExprStatNode)
             and isinstance(node.expr, UnicodeNode)
-            and not skip_check
         ):
-            assert violations is not None
             violations.append(
                 (
                     node.pos[1], node.pos[2]+1,
                     'pointless string statement',
                 ),
             )
-            ret = 1
 
         if (
             isinstance(node, ForInStatNode)
@@ -607,9 +575,7 @@ def _traverse_file(
             and node.iterator.sequence.function.name == 'enumerate'
             and len(node.iterator.sequence.args) == 1
             and isinstance(node.iterator.sequence.args[0], NameNode)
-            and not skip_check
         ):
-            assert violations is not None
             for _child in traverse(node.body):
                 if (
                         isinstance(_child.node, SingleAssignmentNode)
@@ -663,26 +629,14 @@ def _traverse_file(
                                 f'[{index_node.index.name}]`',
                             ),
                         )
-                        ret = 1
 
-        if isinstance(node, (NameNode, CSimpleBaseTypeNode)):
-            # do we need node.module_path?
-            names.append(Token(node.name, *node.pos[1:]))
-            # need this for:
-            # ctypedef fused foo:
-            #     bar.quox
-            names.extend([
-                Token(_module, *node.pos[1:])
-                for _module in getattr(node, 'module_path', [])
-            ])
-
-    return names, imported_names, global_names, ret
+    return names, imported_names, global_names
 
 
 def run_ast_checks(
     code: str, filename: str,
     violations: list[tuple[int, int, str]],
-) -> int:
+) -> dict[int, str]:
     tokens = src_to_tokens(code)
     exclude_lines = {
         token.line
@@ -690,7 +644,7 @@ def run_ast_checks(
         if token.name == 'NAME' and token.src == 'include'
     }
     code = tokens_to_src(tokens)
-    lines = []
+    lines = {}
     _dir = os.path.dirname(filename)
     included_texts = []
     for i, line in enumerate(code.splitlines(keepends=True), start=1):
@@ -705,19 +659,19 @@ def run_ast_checks(
                 with open(_file, encoding='utf-8') as fd:
                     content = fd.read()
                 included_texts.append(content)
-            lines.append('\n')
+            lines[i] = '\n'
         else:
-            lines.append(line)
+            lines[i] = line
 
-    code = ''.join(lines)
+    code = ''.join(lines.values())
 
-    names, imported_names, global_names, ret = _traverse_file(
+    names, imported_names, global_names = _traverse_file(
         code, filename, lines, violations=violations,
     )
 
     included_names = []
     for _code in included_texts:
-        _included_names, _, __, ___ = _traverse_file(
+        _included_names, _, __ = _traverse_file(
             _code, filename, _code.splitlines(), skip_check=True,
         )
         included_names.extend(_included_names)
@@ -733,20 +687,18 @@ def run_ast_checks(
         elif (
             _import[0] not in [_name[0] for _name in names if _import != _name]
             and _import[0] not in [_name[0] for _name in included_names]
-            and '# no-cython-lint' not in lines[_import[1] - 1]
         ):
             violations.append((
                 _import[1], _import[2]+1,
                 f'\'{_import[0]}\' imported but unused',
             ))
-            ret = 1
-    return ret
+    return lines
 
 
 def run_pycodestyle(
     line_length: int, filename: str,
     violations: list[tuple[int, int, str]],
-) -> int:
+) -> None:
     output = subprocess.run(
         [
             'pycodestyle',
@@ -758,16 +710,13 @@ def run_pycodestyle(
         text=True,
         capture_output=True,
     )
-    ret = bool(output.returncode)
     extra_lines = output.stdout.splitlines()
     for extra_line in extra_lines:
-        import re
         if re.search(r'^\d+:\d+:', extra_line) is None:
             # could be an extra line with pycodestyle statistics
             continue
         _lineno, _col, message = extra_line.split(':', maxsplit=2)
         violations.append((int(_lineno), int(_col), message))
-    return ret
 
 
 def _main(
@@ -779,19 +728,22 @@ def _main(
     no_pycodestyle: bool = False,
 ) -> int:
     violations: list[tuple[int, int, str]] = []
-    ret = 0
-
     if not no_pycodestyle:
-        ret |= run_pycodestyle(line_length, filename, violations)
+        run_pycodestyle(line_length, filename, violations)
 
+    lines = {}
     if ext == '.pyx':
         try:
-            ret |= run_ast_checks(code, filename, violations)
+            lines = run_ast_checks(code, filename, violations)
         except CythonParseError:  # pragma: no cover
             pass
 
+    ret = 0
     for lineno, col, message in sorted(violations):
+        if re.search(PRAGMA, lines.get(lineno, '')) is not None:
+            continue
         print(f'{filename}:{lineno}:{col}: {message}')
+        ret = 1
 
     return ret
 
