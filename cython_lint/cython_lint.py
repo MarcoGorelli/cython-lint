@@ -69,6 +69,8 @@ from Cython.Compiler.TreeFragment import parse_from_strings
 from tokenize_rt import src_to_tokens
 from tokenize_rt import tokens_to_src
 
+from cython_lint import __version__
+
 CYTHON_VERSION = tuple(Cython.__version__.split('.'))
 
 if CYTHON_VERSION > ('3',):  # pragma: no cover
@@ -800,6 +802,7 @@ def main(argv: Sequence[str] | None = None) -> int:  # pragma: no cover
     # default from black formatter
     parser.add_argument('--max-line-length', type=int, default=88)
     parser.add_argument('--no-pycodestyle', action='store_true')
+    parser.add_argument('--version', action='version', version=__version__)
     args = parser.parse_args(argv)
     ret = 0
     for path in args.paths:
