@@ -635,10 +635,10 @@ def _traverse_file(
     return names, imported_names, global_names
 
 
-def run_ast_checks(
-    code: str, filename: str,
-    violations: list[tuple[int, int, str]],
-) -> dict[int, str]:
+def sanitise_input(
+    code: str,
+    filename: str,
+) -> tuple[str, dict[int, str], list[str]]:
     tokens = src_to_tokens(code)
     exclude_lines = {
         token.line
@@ -666,15 +666,23 @@ def run_ast_checks(
             lines[i] = line
 
     code = ''.join(lines.values())
+    return code, lines, included_texts
 
+
+def run_ast_checks(
+    code: str, filename: str,
+    violations: list[tuple[int, int, str]],
+) -> dict[int, str]:
+    code, lines, included_texts = sanitise_input(code, filename)
     names, imported_names, global_names = _traverse_file(
         code, filename, lines, violations=violations,
     )
 
     included_names = []
     for _code in included_texts:
+        _code, _lines, __ = sanitise_input(_code, filename)
         _included_names, _, __ = _traverse_file(
-            _code, filename, _code.splitlines(), skip_check=True,
+            _code, filename, _lines, skip_check=True,
         )
         included_names.extend(_included_names)
 

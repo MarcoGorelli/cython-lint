@@ -626,6 +626,7 @@ def test_pycodestyle_when_ast_parsing_fails(
         'def foo():\n'
         '    cdef int size\n'
         '    asarray(<char[:size]> foo)\n',
+        'include "heap_watershed.pxi"\n',
     ],
 )
 def test_noop(capsys: Any, src: str) -> None:
