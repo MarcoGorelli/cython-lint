@@ -24,7 +24,7 @@ with warnings.catch_warnings():
     from Cython import Tempita
     from Cython.Compiler.TreeFragment import StringParseContext
 import Cython
-from Cython.Compiler.ExprNodes import GeneratorExpressionNode
+from Cython.Compiler.ExprNodes import GeneratorExpressionNode, CythonArrayNode
 from Cython.Compiler.ExprNodes import IndexNode
 from Cython.Compiler.ExprNodes import SimpleCallNode
 from Cython.Compiler.ExprNodes import AttributeNode
@@ -45,7 +45,7 @@ from Cython.Compiler.ExprNodes import NewExprNode
 from Cython.Compiler.ExprNodes import LambdaNode
 from Cython.Compiler.ExprNodes import TypecastNode
 from Cython.Compiler.ModuleNode import ModuleNode
-from Cython.Compiler.Nodes import CArgDeclNode
+from Cython.Compiler.Nodes import CArgDeclNode, MemoryViewSliceTypeNode
 from Cython.Compiler.Nodes import AssertStatNode
 from Cython.Compiler.Nodes import IfClauseNode
 from Cython.Compiler.Nodes import StatListNode
@@ -786,6 +786,8 @@ def traverse(tree: ModuleNode) -> Iterator[NodeParent]:
             child_attrs.add('expr')
         elif isinstance(node, AttributeNode):
             child_attrs.add('attribute')
+        elif isinstance(node, (MemoryViewSliceTypeNode, CythonArrayNode)):
+            child_attrs.add('base_type_node')
 
         for attr in child_attrs:
             child = getattr(node, attr)

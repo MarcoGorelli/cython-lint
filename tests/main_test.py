@@ -623,6 +623,9 @@ def test_pycodestyle_when_ast_parsing_fails(
         'def _read_string(GenericStream st, size_t n):\n'
         '    cdef object obj = st.read_string(n, &d_ptr, True)  '
         '# no-cython-lint\n',
+        'def foo():\n'
+        '    cdef int size\n'
+        '    asarray(<char[:size]> foo)\n',
     ],
 )
 def test_noop(capsys: Any, src: str) -> None:
