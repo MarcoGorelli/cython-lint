@@ -348,7 +348,10 @@ def _traverse_file(
         tree = parse_from_strings(filename, code, context=context)
     except Exception as exp:  # pragma: no cover  # noqa: E722
         # If Cython can't parse this file, just skip it.
-        print(f'cant parse {filename}: {repr(exp)}')
+        print(
+            f'Skipping file {filename}, as it cannot be parsed. Error: '
+            f'{repr(exp)}',
+        )
         raise CythonParseError
     nodes = list(traverse(tree))
     imported_names: list[Token] = []
