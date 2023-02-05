@@ -646,7 +646,7 @@ def sanitise_input(
     exclude_lines = {
         token.line
         for token in tokens
-        if token.name == 'NAME' and token.src == 'include'
+        if token.name == 'NAME' and token.src in ('include', 'DEF')
     }
     code = tokens_to_src(tokens)
     lines = {}

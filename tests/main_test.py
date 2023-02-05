@@ -473,11 +473,10 @@ def test_pycodestyle_when_ast_parsing_fails(
 ) -> None:  # pragma: no cover
     file = os.path.join(tmpdir, 't.py')
     src = (
-        'DEF MAXDIM = 21201  # max number of dimensions\n'
+        'extending.pyx\n'
+        '-------------\n'
         '\n'
-        '\n'
-        'cdef void draw(const uint_32_64 n):\n'
-        '    l = low_0_bit(num_gen_loc)\n'
+        '.. include:: ../../../../../../numpy/random/examples/extending.pyx\n'
     )
     with open(file, 'w', encoding='utf-8') as fd:
         fd.write(src)
@@ -486,9 +485,10 @@ def test_pycodestyle_when_ast_parsing_fails(
     ret = _main(src, file, ext='.pyx')
     out, _ = capsys.readouterr()
     expected = (
-        f'cant parse {file}: AttributeError("\'_thread._local\' object has '
-        'no attribute \'cython_errors_listing_file\'")\n'
-        f'{file}:5:5: E741 ambiguous variable name \'l\'\n'
+        f'Skipping file {file}, as it cannot be parsed. Error: '
+        'AttributeError("\'_thread._local\' object has no attribute '
+        '\'cython_errors_stack\'")\n'
+        f'{file}:4:11: E231 missing whitespace after \':\'\n'
     )
     assert out == expected
     assert ret == 1
