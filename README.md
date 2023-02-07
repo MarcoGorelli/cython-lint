@@ -20,6 +20,7 @@ Here's some major projects using ``cython-lint`` - is yours missing? Feel free t
 - [RAPIDS cuspatial](https://github.com/rapidsai/cuspatial)
 - [RAPIDS cudf](https://github.com/rapidsai/cudf)
 - [RAPIDS Memory Manager](https://github.com/rapidsai/rmm)
+- [scikit-image](https://github.com/scikit-image/scikit-image)
 - [scipy](https://github.com/scipy/scipy)
 - [yt](https://github.com/yt-project/yt)
 
