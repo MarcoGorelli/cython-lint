@@ -53,7 +53,7 @@ Sample `.pre-commit-config.yaml`:
 ```console
 $ cython-lint my_file_1.pyx my_file_2.pyx
 my_file_1.pyx:54:5: 'get_conversion_factor' imported but unused
-my_file_2.pyx:1112:38: 'mod' defined but unused
+my_file_2.pyx:1112:38: 'mod' defined but unused (try prefixing with underscore?)
 my_file_3.pyx:4:9: dangerous default value!
 my_file_3.pyx:5:9: comma after base type in definition
 ```
