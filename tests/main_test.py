@@ -16,20 +16,23 @@ INCLUDE_FILE_1 = os.path.join('tests', 'data', 'bar.pxi')
         (
             'cdef bint foo():\n'
             '    cdef int a\n',
-            't.py:2:14: \'a\' defined but unused\n',
+            't.py:2:14: \'a\' defined but unused '
+            '(try prefixing with underscore?)\n',
         ),
         (
             'cdef bint foo():\n'
             '    cdef int a\n'
             '    a = 3\n',
-            't.py:3:5: \'a\' defined but unused\n',
+            't.py:3:5: \'a\' defined but unused '
+            '(try prefixing with underscore?)\n',
         ),
         (
             'cdef bint foo():\n'
             '    cdef int a\n'
-            '    a, b = 3\n'
+            '    a, b, myclass.c = 3\n'
             '    return b\n',
-            't.py:3:5: \'a\' defined but unused\n',
+            't.py:3:5: \'a\' defined but unused '
+            '(try prefixing with underscore?)\n',
         ),
     ],
 )

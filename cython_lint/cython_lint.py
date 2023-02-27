@@ -234,7 +234,8 @@ def visit_funcdef(
 
             violations.append((
                 _def[1], _def[2]+1,
-                f'\'{_def[0]}\' defined but unused',
+                f'\'{_def[0]}\' defined but unused '
+                '(try prefixing with underscore?)',
             ))
         if _def[0] in [_import[0] for _import in global_imports]:
             _global_import = [
