@@ -192,7 +192,18 @@ def visit_funcdef(
         # e.g. import numpy as np
         and not isinstance(_child.rhs, ImportNode)
     ]
-    defs = [*defs, *simple_assignments]
+    tuple_assignments = []
+    for _child in children:
+        if (
+            isinstance(_child, SingleAssignmentNode)
+            and isinstance(_child.lhs, TupleNode)
+            # e.g. import numpy as np
+            and not isinstance(_child.rhs, ImportNode)
+        ):
+            for _arg in _child.lhs.args:
+                if isinstance(_arg, NameNode):
+                    tuple_assignments.append(Token(_arg.name, *_arg.pos[1:]))
+    defs = [*defs, *simple_assignments, *tuple_assignments]
 
     names = [
         Token(_child.name, *_child.pos[1:])

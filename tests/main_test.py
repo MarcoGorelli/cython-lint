@@ -24,6 +24,13 @@ INCLUDE_FILE_1 = os.path.join('tests', 'data', 'bar.pxi')
             '    a = 3\n',
             't.py:3:5: \'a\' defined but unused\n',
         ),
+        (
+            'cdef bint foo():\n'
+            '    cdef int a\n'
+            '    a, b = 3\n'
+            '    return b\n',
+            't.py:3:5: \'a\' defined but unused\n',
+        ),
     ],
 )
 def test_assigned_unused(capsys: Any, src: str, expected: str) -> None:
