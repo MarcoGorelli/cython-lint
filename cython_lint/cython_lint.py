@@ -4,6 +4,7 @@ import argparse
 import collections
 import copy
 import os
+import pathlib
 import re
 import subprocess
 import sys
@@ -830,17 +831,26 @@ def main(argv: Sequence[str] | None = None) -> int:  # pragma: no cover
     parser.add_argument('--version', action='version', version=__version__)
     args = parser.parse_args(argv)
     ret = 0
-    for path in args.paths:
-        _, ext = os.path.splitext(path)
-        try:
-            with open(path, encoding='utf-8') as fd:
-                content = fd.read()
-        except UnicodeDecodeError:
-            continue
-        ret |= _main(
-            content, path, line_length=args.max_line_length,
-            no_pycodestyle=args.no_pycodestyle, ext=ext,
-        )
+
+    for path in [pathlib.Path(path) for path in args.paths]:
+        if path.is_file():
+            filepaths = [path]
+        else:
+            filepaths = (
+                p for p in path.rglob('*') if p.suffix in ('.pyx', '.pxd', '.pxi')
+            )
+
+        for filepath in filepaths:
+            ext = filepath.suffix
+            try:
+                with open(filepath, encoding='utf-8') as fd:
+                    content = fd.read()
+            except UnicodeDecodeError:
+                continue
+            ret |= _main(
+                content, str(filepath), line_length=args.max_line_length,
+                no_pycodestyle=args.no_pycodestyle, ext=ext,
+            )
     return ret
 
 
