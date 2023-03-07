@@ -837,13 +837,13 @@ def main(argv: Sequence[str] | None = None) -> int:  # pragma: no cover
         '--files',
         help='Regex pattern with which to match files to include',
         required=False,
-        default=r'\.(pyx|pxd|pxi)$',
+        default=r'',
     )
     parser.add_argument(
         '--exclude',
         help='Regex pattern with which to match files to exclude',
         required=False,
-        default='^$',
+        default=r'^$',
     )
     # default from black formatter
     parser.add_argument('--max-line-length', type=int, default=88)
@@ -861,7 +861,7 @@ def main(argv: Sequence[str] | None = None) -> int:  # pragma: no cover
                 if re.search(args.files, str(p.resolve().as_posix()))
                 and not re.search(args.exclude, str(p.resolve().as_posix()))
                 and not re.search(EXCLUDES, str(p.resolve().as_posix()))
-                and p.is_file()
+                and p.suffix in ('.pyx', '.pxd', '.pxi')
             )
 
         for filepath in filepaths:
