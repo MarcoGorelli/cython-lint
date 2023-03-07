@@ -74,6 +74,14 @@ from cython_lint import __version__
 
 CYTHON_VERSION = tuple(Cython.__version__.split('.'))
 
+EXCLUDES = (
+    r'/('
+    r'\.direnv|\.eggs|\.git|\.hg|\.ipynb_checkpoints|\.mypy_cache|\.nox|\.svn|'
+    r'\.tox|\.venv|'
+    r'_build|buck-out|build|dist|venv'
+    r')/'
+)
+
 if CYTHON_VERSION > ('3',):  # pragma: no cover
     from Cython.Compiler.ExprNodes import AnnotationNode
 else:  # pragma: no cover
@@ -825,6 +833,18 @@ def traverse(tree: ModuleNode) -> Iterator[NodeParent]:
 def main(argv: Sequence[str] | None = None) -> int:  # pragma: no cover
     parser = argparse.ArgumentParser()
     parser.add_argument('paths', nargs='*')
+    parser.add_argument(
+        '--files',
+        help='Regex pattern with which to match files to include',
+        required=False,
+        default=r'\.(pyx|pxd|pxi)$',
+    )
+    parser.add_argument(
+        '--exclude',
+        help='Regex pattern with which to match files to exclude',
+        required=False,
+        default='^$',
+    )
     # default from black formatter
     parser.add_argument('--max-line-length', type=int, default=88)
     parser.add_argument('--no-pycodestyle', action='store_true')
@@ -832,12 +852,16 @@ def main(argv: Sequence[str] | None = None) -> int:  # pragma: no cover
     args = parser.parse_args(argv)
     ret = 0
 
-    for path in [pathlib.Path(path) for path in args.paths]:
+    for path in (pathlib.Path(path) for path in args.paths):
         if path.is_file():
-            filepaths = [path]
+            filepaths = iter((path,))
         else:
             filepaths = (
-                p for p in path.rglob('*') if p.suffix in ('.pyx', '.pxd', '.pxi')
+                p for p in path.rglob('*')
+                if re.search(args.files, str(p.resolve().as_posix()))
+                and not re.search(args.exclude, str(p.resolve().as_posix()))
+                and not re.search(EXCLUDES, str(p.resolve().as_posix()))
+                and p.is_file()
             )
 
         for filepath in filepaths:
