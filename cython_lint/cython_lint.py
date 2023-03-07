@@ -4,6 +4,7 @@ import argparse
 import collections
 import copy
 import os
+import pathlib
 import re
 import subprocess
 import sys
@@ -72,6 +73,14 @@ from tokenize_rt import tokens_to_src
 from cython_lint import __version__
 
 CYTHON_VERSION = tuple(Cython.__version__.split('.'))
+
+EXCLUDES = (
+    r'/('
+    r'\.direnv|\.eggs|\.git|\.hg|\.ipynb_checkpoints|\.mypy_cache|\.nox|\.svn|'
+    r'\.tox|\.venv|'
+    r'_build|buck-out|build|dist|venv'
+    r')/'
+)
 
 if CYTHON_VERSION > ('3',):  # pragma: no cover
     from Cython.Compiler.ExprNodes import AnnotationNode
@@ -824,23 +833,48 @@ def traverse(tree: ModuleNode) -> Iterator[NodeParent]:
 def main(argv: Sequence[str] | None = None) -> int:  # pragma: no cover
     parser = argparse.ArgumentParser()
     parser.add_argument('paths', nargs='*')
+    parser.add_argument(
+        '--files',
+        help='Regex pattern with which to match files to include',
+        required=False,
+        default=r'',
+    )
+    parser.add_argument(
+        '--exclude',
+        help='Regex pattern with which to match files to exclude',
+        required=False,
+        default=r'^$',
+    )
     # default from black formatter
     parser.add_argument('--max-line-length', type=int, default=88)
     parser.add_argument('--no-pycodestyle', action='store_true')
     parser.add_argument('--version', action='version', version=__version__)
     args = parser.parse_args(argv)
     ret = 0
-    for path in args.paths:
-        _, ext = os.path.splitext(path)
-        try:
-            with open(path, encoding='utf-8') as fd:
-                content = fd.read()
-        except UnicodeDecodeError:
-            continue
-        ret |= _main(
-            content, path, line_length=args.max_line_length,
-            no_pycodestyle=args.no_pycodestyle, ext=ext,
-        )
+
+    for path in (pathlib.Path(path) for path in args.paths):
+        if path.is_file():
+            filepaths = iter((path,))
+        else:
+            filepaths = (
+                p for p in path.rglob('*')
+                if re.search(args.files, str(p.as_posix()))
+                and not re.search(args.exclude, str(p.as_posix()))
+                and not re.search(EXCLUDES, str(p.as_posix()))
+                and p.suffix in ('.pyx', '.pxd', '.pxi')
+            )
+
+        for filepath in filepaths:
+            ext = filepath.suffix
+            try:
+                with open(filepath, encoding='utf-8') as fd:
+                    content = fd.read()
+            except UnicodeDecodeError:
+                continue
+            ret |= _main(
+                content, str(filepath), line_length=args.max_line_length,
+                no_pycodestyle=args.no_pycodestyle, ext=ext,
+            )
     return ret
 
 
