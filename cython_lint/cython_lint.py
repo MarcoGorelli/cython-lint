@@ -858,9 +858,9 @@ def main(argv: Sequence[str] | None = None) -> int:  # pragma: no cover
         else:
             filepaths = (
                 p for p in path.rglob('*')
-                if re.search(args.files, str(p.resolve().as_posix()))
-                and not re.search(args.exclude, str(p.resolve().as_posix()))
-                and not re.search(EXCLUDES, str(p.resolve().as_posix()))
+                if re.search(args.files, str(p.as_posix()))
+                and not re.search(args.exclude, str(p.as_posix()))
+                and not re.search(EXCLUDES, str(p.as_posix()))
                 and p.suffix in ('.pyx', '.pxd', '.pxi')
             )
 
