@@ -458,7 +458,7 @@ def test_late_binding_closure(
 
 
 @pytest.mark.parametrize(
-    "ignore, expected, exp_ret",
+    'ignore, expected, exp_ret',
     [
         (
             set(),
@@ -467,15 +467,15 @@ def test_late_binding_closure(
             1,
         ),
         (
-            {"W291"},
+            {'W291'},
             '{0}:1:11: E701 multiple statements on one line (colon)\n',
             1,
         ),
-        ({"W291", "E701"}, "", 0),
-    ]
+        ({'W291', 'E701'}, '', 0),
+    ],
 )
 def test_pycodestyle(
-    tmpdir: Any, capsys: Any, ignore: set, expected: str, exp_ret: int
+    tmpdir: Any, capsys: Any, ignore: set, expected: str, exp_ret: int,
 ) -> None:
     file = os.path.join(tmpdir, 't.py')
     with open(file, 'w', encoding='utf-8') as fd:
