@@ -852,7 +852,11 @@ def main(argv: Sequence[str] | None = None) -> int:  # pragma: no cover
     parser.add_argument('--max-line-length', type=int, default=88)
     parser.add_argument('--no-pycodestyle', action='store_true')
     parser.add_argument('--version', action='version', version=__version__)
-    parser.add_argument('--ignore', type=str)
+    parser.add_argument(
+        '--ignore',
+        type=str,
+        help='Comma-separated list of pycodestyle error codes to ignore',
+    )
     args = parser.parse_args(argv)
     ret = 0
 
