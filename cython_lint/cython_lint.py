@@ -861,7 +861,7 @@ def main(argv: Sequence[str] | None = None) -> int:  # pragma: no cover
     ret = 0
 
     if args.ignore is not None:
-        ignore = set(s.strip() for s in args.ignore.split(','))
+        ignore = {s.strip() for s in args.ignore.split(',')}
     else:
         ignore = set()
 
