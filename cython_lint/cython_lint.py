@@ -855,15 +855,13 @@ def main(argv: Sequence[str] | None = None) -> int:  # pragma: no cover
     parser.add_argument(
         '--ignore',
         type=str,
+        default='',
         help='Comma-separated list of pycodestyle error codes to ignore',
     )
     args = parser.parse_args(argv)
     ret = 0
 
-    if args.ignore is not None:
-        ignore = {s.strip() for s in args.ignore.split(',')}
-    else:
-        ignore = set()
+    ignore = {s.strip() for s in args.ignore.split(',') if s.strip() != ''}
 
     for path in (pathlib.Path(path) for path in args.paths):
         if path.is_file():
