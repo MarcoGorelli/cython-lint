@@ -457,20 +457,38 @@ def test_late_binding_closure(
     assert ret == 1
 
 
-def test_pycodestyle(tmpdir: Any, capsys: Any) -> None:
+@pytest.mark.parametrize(
+    "ignore, expected, exp_ret",
+    [
+        (
+            set(),
+            '{0}:1:11: E701 multiple statements on one line (colon)\n'
+            '{0}:2:6: W291 trailing whitespace\n',
+            1,
+        ),
+        (
+            {"W291"},
+            '{0}:1:11: E701 multiple statements on one line (colon)\n',
+            1,
+        ),
+        ({"W291", "E701"}, "", 0),
+    ]
+)
+def test_pycodestyle(
+    tmpdir: Any, capsys: Any, ignore: set, expected: str, exp_ret: int
+) -> None:
     file = os.path.join(tmpdir, 't.py')
     with open(file, 'w', encoding='utf-8') as fd:
-        fd.write('while True: pass\n')
+        fd.write('while True: pass\n')  # E701
+        fd.write('x = 1 \n')  # W291
     with open(os.path.join(tmpdir, 'tox.ini'), 'w') as fd:
         fd.write('[pycodestyle]\nstatistics=True\n')
     src = ''
-    ret = _main(src, file, ext='.pxd')
+    ret = _main(src, file, ext='.pxd', ignore=ignore)
     out, _ = capsys.readouterr()
-    expected = (
-        f'{file}:1:11: E701 multiple statements on one line (colon)\n'
-    )
-    assert out == expected
-    assert ret == 1
+
+    assert out == expected.format(file)
+    assert ret == exp_ret
 
 
 @pytest.mark.skipif(
