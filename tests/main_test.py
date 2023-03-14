@@ -475,7 +475,7 @@ def test_late_binding_closure(
     ]
 )
 def test_pycodestyle(
-    tmpdir: Any, capsys: Any, ignore: set, expected: str, exp_ret: int
+    tmpdir: Any, capsys: Any, ignore: set[str], expected: str, exp_ret: int
 ) -> None:
     file = os.path.join(tmpdir, 't.py')
     with open(file, 'w', encoding='utf-8') as fd:
