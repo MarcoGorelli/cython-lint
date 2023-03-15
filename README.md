@@ -63,8 +63,13 @@ my_file_3.pyx:5:9: comma after base type in definition
 
 The following configuration options are available:
 - exclude lines by including a ``# no-cython-lint`` comment (analogous to ``# noqa`` in ``flake8``);
-- use the command-line argument ``--max-line-length`` to control the maximum line length used by pycodestyle;
-- use the command-line argument ``--no-pycodestyle`` if you don't want the pycodestyle checks.
+
+as well as the following command-line arguments:
+- ``--max-line-length`` to control the maximum line length used by pycodestyle;
+- ``--no-pycodestyle`` if you don't want the pycodestyle checks;
+- ``--ignore`` if you want to ignore some specific pycodestyle checks;
+- ``--files`` to pass a Regex pattern with which to match files to include;
+- ``--exclude`` to pass a Regex pattern with which to match files to exclude.
 
 ## Which checks are implemented?
 
