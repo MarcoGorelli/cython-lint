@@ -730,13 +730,15 @@ def run_ast_checks(
 
 
 def run_pycodestyle(
-    line_length: int, filename: str,
+    line_length: int,
+    filename: str,
     violations: list[tuple[int, int, str]],
+    ignore: set[str],
 ) -> None:
     output = subprocess.run(
         [
             'pycodestyle',
-            f'--ignore={",".join(PYCODESTYLE_CODES)}',
+            f'--ignore={",".join(PYCODESTYLE_CODES | ignore)}',
             f'--max-line-length={line_length}',
             '--format=%(row)d:%(col)d:%(code)s %(text)s',
             filename,
@@ -760,10 +762,14 @@ def _main(
     ext: str,
     line_length: int = 88,
     no_pycodestyle: bool = False,
+    ignore: set[str] | None = None,
 ) -> int:
+    if ignore is None:
+        ignore = set()
+    assert ignore is not None  # help mypy
     violations: list[tuple[int, int, str]] = []
     if not no_pycodestyle:
-        run_pycodestyle(line_length, filename, violations)
+        run_pycodestyle(line_length, filename, violations, ignore)
 
     lines = {}
     if ext == '.pyx':
@@ -849,8 +855,16 @@ def main(argv: Sequence[str] | None = None) -> int:  # pragma: no cover
     parser.add_argument('--max-line-length', type=int, default=88)
     parser.add_argument('--no-pycodestyle', action='store_true')
     parser.add_argument('--version', action='version', version=__version__)
+    parser.add_argument(
+        '--ignore',
+        nargs='*',
+        default='',
+        help='Comma-separated list of pycodestyle error codes to ignore',
+    )
     args = parser.parse_args(argv)
     ret = 0
+
+    ignore = set(args.ignore)
 
     for path in (pathlib.Path(path) for path in args.paths):
         if path.is_file():
@@ -874,6 +888,7 @@ def main(argv: Sequence[str] | None = None) -> int:  # pragma: no cover
             ret |= _main(
                 content, str(filepath), line_length=args.max_line_length,
                 no_pycodestyle=args.no_pycodestyle, ext=ext,
+                ignore=ignore,
             )
     return ret
 
