@@ -762,8 +762,11 @@ def _main(
     ext: str,
     line_length: int = 88,
     no_pycodestyle: bool = False,
-    ignore: set[str] = set(),
+    ignore: set[str] | None = None,
 ) -> int:
+    if ignore is None:
+        ignore = set()
+    assert ignore is not None  # help mypy
     violations: list[tuple[int, int, str]] = []
     if not no_pycodestyle:
         run_pycodestyle(line_length, filename, violations, ignore)
@@ -854,14 +857,14 @@ def main(argv: Sequence[str] | None = None) -> int:  # pragma: no cover
     parser.add_argument('--version', action='version', version=__version__)
     parser.add_argument(
         '--ignore',
-        type=str,
+        nargs='*',
         default='',
         help='Comma-separated list of pycodestyle error codes to ignore',
     )
     args = parser.parse_args(argv)
     ret = 0
 
-    ignore = {s.strip() for s in args.ignore.split(',') if s.strip() != ''}
+    ignore = set(args.ignore)
 
     for path in (pathlib.Path(path) for path in args.paths):
         if path.is_file():
