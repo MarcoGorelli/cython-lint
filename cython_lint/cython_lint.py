@@ -90,28 +90,24 @@ else:  # pragma: no cover
 
 PRAGMA = r'#\s+no-cython-lint'
 
-# generate these with python generate_pycodestyle_codes.py
-PYCODESTYLE_CODES = frozenset((
-    'E121',
-    'E123',
-    'E126',
-    'E133',
-    'E203',
-    'E211',
-    'E225',
-    'E226',
-    'E227',
-    'E241',
-    'E242',
-    'E251',
-    'E271',
-    'E272',
-    'E275',
-    'E4',
-    'E704',
-    'E9',
-    'W5',
-))
+PYCODESTYLE_CODES = frozenset(
+    (
+        # default from pycodestyle
+        'E121',
+        'E123',
+        'E126',
+        'E226',
+        'E24',
+        'E704',
+        'W503',
+        # other excludes
+        'E203',  # black
+        'W504',  # also black
+        'E402',  # module-level import (just use isort)
+        # whitespace before '(' - probably doesn't make sense for return types
+        'E211',
+    ),
+)
 
 CONSTANT_NODE = (UnicodeNode, IntNode, FloatNode)
 
@@ -737,7 +733,9 @@ def run_pycodestyle(
 ) -> None:
     output = subprocess.run(
         [
-            'pycodestyle',
+            sys.executable,
+            '-m',
+            'cython_lint.pycodestyle',
             f'--ignore={",".join(PYCODESTYLE_CODES | ignore)}',
             f'--max-line-length={line_length}',
             '--format=%(row)d:%(col)d:%(code)s %(text)s',
