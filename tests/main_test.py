@@ -689,7 +689,7 @@ def test_noop_old_cython(capsys: Any, src: str) -> None:
     ],
 )
 def test_config_file(
-    tmpdir: Any, config_file: str, tool_name: str, ignore: str
+    tmpdir: Any, config_file: str, tool_name: str, ignore: str,
 ) -> None:
     config_file = os.path.join(tmpdir, config_file)
     with open(config_file, 'w') as fd:
