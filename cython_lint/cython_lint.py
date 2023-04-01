@@ -10,6 +10,7 @@ import re
 import subprocess
 import sys
 import warnings
+from typing import Any
 from typing import Hashable
 from typing import Iterator
 from typing import Mapping
@@ -17,7 +18,6 @@ from typing import MutableMapping
 from typing import NamedTuple
 from typing import NoReturn
 from typing import Sequence
-from typing import Any
 
 if sys.version_info >= (3, 11):
     import tomllib
@@ -913,7 +913,7 @@ def main(argv: Sequence[str] | None = None) -> int:  # pragma: no cover
     ret = 0
 
     ignore = args.ignore if isinstance(args.ignore, list) else [args.ignore]
-    ignore = set(code.strip() for s in ignore for code in s.split(','))
+    ignore = {code.strip() for s in ignore for code in s.split(',')}
 
     for path in paths:
         if path.is_file():
