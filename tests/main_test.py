@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import os
-import subprocess
 from typing import Any
 
 import Cython
 import pytest
 
+from cython_lint.cython_lint import main
 from cython_lint.cython_lint import _main
 
 INCLUDE_FILE_0 = os.path.join('tests', 'data', 'foo.pxi')
@@ -689,7 +689,7 @@ def test_noop_old_cython(capsys: Any, src: str) -> None:
     ],
 )
 def test_config_file(
-    tmpdir: Any, config_file: str, tool_name: str, ignore: str
+    tmpdir: Any, capsys: Any, config_file: str, tool_name: str, ignore: str
 ) -> None:
     config_file = os.path.join(tmpdir, config_file)
     with open(config_file, 'w') as fd:
@@ -701,16 +701,11 @@ def test_config_file(
         fd.write('while True: pass\n')  # E701
 
     # config file is respected
-    output = subprocess.run(
-        f'cython-lint {file}', shell=True, text=True, capture_output=True,
-    )
-    assert output.stdout == ''
+    main([file])
+    out, _ = capsys.readouterr()
+    assert out == ''
 
     # Command line arguments take precedence over config file
-    output = subprocess.run(
-        f'cython-lint --ignore="" {file}',
-        shell=True,
-        text=True,
-        capture_output=True,
-    )
-    assert 't.pyx:1:11: E701 multiple statements on one line' in output.stdout
+    main(['--ignore=""', file])
+    out, _ = capsys.readouterr()
+    assert 't.pyx:1:11: E701 multiple statements on one line' in out
