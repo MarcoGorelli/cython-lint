@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import collections
+import configparser
 import copy
 import os
 import pathlib
@@ -16,6 +17,12 @@ from typing import MutableMapping
 from typing import NamedTuple
 from typing import NoReturn
 from typing import Sequence
+from typing import Any
+
+if sys.version_info >= (3, 11):
+    import tomllib
+else:
+    import tomli as tomllib
 
 with warnings.catch_warnings():
     # DeprecationWarning: 'cgi' is deprecated and slated for
@@ -836,6 +843,40 @@ def traverse(tree: ModuleNode) -> Iterator[NodeParent]:
         yield node_parent
 
 
+def _get_config(paths: list[pathlib.Path]) -> dict[str, Any]:
+    """Get the configuration from a config file
+
+    Search for a pyproject.toml or a setup.cfg file in common
+    parent directories of the given list of paths.
+    """
+    paths = [path.resolve() for path in paths]
+    root = pathlib.Path(os.path.commonpath(paths))
+    if not root.is_dir():
+        root = root.parent
+
+    while root != root.parent:
+
+        # Look for pyproject.toml first
+        config_file = root / 'pyproject.toml'
+        if config_file.is_file():
+            config = tomllib.loads(config_file.read_text())
+            config = config.get('tool', {}).get('cython-lint', {})
+            if config:
+                return config
+
+        config_file = root / 'setup.cfg'
+        if config_file.is_file():
+            config_parser = configparser.ConfigParser()
+            config_parser.read(config_file)
+            if config_parser.has_section('cython-lint'):
+                config = config_parser.items('cython-lint')
+                return {key: value for key, value in config}
+
+        root = root.parent
+
+    return {}
+
+
 def main(argv: Sequence[str] | None = None) -> int:  # pragma: no cover
     parser = argparse.ArgumentParser()
     parser.add_argument('paths', nargs='*')
@@ -862,18 +903,26 @@ def main(argv: Sequence[str] | None = None) -> int:  # pragma: no cover
         help='Comma-separated list of pycodestyle error codes to ignore',
     )
     args = parser.parse_args(argv)
+    paths = [pathlib.Path(path) for path in args.paths]
+
+    # Update defaults from pyproject.toml or setup.cfg if present
+    config = {k.replace('-', '_'): v for k, v in _get_config(paths).items()}
+    parser.set_defaults(**config)
+    args = parser.parse_args(argv)
+
     ret = 0
 
-    ignore = set(args.ignore)
+    ignore = args.ignore if isinstance(args.ignore, list) else [args.ignore]
+    ignore = set(code.strip() for s in ignore for code in s.split(','))
 
-    for path in (pathlib.Path(path) for path in args.paths):
+    for path in paths:
         if path.is_file():
             filepaths = iter((path,))
         else:
             filepaths = (
                 p for p in path.rglob('*')
-                if re.search(args.files, str(p.as_posix()))
-                and not re.search(args.exclude, str(p.as_posix()))
+                if re.search(args.files, str(p.as_posix()), re.VERBOSE)
+                and not re.search(args.exclude, str(p.as_posix()), re.VERBOSE)
                 and not re.search(EXCLUDES, str(p.as_posix()))
                 and p.suffix in ('.pyx', '.pxd', '.pxi')
             )

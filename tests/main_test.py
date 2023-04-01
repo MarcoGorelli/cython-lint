@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import subprocess
 from typing import Any
 
 import Cython
@@ -678,3 +679,29 @@ def test_noop_old_cython(capsys: Any, src: str) -> None:
     out, _ = capsys.readouterr()
     assert out == ''
     assert ret == 0
+
+
+def test_config_file(tmpdir: Any) -> None:
+    config_file = os.path.join(tmpdir, 'pyproject.toml')
+    with open(config_file, 'w') as fd:
+        fd.write('[tool.cython-lint]\n')
+        fd.write('ignore = ["E701"]\n')
+
+    file = os.path.join(tmpdir, 't.pyx')
+    with open(file, 'w', encoding='utf-8') as fd:
+        fd.write('while True: pass\n')  # E701
+
+    # config file is respected
+    output = subprocess.run(
+        f'cython-lint {file}', shell=True, text=True, capture_output=True
+    )
+    assert output.stdout == ''
+
+    # Command line arguments take precedence over config file
+    output = subprocess.run(
+        f'cython-lint --ignore="" {file}',
+        shell=True,
+        text=True,
+        capture_output=True
+    )
+    assert 't.pyx:1:11: E701 multiple statements on one line' in output.stdout
