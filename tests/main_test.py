@@ -713,7 +713,7 @@ def test_config_file(
 
 @pytest.mark.parametrize('config_file', ['pyproject.toml', 'setup.cfg'])
 def test_config_file_no_cython_lint(
-    tmpdir: Any, capsys: Any, config_file: str
+    tmpdir: Any, capsys: Any, config_file: str,
 ) -> None:
     config_file = os.path.join(tmpdir, config_file)
     with open(config_file, 'w') as fd:
