@@ -681,11 +681,18 @@ def test_noop_old_cython(capsys: Any, src: str) -> None:
     assert ret == 0
 
 
-def test_config_file(tmpdir: Any) -> None:
-    config_file = os.path.join(tmpdir, 'pyproject.toml')
+@pytest.mark.parametrize(
+    'config_file, tool_name, ignore',
+    [
+        ('pyproject.toml', 'tool.cython-lint', '["E701"]'),
+        ('setup.cfg', 'cython-lint', 'E701'),
+    ]
+)
+def test_config_file(tmpdir: Any, config_file: str, tool_name: str, ignore: str) -> None:
+    config_file = os.path.join(tmpdir, config_file)
     with open(config_file, 'w') as fd:
-        fd.write('[tool.cython-lint]\n')
-        fd.write('ignore = ["E701"]\n')
+        fd.write(f'[{tool_name}]\n')
+        fd.write(f'ignore = {ignore}\n')
 
     file = os.path.join(tmpdir, 't.pyx')
     with open(file, 'w', encoding='utf-8') as fd:
