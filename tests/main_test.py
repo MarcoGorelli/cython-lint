@@ -709,3 +709,35 @@ def test_config_file(
     main(['--ignore=""', file])
     out, _ = capsys.readouterr()
     assert 't.pyx:1:11: E701 multiple statements on one line' in out
+
+
+@pytest.mark.parametrize('config_file', ['pyproject.toml', 'setup.cfg'])
+def test_config_file_no_cython_lint(
+    tmpdir: Any, capsys: Any, config_file: str
+) -> None:
+    config_file = os.path.join(tmpdir, config_file)
+    with open(config_file, 'w') as fd:
+        # config file with no cython-lint section
+        fd.write('\n')
+
+    file = os.path.join(tmpdir, 't.pyx')
+    with open(file, 'w', encoding='utf-8') as fd:
+        fd.write('while True: pass\n')  # E701
+
+    main([file])
+    out, _ = capsys.readouterr()
+    assert 't.pyx:1:11: E701 multiple statements on one line' in out
+
+
+def test_no_config_file(tmpdir: Any, capsys: Any) -> None:
+    file = os.path.join(tmpdir, 't.pyx')
+    with open(file, 'w', encoding='utf-8') as fd:
+        fd.write('while True: pass\n')  # E701
+
+    main(['--ignore=E701', file])
+    out, _ = capsys.readouterr()
+    assert out == ''
+
+    main([file])
+    out, _ = capsys.readouterr()
+    assert 't.pyx:1:11: E701 multiple statements on one line' in out

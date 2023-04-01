@@ -19,8 +19,8 @@ from typing import NamedTuple
 from typing import NoReturn
 from typing import Sequence
 
-if sys.version_info >= (3, 11):
-    import tomllib
+if sys.version_info >= (3, 11):  # pragma: no cover
+    import tomllib  
 else:
     import tomli as tomllib
 
@@ -851,8 +851,7 @@ def _get_config(paths: list[pathlib.Path]) -> dict[str, Any]:
     """
     paths = [path.resolve() for path in paths]
     root = pathlib.Path(os.path.commonpath(paths))
-    if not root.is_dir():
-        root = root.parent
+    root = root.parent if root.is_file() else root
 
     while root != root.parent:
 
