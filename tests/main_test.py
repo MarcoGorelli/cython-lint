@@ -686,7 +686,7 @@ def test_noop_old_cython(capsys: Any, src: str) -> None:
     [
         ('pyproject.toml', 'tool.cython-lint', '["E701"]'),
         ('setup.cfg', 'cython-lint', 'E701'),
-    ]
+    ],
 )
 def test_config_file(tmpdir: Any, config_file: str, tool_name: str, ignore: str) -> None:
     config_file = os.path.join(tmpdir, config_file)
