@@ -869,8 +869,8 @@ def _get_config(paths: list[pathlib.Path]) -> dict[str, Any]:
             config_parser = configparser.ConfigParser()
             config_parser.read(config_file)
             if config_parser.has_section('cython-lint'):
-                config = config_parser.items('cython-lint')
-                return {key: value for key, value in config}
+                config_items = config_parser.items('cython-lint')
+                return {key: value for key, value in config_items}
 
         root = root.parent
 
@@ -912,8 +912,9 @@ def main(argv: Sequence[str] | None = None) -> int:  # pragma: no cover
 
     ret = 0
 
-    ignore = args.ignore if isinstance(args.ignore, list) else [args.ignore]
-    ignore = {code.strip() for s in ignore for code in s.split(',')}
+    if not isinstance(args.ignore, list):
+        args.ignore = [args.ignore]
+    ignore = {code.strip() for s in args.ignore for code in s.split(',')}
 
     for path in paths:
         if path.is_file():
