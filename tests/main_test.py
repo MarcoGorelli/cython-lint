@@ -693,7 +693,7 @@ def test_config_file(tmpdir: Any) -> None:
 
     # config file is respected
     output = subprocess.run(
-        f'cython-lint {file}', shell=True, text=True, capture_output=True
+        f'cython-lint {file}', shell=True, text=True, capture_output=True,
     )
     assert output.stdout == ''
 
@@ -702,6 +702,6 @@ def test_config_file(tmpdir: Any) -> None:
         f'cython-lint --ignore="" {file}',
         shell=True,
         text=True,
-        capture_output=True
+        capture_output=True,
     )
     assert 't.pyx:1:11: E701 multiple statements on one line' in output.stdout
