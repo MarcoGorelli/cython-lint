@@ -709,7 +709,6 @@ def run_ast_checks(
             _code, filename, _lines, skip_check=True,
         )
         included_names.extend(_included_names)
-
     for _import in imported_names:
         if _import[0] == '*':
             continue
@@ -826,6 +825,8 @@ def traverse(tree: ModuleNode) -> Iterator[NodeParent]:
             child_attrs.add('attribute')
         elif isinstance(node, (MemoryViewSliceTypeNode, CythonArrayNode)):
             child_attrs.add('base_type_node')
+        if hasattr(node, 'annotation'):
+            child_attrs.add('annotation')
 
         for attr in child_attrs:
             child = getattr(node, attr)
