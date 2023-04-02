@@ -1,9 +1,9 @@
 # type: ignore
-import copy
+import copy  # pragma: no cover
 
 from Cython.Compiler.TreeFragment import StringParseContext  # pragma: no cover
 
-from cython_lint.cython_lint import MISSING_CHILD_ATTRS
+from cython_lint.cython_lint import MISSING_CHILD_ATTRS  # pragma: no cover
 
 
 def _print(name, node, indent):  # pragma: no cover
@@ -37,6 +37,6 @@ def pretty_print(path):  # pragma: no cover
     _print('tree', tree, indent=0)
 
 
-if __name__ == '__main__':
+if __name__ == '__main__':  # pragma: no cover
     import sys
     pretty_print(sys.argv[1])
