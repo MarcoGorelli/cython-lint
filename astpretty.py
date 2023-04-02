@@ -1,5 +1,9 @@
 # type: ignore
+import copy
+
 from Cython.Compiler.TreeFragment import StringParseContext  # pragma: no cover
+
+from cython_lint.cython_lint import MISSING_CHILD_ATTRS
 
 
 def _print(name, node, indent):  # pragma: no cover
@@ -8,7 +12,13 @@ def _print(name, node, indent):  # pragma: no cover
     if hasattr(node, 'pos'):
         print('    '*indent, name, node, node.pos)
     if hasattr(node, 'child_attrs'):
-        for attr in node.child_attrs:
+
+        child_attrs = set(copy.deepcopy(node.child_attrs))
+        for attr in MISSING_CHILD_ATTRS:
+            if hasattr(node, attr):
+                child_attrs.add(attr)
+
+        for attr in child_attrs:
             children = getattr(node, attr)
             if isinstance(children, list):
                 for child in children:
