@@ -25,7 +25,6 @@ with warnings.catch_warnings():
     from Cython import Tempita
     from Cython.Compiler.TreeFragment import StringParseContext
 import Cython
-from Cython.Compiler.ExprNodes import GeneratorExpressionNode, CythonArrayNode
 from Cython.Compiler.ExprNodes import IndexNode
 from Cython.Compiler.ExprNodes import SimpleCallNode
 from Cython.Compiler.ExprNodes import AttributeNode
@@ -42,15 +41,12 @@ from Cython.Compiler.ExprNodes import FormattedValueNode
 from Cython.Compiler.ExprNodes import JoinedStrNode
 from Cython.Compiler.ExprNodes import ImportNode
 from Cython.Compiler.ExprNodes import NameNode
-from Cython.Compiler.ExprNodes import NewExprNode
 from Cython.Compiler.ExprNodes import LambdaNode
-from Cython.Compiler.ExprNodes import TypecastNode
 from Cython.Compiler.ModuleNode import ModuleNode
-from Cython.Compiler.Nodes import CArgDeclNode, MemoryViewSliceTypeNode
+from Cython.Compiler.Nodes import CArgDeclNode
 from Cython.Compiler.Nodes import AssertStatNode
 from Cython.Compiler.Nodes import IfClauseNode
 from Cython.Compiler.Nodes import StatListNode
-from Cython.Compiler.Nodes import CClassDefNode
 from Cython.Compiler.Nodes import CFuncDeclaratorNode
 from Cython.Compiler.Nodes import CFuncDefNode
 from Cython.Compiler.Nodes import GlobalNode
@@ -63,7 +59,6 @@ from Cython.Compiler.Nodes import ExprStatNode
 from Cython.Compiler.Nodes import ForInStatNode
 from Cython.Compiler.Nodes import FromCImportStatNode
 from Cython.Compiler.Nodes import FromImportStatNode
-from Cython.Compiler.Nodes import FusedTypeNode
 from Cython.Compiler.Nodes import Node
 from Cython.Compiler.Nodes import SingleAssignmentNode
 from Cython.Compiler.TreeFragment import parse_from_strings
@@ -114,6 +109,23 @@ PYCODESTYLE_CODES = frozenset((
 ))
 
 CONSTANT_NODE = (UnicodeNode, IntNode, FloatNode)
+
+MISSING_CHILD_ATTRS = frozenset((
+    'bases',
+    'decorators',
+    'base_type',
+    'loop',
+    'decorators',
+    'types',
+    'target',
+    'cppclass',
+    'args',
+    'result_expr',
+    'expr',
+    'attribute',
+    'base_type_node',
+    'annotation',
+))
 
 
 class NodeParent(NamedTuple):
@@ -709,7 +721,6 @@ def run_ast_checks(
             _code, filename, _lines, skip_check=True,
         )
         included_names.extend(_included_names)
-
     for _import in imported_names:
         if _import[0] == '*':
             continue
@@ -800,32 +811,9 @@ def traverse(tree: ModuleNode) -> Iterator[NodeParent]:
             continue
 
         child_attrs = set(copy.deepcopy(node.child_attrs))
-
-        if isinstance(node, CClassDefNode):
-            child_attrs.update(['bases', 'decorators'])
-        elif isinstance(node, TypecastNode):
-            child_attrs.add('base_type')
-        elif isinstance(node, GeneratorExpressionNode):
-            if hasattr(node, 'loop'):
-                child_attrs.add('loop')
-            else:  # pragma: no cover
-                err_msg(node, 'GeneratorExpressionNode with loop attribute')
-        elif isinstance(node, CFuncDefNode):
-            child_attrs.add('decorators')
-        elif isinstance(node, FusedTypeNode):
-            child_attrs.add('types')
-        elif isinstance(node, ForInStatNode):
-            child_attrs.add('target')
-        elif isinstance(node, NewExprNode):
-            child_attrs.add('cppclass')
-        elif isinstance(node, LambdaNode):
-            child_attrs.update(['args', 'result_expr'])
-        elif isinstance(node, AnnotationNode):  # pragma: no cover
-            child_attrs.add('expr')
-        elif isinstance(node, AttributeNode):
-            child_attrs.add('attribute')
-        elif isinstance(node, (MemoryViewSliceTypeNode, CythonArrayNode)):
-            child_attrs.add('base_type_node')
+        for attr in MISSING_CHILD_ATTRS:
+            if hasattr(node, attr):
+                child_attrs.add(attr)
 
         for attr in child_attrs:
             child = getattr(node, attr)
