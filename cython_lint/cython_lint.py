@@ -111,18 +111,20 @@ PYCODESTYLE_CODES = frozenset((
 CONSTANT_NODE = (UnicodeNode, IntNode, FloatNode)
 
 MISSING_CHILD_ATTRS = frozenset((
-    'bases', 'decorators',
+    'bases',
+    'decorators',
     'base_type',
     'loop',
     'decorators',
     'types',
     'target',
     'cppclass',
-    'args', 'result_expr',
-            'expr',
-            'attribute',
-            'base_type_node',
-            'annotation',
+    'args',
+    'result_expr',
+    'expr',
+    'attribute',
+    'base_type_node',
+    'annotation',
 ))
 
 
