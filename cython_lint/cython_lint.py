@@ -845,8 +845,8 @@ def traverse(tree: ModuleNode) -> Iterator[NodeParent]:
 def _get_config(paths: list[pathlib.Path]) -> dict[str, Any]:
     """Get the configuration from a config file
 
-    Search for a pyproject.toml or a setup.cfg file in common
-    parent directories of the given list of paths.
+    Search for a pyproject.toml file in common parent directories
+    of the given list of paths.
     """
     root = pathlib.Path(os.path.commonpath(paths))
     root = root.parent if root.is_file() else root
@@ -893,7 +893,7 @@ def main(argv: Sequence[str] | None = None) -> int:  # pragma: no cover
     args = parser.parse_args(argv)
     paths = [pathlib.Path(path).resolve() for path in args.paths]
 
-    # Update defaults from pyproject.toml or setup.cfg if present
+    # Update defaults from pyproject.toml if present
     config = {k.replace('-', '_'): v for k, v in _get_config(paths).items()}
     parser.set_defaults(**config)
     args = parser.parse_args(argv)
