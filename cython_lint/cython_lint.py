@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import argparse
 import collections
-import configparser
 import copy
 import os
 import pathlib
@@ -20,7 +19,7 @@ from typing import NoReturn
 from typing import Sequence
 
 if sys.version_info >= (3, 11):  # pragma: no cover
-    import tomllib  
+    import tomllib
 else:
     import tomli as tomllib
 
@@ -849,27 +848,17 @@ def _get_config(paths: list[pathlib.Path]) -> dict[str, Any]:
     Search for a pyproject.toml or a setup.cfg file in common
     parent directories of the given list of paths.
     """
-    paths = [path.resolve() for path in paths]
     root = pathlib.Path(os.path.commonpath(paths))
     root = root.parent if root.is_file() else root
 
     while root != root.parent:
 
-        # Look for pyproject.toml first
         config_file = root / 'pyproject.toml'
         if config_file.is_file():
             config = tomllib.loads(config_file.read_text())
             config = config.get('tool', {}).get('cython-lint', {})
             if config:
                 return config
-
-        config_file = root / 'setup.cfg'
-        if config_file.is_file():
-            config_parser = configparser.ConfigParser()
-            config_parser.read(config_file)
-            if config_parser.has_section('cython-lint'):
-                config_items = config_parser.items('cython-lint')
-                return {key: value for key, value in config_items}
 
         root = root.parent
 
@@ -902,7 +891,7 @@ def main(argv: Sequence[str] | None = None) -> int:  # pragma: no cover
         help='Comma-separated list of pycodestyle error codes to ignore',
     )
     args = parser.parse_args(argv)
-    paths = [pathlib.Path(path) for path in args.paths]
+    paths = [pathlib.Path(path).resolve() for path in args.paths]
 
     # Update defaults from pyproject.toml or setup.cfg if present
     config = {k.replace('-', '_'): v for k, v in _get_config(paths).items()}

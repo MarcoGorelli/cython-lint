@@ -681,34 +681,50 @@ def test_noop_old_cython(capsys: Any, src: str) -> None:
     assert ret == 0
 
 
-@pytest.mark.parametrize(
-    'config_file, tool_name, ignore',
-    [
-        ('pyproject.toml', 'tool.cython-lint', '["E701"]'),
-        ('setup.cfg', 'cython-lint', 'E701'),
-    ],
-)
-def test_config_file(
-    tmpdir: Any, capsys: Any, config_file: str, tool_name: str, ignore: str,
-) -> None:
-    config_file = os.path.join(tmpdir, config_file)
+def test_config_file(tmpdir: Any, capsys: Any) -> None:
+    # tmpdir will be the root of the project
+    # tmpdir
+    # ├── submodule1/
+    # |   ├── submodule2/
+    # |   |   └── a.pyx
+    # |   └── b.pyx
+    # ├── submodule3/
+    # |   └── c.pyx
+    # └── pyproject.toml
+    config_file = os.path.join(tmpdir, 'pyproject.toml')
     with open(config_file, 'w') as fd:
-        fd.write(f'[{tool_name}]\n')
-        fd.write(f'ignore = {ignore}\n')
+        fd.write('[tool.cython-lint]\n')
+        fd.write('ignore = ["E701"]\n')
 
-    file = os.path.join(tmpdir, 't.pyx')
-    with open(file, 'w', encoding='utf-8') as fd:
-        fd.write('while True: pass\n')  # E701
+    submodules = (
+        os.path.join(tmpdir, 'submodule1'),
+        os.path.join(tmpdir, 'submodule1', 'submodule2'),
+        os.path.join(tmpdir, 'submodule3'),
+    )
+    for submodule in submodules:
+        os.makedirs(submodule, exist_ok=True)
+
+    cython_files = (
+        os.path.join(submodules[0], 'a.pyx'),
+        os.path.join(submodules[1], 'b.pyx'),
+        os.path.join(submodules[2], 'c.pyx'),
+    )
+
+    for file in cython_files:
+        with open(file, 'w', encoding='utf-8') as fd:
+            fd.write('while True: pass\n')  # E701
 
     # config file is respected
-    main([file])
+    main(cython_files)
     out, _ = capsys.readouterr()
     assert out == ''
 
     # Command line arguments take precedence over config file
-    main(['--ignore=""', file])
+    main(['--ignore=""', *cython_files])
     out, _ = capsys.readouterr()
-    assert 't.pyx:1:11: E701 multiple statements on one line' in out
+
+    for file in cython_files:
+        assert f'{file}:1:11: E701 multiple statements on one line' in out
 
 
 @pytest.mark.parametrize('config_file', ['pyproject.toml', 'setup.cfg'])
