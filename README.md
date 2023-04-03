@@ -43,7 +43,7 @@ Sample `.pre-commit-config.yaml`:
 
 ```yaml
 -   repo: https://github.com/MarcoGorelli/cython-lint
-    rev: v0.14.2
+    rev: v0.15.0
     hooks:
     -   id: cython-lint
     -   id: double-quote-cython-strings
