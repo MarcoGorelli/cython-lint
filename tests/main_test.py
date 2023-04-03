@@ -7,6 +7,7 @@ import Cython
 import pytest
 
 from cython_lint.cython_lint import _main
+from cython_lint.cython_lint import main
 
 INCLUDE_FILE_0 = os.path.join('tests', 'data', 'foo.pxi')
 INCLUDE_FILE_1 = os.path.join('tests', 'data', 'bar.pxi')
@@ -683,3 +684,81 @@ def test_noop_old_cython(capsys: Any, src: str) -> None:
     out, _ = capsys.readouterr()
     assert out == ''
     assert ret == 0
+
+
+def test_config_file(tmpdir: Any, capsys: Any) -> None:
+    # tmpdir will be the root of the project
+    # tmpdir
+    # ├── submodule1/
+    # |   ├── submodule2/
+    # |   |   └── a.pyx
+    # |   └── b.pyx
+    # ├── submodule3/
+    # |   └── c.pyx
+    # └── pyproject.toml
+    config_file = os.path.join(tmpdir, 'pyproject.toml')
+    with open(config_file, 'w') as fd:
+        fd.write('[tool.cython-lint]\n')
+        fd.write('ignore = ["E701"]\n')
+
+    submodules = (
+        os.path.join(tmpdir, 'submodule1'),
+        os.path.join(tmpdir, 'submodule1', 'submodule2'),
+        os.path.join(tmpdir, 'submodule3'),
+    )
+    for submodule in submodules:
+        os.makedirs(submodule, exist_ok=True)
+
+    cython_files = (
+        os.path.join(submodules[0], 'a.pyx'),
+        os.path.join(submodules[1], 'b.pyx'),
+        os.path.join(submodules[2], 'c.pyx'),
+    )
+
+    for file in cython_files:
+        with open(file, 'w', encoding='utf-8') as fd:
+            fd.write('while True: pass\n')  # E701
+
+    # config file is respected
+    main(cython_files)
+    out, _ = capsys.readouterr()
+    assert out == ''
+
+    # Command line arguments take precedence over config file
+    main(['--ignore=""', *cython_files])
+    out, _ = capsys.readouterr()
+
+    for file in cython_files:
+        assert f'{file}:1:11: E701 multiple statements on one line' in out
+
+
+@pytest.mark.parametrize('config_file', ['pyproject.toml', 'setup.cfg'])
+def test_config_file_no_cython_lint(
+    tmpdir: Any, capsys: Any, config_file: str,
+) -> None:
+    config_file = os.path.join(tmpdir, config_file)
+    with open(config_file, 'w') as fd:
+        # config file with no cython-lint section
+        fd.write('\n')
+
+    file = os.path.join(tmpdir, 't.pyx')
+    with open(file, 'w', encoding='utf-8') as fd:
+        fd.write('while True: pass\n')  # E701
+
+    main([file])
+    out, _ = capsys.readouterr()
+    assert 't.pyx:1:11: E701 multiple statements on one line' in out
+
+
+def test_no_config_file(tmpdir: Any, capsys: Any) -> None:
+    file = os.path.join(tmpdir, 't.pyx')
+    with open(file, 'w', encoding='utf-8') as fd:
+        fd.write('while True: pass\n')  # E701
+
+    main(['--ignore=E701', file])
+    out, _ = capsys.readouterr()
+    assert out == ''
+
+    main([file])
+    out, _ = capsys.readouterr()
+    assert 't.pyx:1:11: E701 multiple statements on one line' in out

@@ -9,6 +9,7 @@ import re
 import subprocess
 import sys
 import warnings
+from typing import Any
 from typing import Hashable
 from typing import Iterator
 from typing import Mapping
@@ -16,6 +17,11 @@ from typing import MutableMapping
 from typing import NamedTuple
 from typing import NoReturn
 from typing import Sequence
+
+if sys.version_info >= (3, 11):  # pragma: no cover
+    import tomllib
+else:
+    import tomli as tomllib
 
 with warnings.catch_warnings():
     # DeprecationWarning: 'cgi' is deprecated and slated for
@@ -824,6 +830,29 @@ def traverse(tree: ModuleNode) -> Iterator[NodeParent]:
         yield node_parent
 
 
+def _get_config(paths: list[pathlib.Path]) -> dict[str, Any]:
+    """Get the configuration from a config file
+
+    Search for a pyproject.toml file in common parent directories
+    of the given list of paths.
+    """
+    root = pathlib.Path(os.path.commonpath(paths))
+    root = root.parent if root.is_file() else root
+
+    while root != root.parent:
+
+        config_file = root / 'pyproject.toml'
+        if config_file.is_file():
+            config = tomllib.loads(config_file.read_text())
+            config = config.get('tool', {}).get('cython-lint', {})
+            if config:
+                return config
+
+        root = root.parent
+
+    return {}
+
+
 def main(argv: Sequence[str] | None = None) -> int:  # pragma: no cover
     parser = argparse.ArgumentParser()
     parser.add_argument('paths', nargs='*')
@@ -850,18 +879,27 @@ def main(argv: Sequence[str] | None = None) -> int:  # pragma: no cover
         help='Comma-separated list of pycodestyle error codes to ignore',
     )
     args = parser.parse_args(argv)
+    paths = [pathlib.Path(path).resolve() for path in args.paths]
+
+    # Update defaults from pyproject.toml if present
+    config = {k.replace('-', '_'): v for k, v in _get_config(paths).items()}
+    parser.set_defaults(**config)
+    args = parser.parse_args(argv)
+
     ret = 0
 
-    ignore = set(args.ignore)
+    if not isinstance(args.ignore, list):
+        args.ignore = [args.ignore]
+    ignore = {code.strip() for s in args.ignore for code in s.split(',')}
 
-    for path in (pathlib.Path(path) for path in args.paths):
+    for path in paths:
         if path.is_file():
             filepaths = iter((path,))
         else:
             filepaths = (
                 p for p in path.rglob('*')
-                if re.search(args.files, str(p.as_posix()))
-                and not re.search(args.exclude, str(p.as_posix()))
+                if re.search(args.files, str(p.as_posix()), re.VERBOSE)
+                and not re.search(args.exclude, str(p.as_posix()), re.VERBOSE)
                 and not re.search(EXCLUDES, str(p.as_posix()))
                 and p.suffix in ('.pyx', '.pxd', '.pxi')
             )
