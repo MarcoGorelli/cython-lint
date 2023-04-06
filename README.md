@@ -18,6 +18,7 @@ Here's some major projects using ``cython-lint`` - is yours missing? Feel free t
 - [pandas](https://github.com/pandas-dev/pandas)
 - [pylibssh](https://github.com/ansible/pylibssh)
 - [pymatgen](https://github.com/materialsproject/pymatgen)
+- [PyRFC](https://github.com/SAP/PyRFC)
 - [RAPIDS cuspatial](https://github.com/rapidsai/cuspatial)
 - [RAPIDS cudf](https://github.com/rapidsai/cudf)
 - [RAPIDS Memory Manager](https://github.com/rapidsai/rmm)
