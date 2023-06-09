@@ -14,6 +14,7 @@ A tool and pre-commit hook to lint Cython files.
 Here's some major projects using ``cython-lint`` - is yours missing? Feel free to open a pull request!
 
 - [arrow](https://github.com/apache/arrow)
+- [CuPy](https://github.com/cupy/cupy)
 - [open library](https://github.com/internetarchive/openlibrary)
 - [pandas](https://github.com/pandas-dev/pandas)
 - [pylibssh](https://github.com/ansible/pylibssh)
@@ -29,8 +30,7 @@ Here's some major projects using ``cython-lint`` - is yours missing? Feel free t
 - [yt](https://github.com/yt-project/yt)
 
 In addition:
-- [it found an actual bug in spaCy](https://github.com/explosion/spaCy/pull/11834);
-- [it found a type issue in CuPy](https://github.com/cupy/cupy/pull/7170).
+- [it found an actual bug in spaCy](https://github.com/explosion/spaCy/pull/11834).
 
 ## Installation
 
