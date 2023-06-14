@@ -460,7 +460,10 @@ def _traverse_file(
                     )
 
         if isinstance(node, (IfClauseNode, AssertStatNode)):
-            if CYTHON_VERSION > ('3',):  # pragma: no cover
+            if (
+                CYTHON_VERSION[0] >= '3' and
+                CYTHON_VERSION[-1] >= '0a4'
+            ):  # pragma: no cover
                 test = isinstance(node.condition, TupleNode)
             elif isinstance(node, IfClauseNode):  # pragma: no cover
                 test = isinstance(node.condition, TupleNode)
