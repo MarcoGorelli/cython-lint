@@ -27,10 +27,8 @@ Here's some major projects using ``cython-lint`` - is yours missing? Feel free t
 - [scikit-image](https://github.com/scikit-image/scikit-image)
 - [scikit-learn](https://github.com/scikit-learn/scikit-learn)
 - [scipy](https://github.com/scipy/scipy)
+- [spaCy](https://github.com/explosion/spaCy)
 - [yt](https://github.com/yt-project/yt)
-
-In addition:
-- [it found an actual bug in spaCy](https://github.com/explosion/spaCy/pull/11834).
 
 ## Installation
 
