@@ -13,11 +13,11 @@ A tool and pre-commit hook to lint Cython files.
 
 Here's some major projects using ``cython-lint`` - is yours missing? Feel free to open a pull request!
 
+- [ansible-pylibssh](https://github.com/ansible/pylibssh)
 - [arrow](https://github.com/apache/arrow)
 - [CuPy](https://github.com/cupy/cupy)
 - [open library](https://github.com/internetarchive/openlibrary)
 - [pandas](https://github.com/pandas-dev/pandas)
-- [pylibssh](https://github.com/ansible/pylibssh)
 - [pymatgen](https://github.com/materialsproject/pymatgen)
 - [PyRFC](https://github.com/SAP/PyRFC)
 - [RAPIDS cuspatial](https://github.com/rapidsai/cuspatial)
