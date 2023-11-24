@@ -205,7 +205,7 @@ def test_misplaced_comma_old_cython(
     capsys: Any,
     src: str,
     expected: str,
-) -> None:
+) -> None:  # pragma: no cover
     ret = _main(src, 't.py', ext='.pyx', no_pycodestyle=True)
     out, _ = capsys.readouterr()
     assert out == expected
@@ -679,7 +679,7 @@ def test_noop(capsys: Any, src: str) -> None:
     tuple(Cython.__version__.split('.')) > ('3',),
     reason='invalid syntax in new Cython',
 )
-def test_noop_old_cython(capsys: Any, src: str) -> None:
+def test_noop_old_cython(capsys: Any, src: str) -> None:  # pragma: no cover
     ret = _main(src, 't.py', ext='.pyx', no_pycodestyle=True)
     out, _ = capsys.readouterr()
     assert out == ''
