@@ -28,6 +28,7 @@ Here's some major projects using ``cython-lint`` - is yours missing? Feel free t
 - [scikit-learn](https://github.com/scikit-learn/scikit-learn)
 - [scipy](https://github.com/scipy/scipy)
 - [spaCy](https://github.com/explosion/spaCy)
+- [yarl](https://github.com/aio-libs/yarl)
 - [yt](https://github.com/yt-project/yt)
 
 ## Installation
