@@ -20,7 +20,7 @@ from typing import Sequence
 
 if sys.version_info >= (3, 11):  # pragma: no cover
     import tomllib
-else:
+else:  # pragma: no cover
     import tomli as tomllib
 
 with warnings.catch_warnings():
