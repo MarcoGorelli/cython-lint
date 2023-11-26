@@ -378,7 +378,7 @@ def _traverse_file(
         *,
         skip_check: bool = False,
         violations: list[tuple[int, int, str]] | None = None,
-) -> tuple[list[Token], list[Token], list[str]]:
+) -> tuple[list[Token], list[Token], list[str], list[str]]:
     """
     skip_check: only for when traversing an included file
     """
@@ -397,6 +397,7 @@ def _traverse_file(
     imported_names: list[Token] = []
     global_imports: list[Token] = []
     global_names: list[str] = []
+    exported_imports: list[str] = []
 
     if isinstance(tree.body, StatListNode):
         for node in tree.body.stats:
@@ -675,7 +676,17 @@ def _traverse_file(
                             ),
                         )
 
-    return names, imported_names, global_names
+        if (
+            isinstance(node, SingleAssignmentNode)
+            and isinstance(node.lhs, NameNode)
+            and node.lhs.name == '__all__'
+            and isinstance(node.rhs, ListNode)
+        ):
+            for _import in node.rhs.args:
+                if isinstance(_import, UnicodeNode):
+                    exported_imports.append(_import.value)
+
+    return names, imported_names, global_names, exported_imports
 
 
 def sanitise_input(
@@ -717,14 +728,14 @@ def run_ast_checks(
     violations: list[tuple[int, int, str]],
 ) -> dict[int, str]:
     code, lines, included_texts = sanitise_input(code, filename)
-    names, imported_names, global_names = _traverse_file(
+    names, imported_names, global_names, exported_imports = _traverse_file(
         code, filename, lines, violations=violations,
     )
 
     included_names = []
     for _code in included_texts:
         _code, _lines, __ = sanitise_input(_code, filename)
-        _included_names, _, __ = _traverse_file(
+        _included_names, _, __, ___ = _traverse_file(
             _code, filename, _lines, skip_check=True,
         )
         included_names.extend(_included_names)
@@ -739,6 +750,7 @@ def run_ast_checks(
         elif (
             _import[0] not in [_name[0] for _name in names if _import != _name]
             and _import[0] not in [_name[0] for _name in included_names]
+            and _import[0] not in exported_imports
         ):
             violations.append((
                 _import[1], _import[2]+1,

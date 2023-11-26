@@ -799,3 +799,18 @@ def test_no_config_file(tmpdir: Any, capsys: Any) -> None:
     main([file])
     out, _ = capsys.readouterr()
     assert 't.pyx:1:11: E701 multiple statements on one line' in out
+
+
+def test_exported_imports(
+    capsys: Any,
+) -> None:
+    src = (
+        'import numpy\n'
+        'import polars\n'
+        '__all__ = ["numpy", "os", 3]\n'
+    )
+    ret = _main(src, 't.py', ext='.pyx', no_pycodestyle=True)
+    out, _ = capsys.readouterr()
+    expected = "t.py:2:8: 'polars' imported but unused\n"
+    assert out == expected
+    assert ret == 1
