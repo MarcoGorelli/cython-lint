@@ -256,6 +256,7 @@ def visit_funcdef(
             and _def[0] != func_name
             and _def[0] not in [i[0] for i in args]
             and not _def[0].startswith('_')
+            and not _def[0].startswith('unused')
             and _def[0] not in global_names
         ):
 
