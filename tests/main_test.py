@@ -14,6 +14,43 @@ INCLUDE_FILE_1 = os.path.join('tests', 'data', 'bar.pxi')
 
 
 @pytest.mark.parametrize(
+    'src',
+    [
+        (
+            'cdef bint foo():\n'
+            '    cdef int _\n'
+            '    cdef int _a\n'
+            '    cdef int unused\n'
+            '    cdef int unused_a\n'
+        ),
+        (
+            'cdef bint foo():\n'
+            '    cdef int _ = 1\n'
+            '    cdef int _a = 1\n'
+            '    cdef int unused = 1\n'
+            '    cdef int unused_a = 1\n'
+        ),
+        (
+            'cdef bint foo():\n'
+            '    cdef int _\n'
+            '    cdef int _a\n'
+            '    cdef int unused\n'
+            '    cdef int unused_a\n'
+            '    _ = 1\n'
+            '    _a = 1\n'
+            '    unused = 1\n'
+            '    unused_a = 1\n'
+        ),
+    ],
+)
+def test_named_unused(capsys: Any, src: str) -> None:
+    ret = _main(src, 't.py', ext='.pyx', no_pycodestyle=True)
+    out, _ = capsys.readouterr()
+    assert out == ''
+    assert ret == 0
+
+
+@pytest.mark.parametrize(
     'src, expected',
     [
         (
