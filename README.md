@@ -16,6 +16,7 @@ Here's some major projects using ``cython-lint`` - is yours missing? Feel free t
 - [ansible-pylibssh](https://github.com/ansible/pylibssh)
 - [arrow](https://github.com/apache/arrow)
 - [CuPy](https://github.com/cupy/cupy)
+- [frozenlist](https://github.com/aio-libs/frozenlist)
 - [open library](https://github.com/internetarchive/openlibrary)
 - [pandas](https://github.com/pandas-dev/pandas)
 - [pymatgen](https://github.com/materialsproject/pymatgen)
