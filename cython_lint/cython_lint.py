@@ -285,7 +285,7 @@ def visit_funcdef(
                 )
             )
         if _def[0] in [_import[0] for _import in global_imports]:
-            _global_import = next(
+            _global_import = next(  # pragma: no cover
                 _import for _import in global_imports if _import[0] == _def[0]
             )
             violations.append(
