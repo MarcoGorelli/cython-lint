@@ -23,12 +23,12 @@ with open("pyproject.toml", "w", encoding="utf-8") as f:
 with open("README.md", encoding="utf-8") as f:
     content = f.read()
 content = content.replace(
-    f'rev: v{old_version}',
-    f'rev: v{version}',
+    f"rev: v{old_version}",
+    f"rev: v{version}",
 )
 with open("README.md", "w", encoding="utf-8") as f:
     f.write(content)
 
 subprocess.run(["git", "commit", "-a", "-m", f"Bump version to {version}"])
-subprocess.run(["git", "tag", "-a", 'v'+version, "-m", 'v'+version])
+subprocess.run(["git", "tag", "-a", "v" + version, "-m", "v" + version])
 subprocess.run(["git", "push", "--follow-tags"])

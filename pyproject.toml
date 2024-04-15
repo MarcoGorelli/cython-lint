@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "cython-lint"
-version = "0.16.1"
+version = "0.16.2"
 authors = [
   { name="Marco Gorelli", email="33491632+MarcoGorelli@users.noreply.github.com" },
 ]
