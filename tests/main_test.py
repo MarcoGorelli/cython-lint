@@ -768,6 +768,17 @@ def test_config_file(tmpdir: Any, capsys: Any) -> None:
     for file in cython_files:
         assert f'{file}:1:11: E701 multiple statements on one line' in out
 
+    # .cython-lint.toml takes precedence, even if empty
+    config_file = os.path.join(tmpdir, '.cython-lint.toml')
+    with open(config_file, 'w') as fd:
+        fd.write('[tool.cython-lint]\n')
+
+    main(cython_files)
+    out, _ = capsys.readouterr()
+
+    for file in cython_files:
+        assert f'{file}:1:11: E701 multiple statements on one line' in out
+
 
 @pytest.mark.parametrize('config_file', ['pyproject.toml', 'setup.cfg'])
 def test_config_file_no_cython_lint(
