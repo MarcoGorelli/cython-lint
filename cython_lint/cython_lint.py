@@ -846,20 +846,25 @@ def traverse(tree: ModuleNode) -> Iterator[NodeParent]:
 def _get_config(paths: list[pathlib.Path]) -> dict[str, Any]:
     """Get the configuration from a config file
 
-    Search for a pyproject.toml file in common parent directories
-    of the given list of paths.
+    Search for a .cython-lint.toml or pyproject.toml file in common parent
+    directories of the given list of paths.
     """
     root = pathlib.Path(os.path.commonpath(paths))
     root = root.parent if root.is_file() else root
 
     while root != root.parent:
 
-        config_file = root / 'pyproject.toml'
-        if config_file.is_file():
-            config = tomllib.loads(config_file.read_text())
-            config = config.get('tool', {}).get('cython-lint', {})
-            if config:
-                return config
+        for basename in ('.cython-lint.toml', 'pyproject.toml'):
+            config_file = root / basename
+            if config_file.is_file():
+                config = tomllib.loads(config_file.read_text())
+                config = config.get('tool', {}).get('cython-lint', {})
+                if config:
+                    return config
+                # .cython-lint.toml takes precedence over
+                # pyproject.toml even when it is empty
+                if basename == '.cython-lint.toml':
+                    return config
 
         root = root.parent
 
