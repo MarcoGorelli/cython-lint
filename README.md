@@ -13,6 +13,7 @@ A tool and pre-commit hook to lint Cython files.
 
 Here's some major projects using ``cython-lint`` - is yours missing? Feel free to open a pull request!
 
+- [arrow-adbc](https://github.com/apache/arrow-adbc)
 - [ansible-pylibssh](https://github.com/ansible/pylibssh)
 - [arrow](https://github.com/apache/arrow)
 - [CuPy](https://github.com/cupy/cupy)
