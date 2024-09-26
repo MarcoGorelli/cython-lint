@@ -56,6 +56,8 @@ def fix_strings(filename: str, *, never: bool) -> int:
                 inside_f_string = True
             if token_type == tokenize.FSTRING_START:
                 inside_f_string = False
+        else:  # pragma: no cover
+            pass
         if token_type == tokenize.STRING:
             # do not touch any quotes inside of an f-string
             if inside_f_string:
