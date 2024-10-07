@@ -60,7 +60,7 @@ def fix_strings(filename: str, *, never: bool) -> int:
             pass
         if token_type == tokenize.STRING:
             # do not touch any quotes inside of an f-string
-            if inside_f_string:
+            if inside_f_string:  # pragma: no cover can only be true in py312
                 continue
             new_text = handle_match(token_text, never=never)
             splitcontents[line_offsets[srow] + scol : line_offsets[erow] + ecol] = (
