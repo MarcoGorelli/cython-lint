@@ -51,7 +51,7 @@ def fix_strings(filename: str, *, never: bool) -> int:
 
     for token_type, token_text, (srow, scol), (erow, ecol), _ in tokens:
         # Single quotes inside f-strings are only an issue in python 3.12
-        if sys.version_info >= (3, 12):
+        if sys.version_info >= (3, 12):  # pragma: no cover
             if token_type == tokenize.FSTRING_END:
                 inside_f_string = True
             if token_type == tokenize.FSTRING_START:
