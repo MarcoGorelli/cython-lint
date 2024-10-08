@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import io
 import re
+import sys
 import tokenize
 from typing import Sequence
 
@@ -45,8 +46,22 @@ def fix_strings(filename: str, *, never: bool) -> int:
     # Iterate in reverse so the offsets are always correct
     tokens_l = list(tokenize.generate_tokens(io.StringIO(contents).readline))
     tokens = reversed(tokens_l)
+
+    inside_f_string = False
+
     for token_type, token_text, (srow, scol), (erow, ecol), _ in tokens:
+        # Single quotes inside f-strings are only an issue in python 3.12
+        if sys.version_info >= (3, 12):  # pragma: no cover
+            if token_type == tokenize.FSTRING_END:
+                inside_f_string = True
+            if token_type == tokenize.FSTRING_START:
+                inside_f_string = False
+        else:  # pragma: no cover
+            pass
         if token_type == tokenize.STRING:
+            # do not touch any quotes inside of an f-string
+            if inside_f_string:  # pragma: no cover can only be true in py312
+                continue
             new_text = handle_match(token_text, never=never)
             splitcontents[line_offsets[srow] + scol : line_offsets[erow] + ecol] = (
                 new_text

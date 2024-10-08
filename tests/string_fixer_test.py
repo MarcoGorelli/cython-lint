@@ -105,6 +105,9 @@ DOUBLE_QUOTE_TESTS = (
     ),
     ('"foo""bar"', '"foo""bar"', 0),
     ("'foo''bar'", '"foo""bar"', 1),
+    # f-strings
+    ('''f"'foo'"''', '''f"'foo'"''', 0),
+    ('''f"{'foo'}"''', '''f"{'foo'}"''', 0),
 )
 
 
