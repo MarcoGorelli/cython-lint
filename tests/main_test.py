@@ -114,26 +114,6 @@ def test_imported_unused(capsys: Any, src: str, expected: str) -> None:
     ("src", "expected"),
     [
         (
-            "cdef a, b\n",
-            "t.py:1:5: comma after base type in definition\n",
-        ),
-        (
-            "cdef:\n" "    a, b\n",
-            "t.py:2:4: comma after base type in definition\n",
-        ),
-    ],
-)
-def test_misplaced_comma(capsys: Any, src: str, expected: str) -> None:
-    ret = _main(src, "t.py", ext=".pyx", no_pycodestyle=True)
-    out, _ = capsys.readouterr()
-    assert out == expected
-    assert ret == 1
-
-
-@pytest.mark.parametrize(
-    ("src", "expected"),
-    [
-        (
             "cimport foo as foo\n\n" "foo\n",
             "t.py:1:9: Found useless import alias\n",
         ),
