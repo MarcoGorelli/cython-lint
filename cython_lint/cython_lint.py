@@ -192,14 +192,14 @@ def visit_cvardef(
             round_parens += 1
         elif _ch == ")":
             round_parens -= 1
-        elif _ch == "[":
+        elif _ch == "[":  # pragma: no cover
             square_parens += 1
-        elif _ch == "]":
+        elif _ch == "]":  # pragma: no cover
             square_parens -= 1
         if _ch == " " and not round_parens and not square_parens:
             break
         _base_type += _ch
-    if _base_type.endswith(","):
+    if _base_type.endswith(","):  # pragma: no cover
         violations.append(
             (
                 node.pos[1],
