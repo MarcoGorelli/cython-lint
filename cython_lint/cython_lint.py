@@ -167,9 +167,7 @@ class CythonParseError(Exception):
 
 def err_msg(node: Node, expected: str) -> NoReturn:
     msg = (
-        f"Unexpected error, please report bug. "
-        f"Expected {expected}, got {node}\n"
-        f"{node}\n"
+        f"Unexpected error, please report bug. Expected {expected}, got {node}\n{node}\n"
     )
     if hasattr(node, "pos"):
         msg += f"pos: {node.pos}\n"
@@ -281,7 +279,7 @@ def visit_funcdef(
                 (
                     _def[1],
                     _def[2] + 1,
-                    f"'{_def[0]}' defined but unused " "(try prefixing with underscore?)",
+                    f"'{_def[0]}' defined but unused (try prefixing with underscore?)",
                 )
             )
         if _def[0] in [_import[0] for _import in global_imports]:
@@ -293,7 +291,7 @@ def visit_funcdef(
                     _def[1],
                     _def[2] + 1,
                     f"'{_def[0]}' shadows global import on line "
-                    f"{_global_import[1]} col {_global_import[2]+1}",
+                    f"{_global_import[1]} col {_global_import[2] + 1}",
                 )
             )
 
@@ -407,7 +405,7 @@ def _traverse_file(  # noqa: PLR0915
     except Exception as exp:  # pragma: no cover  # noqa: BLE001
         # If Cython can't parse this file, just skip it.
         print(
-            f"Skipping file {filename}, as it cannot be parsed. Error: " f"{exp!r}",
+            f"Skipping file {filename}, as it cannot be parsed. Error: {exp!r}",
         )
         raise CythonParseError  # noqa: B904
     nodes = list(traverse(tree))
@@ -626,7 +624,7 @@ def _traverse_file(  # noqa: PLR0915
                 (
                     node.pos[1],
                     node.pos[2] + 1,
-                    f"Using '{node.function.attribute}' with " "repeated elements",
+                    f"Using '{node.function.attribute}' with repeated elements",
                 ),
             )
 
@@ -797,7 +795,7 @@ def run_pycodestyle(
     output = subprocess.run(
         [
             "pycodestyle",
-            f'--ignore={",".join(PYCODESTYLE_CODES | ignore)}',
+            f"--ignore={','.join(PYCODESTYLE_CODES | ignore)}",
             f"--max-line-length={line_length}",
             "--format=%(row)d:%(col)d:%(code)s %(text)s",
             filename,

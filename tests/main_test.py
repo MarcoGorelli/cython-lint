@@ -54,19 +54,16 @@ def test_named_unused(capsys: Any, src: str) -> None:
     ("src", "expected"),
     [
         (
-            "cdef bint foo():\n" "    cdef int a\n",
-            "t.py:2:14: 'a' defined but unused " "(try prefixing with underscore?)\n",
+            "cdef bint foo():\n    cdef int a\n",
+            "t.py:2:14: 'a' defined but unused (try prefixing with underscore?)\n",
         ),
         (
-            "cdef bint foo():\n" "    cdef int a\n" "    a = 3\n",
-            "t.py:3:5: 'a' defined but unused " "(try prefixing with underscore?)\n",
+            "cdef bint foo():\n    cdef int a\n    a = 3\n",
+            "t.py:3:5: 'a' defined but unused (try prefixing with underscore?)\n",
         ),
         (
-            "cdef bint foo():\n"
-            "    cdef int a\n"
-            "    a, b, myclass.c = 3\n"
-            "    return b\n",
-            "t.py:3:5: 'a' defined but unused " "(try prefixing with underscore?)\n",
+            "cdef bint foo():\n    cdef int a\n    a, b, myclass.c = 3\n    return b\n",
+            "t.py:3:5: 'a' defined but unused (try prefixing with underscore?)\n",
         ),
     ],
 )
@@ -94,7 +91,7 @@ def test_assigned_unused(capsys: Any, src: str, expected: str) -> None:
             "t.py:1:22: 'bar2' imported but unused\n",
         ),
         (
-            "cimport quox\n" 'include "foo.pxi"\n',
+            'cimport quox\ninclude "foo.pxi"\n',
             "t.py:1:9: 'quox' imported but unused\n",
         ),
         (
@@ -114,11 +111,11 @@ def test_imported_unused(capsys: Any, src: str, expected: str) -> None:
     ("src", "expected"),
     [
         (
-            "cimport foo as foo\n\n" "foo\n",
+            "cimport foo as foo\n\nfoo\n",
             "t.py:1:9: Found useless import alias\n",
         ),
         (
-            "from foo cimport (\n" "    a as a\n," "    b,\n" ")\n" "a = b\n",
+            "from foo cimport (\n    a as a\n,    b,\n)\na = b\n",
             "t.py:2:2: Found useless import alias\n",
         ),
     ],
@@ -134,7 +131,7 @@ def test_useless_alias(capsys: Any, src: str, expected: str) -> None:
     ("src", "expected"),
     [
         (
-            "def foo():\n" "    print()\n" '    "foobar"\n',
+            'def foo():\n    print()\n    "foobar"\n',
             "t.py:3:5: pointless string statement\n",
         ),
     ],
@@ -154,24 +151,20 @@ def test_pointless_string_statement(
     ("src", "expected"),
     [
         (
-            "for i, v in enumerate(values):\n" "    a == values[i]\n",
-            "t.py:2:10: unnecessary list index lookup: use `v` instead of "
-            "`values[i]`\n",
+            "for i, v in enumerate(values):\n    a == values[i]\n",
+            "t.py:2:10: unnecessary list index lookup: use `v` instead of `values[i]`\n",
         ),
         (
-            "for i, v in enumerate(values):\n" "    a = values[i]\n",
-            "t.py:2:9: unnecessary list index lookup: use `v` instead of "
-            "`values[i]`\n",
+            "for i, v in enumerate(values):\n    a = values[i]\n",
+            "t.py:2:9: unnecessary list index lookup: use `v` instead of `values[i]`\n",
         ),
         (
-            "for i, v in enumerate(values):\n" "    a.append(values[i])\n",
-            "t.py:2:14: unnecessary list index lookup: use `v` instead of "
-            "`values[i]`\n",
+            "for i, v in enumerate(values):\n    a.append(values[i])\n",
+            "t.py:2:14: unnecessary list index lookup: use `v` instead of `values[i]`\n",
         ),
         (
-            "for i, v in enumerate(values):\n" "    values[i] == a\n",
-            "t.py:2:5: unnecessary list index lookup: use `v` instead of "
-            "`values[i]`\n",
+            "for i, v in enumerate(values):\n    values[i] == a\n",
+            "t.py:2:5: unnecessary list index lookup: use `v` instead of `values[i]`\n",
         ),
     ],
 )
@@ -234,11 +227,11 @@ def test_f_string_not_formatted(
     ("src", "expected"),
     [
         (
-            "import foo\n" "foo()\n" "def bar(foo): pass\n",
+            "import foo\nfoo()\ndef bar(foo): pass\n",
             "t.py:3:9: 'foo' shadows global import on line 1 col 8\n",
         ),
         (
-            "import foo\n" "foo()\n" "def bar(baz):\n" "    foo = 3\n" "    return foo\n",
+            "import foo\nfoo()\ndef bar(baz):\n    foo = 3\n    return foo\n",
             "t.py:4:5: 'foo' shadows global import on line 1 col 8\n",
         ),
     ],
@@ -335,7 +328,7 @@ def test_dangerous_default(
             "perhaps remove comma?\n",
         ),
         (
-            "if False:\n" "    pass\n" "elif (False,):\n" "    pass\n",
+            "if False:\n    pass\nelif (False,):\n    pass\n",
             "t.py:3:5: if-statement with tuple as condition is always true - "
             "perhaps remove comma?\n",
         ),
@@ -521,39 +514,36 @@ def test_pycodestyle_when_ast_parsing_fails(
 @pytest.mark.parametrize(
     "src",
     [
-        "cdef bint foo():\n" "    raise NotImplemen",
-        "cdef bint foo():\n" "    cdef int i\n" "    for i in bar: pass\n",
-        "cdef bint foo(a):\n" "   pass\n",
-        "cdef bint foo(int a):\n" "   pass\n",
-        "cdef bint foo(int *a):\n" "   pass\n",
-        "cdef bint* foo(int a):\n" "   pass\n",
-        "cdef bint foo():\n" "    cdef int i\n" "    for i, j in bar: pass\n",
-        "cdef bint foo(object (*operation)(int64_t value, object right)):\n" "   pass\n",
+        "cdef bint foo():\n    raise NotImplemen",
+        "cdef bint foo():\n    cdef int i\n    for i in bar: pass\n",
+        "cdef bint foo(a):\n   pass\n",
+        "cdef bint foo(int a):\n   pass\n",
+        "cdef bint foo(int *a):\n   pass\n",
+        "cdef bint* foo(int a):\n   pass\n",
+        "cdef bint foo():\n    cdef int i\n    for i, j in bar: pass\n",
+        "cdef bint foo(object (*operation)(int64_t value, object right)):\n   pass\n",
         "class Foo: pass\n",
         "cdef class Foo: pass\n",
-        "cdef bint foo(a):\n" "    bar(<int>a)\n",
-        "cdef bint foo(a):\n" "    bar(i for i in a)\n",
-        "cdef bint foo(a):\n" "    bar(lambda x: x)\n",
-        "import int64_t\n" "ctypedef fused foo:\n" "    int64_t\n" "    int32_t\n",
-        "import quox\n" f'include "{INCLUDE_FILE_0}"\n',
-        "import quox\n" f'include "{INCLUDE_FILE_1}"\n',
+        "cdef bint foo(a):\n    bar(<int>a)\n",
+        "cdef bint foo(a):\n    bar(i for i in a)\n",
+        "cdef bint foo(a):\n    bar(lambda x: x)\n",
+        "import int64_t\nctypedef fused foo:\n    int64_t\n    int32_t\n",
+        f'import quox\ninclude "{INCLUDE_FILE_0}"\n',
+        f'import quox\ninclude "{INCLUDE_FILE_1}"\n',
         "from quox cimport *\n",
         "cdef inline bool _compare_records(\n"
         "    const FrontierRecord& left,\n"
         "    const FrontierRecord& right,\n"
         "):\n"
         "    return left.improvement < right.improvement\n",
-        "from foo import bar\n" "ctypedef fused quox:\n" "    bar\n",
+        "from foo import bar\nctypedef fused quox:\n    bar\n",
         "cimport cython\n"
         "ctypedef fused int_or_float:\n"
         "    cython.integral\n"
         "    cython.floating\n"
         "    signed long long\n",
-        "cdef inline bool _compare_records(\n"
-        "    double x[],\n"
-        "):\n"
-        "    return 1\n",
-        "cimport foo.bar\n" "cdef bool quox():\n" "    foo.bar.ni()\n",
+        "cdef inline bool _compare_records(\n    double x[],\n):\n    return 1\n",
+        "cimport foo.bar\ncdef bool quox():\n    foo.bar.ni()\n",
         "from foo cimport CTaskArgByReference\n"
         "cdef baz():\n"
         "    bar(new CTaskArgByReference())\n",
@@ -565,9 +555,9 @@ def test_pycodestyle_when_ast_parsing_fails(
         "        Py_XINCREF(<PyObject*>name)\n"
         "        array[i] = <PyObject*>name\n"
         "    return <PyObject**>array\n",
-        "def foo():\n" "    cdef int i\n" "    i = 3\n" "    print(i)\n",
-        "def foo(int a[1][1]):\n" "    pass\n",
-        "cdef:\n" "    thread()\n",
+        "def foo():\n    cdef int i\n    i = 3\n    print(i)\n",
+        "def foo(int a[1][1]):\n    pass\n",
+        "cdef:\n    thread()\n",
         "cdef foo[1, 1] bar\n",
         "cdef int foo(int bar(const char*)):pass\n",
         "cdef void f(char *argv[]): pass\n",
@@ -575,11 +565,11 @@ def test_pycodestyle_when_ast_parsing_fails(
         'cdef void foo(): f"{a:02d}"\n',
         '{"a": 0, a: 1}\n',
         "{a.b: 0, a: 1}\n",
-        "import foo\n" "\n" "def bar():\n" "    import foo.bat\n",
-        "def foo():\n" "    _ = bar()\n",
-        "def create_multipliers():\n" "    return 3\n",
-        "def create_multipliers():\n" '    return [f"a{3}" for i in range(10)]\n',
-        "def create_multipliers():\n" "    return [lambda x: y for i in range(10)]\n",
+        "import foo\n\ndef bar():\n    import foo.bat\n",
+        "def foo():\n    _ = bar()\n",
+        "def create_multipliers():\n    return 3\n",
+        'def create_multipliers():\n    return [f"a{3}" for i in range(10)]\n',
+        "def create_multipliers():\n    return [lambda x: y for i in range(10)]\n",
         "lst = []\n"
         "for i in range(5):\n"
         "    def foo(a):\n"
@@ -591,13 +581,10 @@ def test_pycodestyle_when_ast_parsing_fails(
         'mystring.rstrip("abc")\n',
         "mystring.rstrip(suffix)\n",
         "[(j for j in i) for i in items]\n",
-        "for i, v in enumerate(values):\n" "    a == values[[i]]\n",
-        "for i, v in enumerate(values):\n"
-        "    pass\n"
-        "    arr.extend(values[i])\n"
-        "    pass\n",
-        "for i, v in enumerate(values):\n" "    b = t[i]\n",
-        "import numpy as np\n" "\n" "\n" "def foo() -> np.ndarray:\n" "    pass\n",
+        "for i, v in enumerate(values):\n    a == values[[i]]\n",
+        "for i, v in enumerate(values):\n    pass\n    arr.extend(values[i])\n    pass\n",
+        "for i, v in enumerate(values):\n    b = t[i]\n",
+        "import numpy as np\n\n\ndef foo() -> np.ndarray:\n    pass\n",
         "current_notification = 3\n"
         "\n"
         "\n"
@@ -607,9 +594,9 @@ def test_pycodestyle_when_ast_parsing_fails(
         "def _read_string(GenericStream st, size_t n):\n"
         "    cdef object obj = st.read_string(n, &d_ptr, True)  "
         "# no-cython-lint\n",
-        "def foo():\n" "    cdef int size\n" "    asarray(<char[:size]> foo)\n",
+        "def foo():\n    cdef int size\n    asarray(<char[:size]> foo)\n",
         'include "heap_watershed.pxi"\n',
-        "import foo\n" "\n" "\n" "def bar():\n" "    a: foo\n",
+        "import foo\n\n\ndef bar():\n    a: foo\n",
     ],
 )
 def test_noop(capsys: Any, src: str) -> None:
@@ -728,7 +715,7 @@ def test_no_config_file(tmpdir: Any, capsys: Any) -> None:
 def test_exported_imports(
     capsys: Any,
 ) -> None:
-    src = "import numpy\n" "import polars\n" '__all__ = ["numpy", "os", 3]\n'
+    src = 'import numpy\nimport polars\n__all__ = ["numpy", "os", 3]\n'
     ret = _main(src, "t.py", ext=".pyx", no_pycodestyle=True)
     out, _ = capsys.readouterr()
     expected = "t.py:2:8: 'polars' imported but unused\n"
