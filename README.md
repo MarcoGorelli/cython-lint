@@ -20,6 +20,7 @@ Here's some major projects using ``cython-lint`` - is yours missing? Feel free t
 - [dpctl](https://github.com/IntelPython/dpctl)
 - [frozenlist](https://github.com/aio-libs/frozenlist)
 - [mkl_fft](https://github.com/IntelPython/mkl_fft)
+- [mkl-service](https://github.com/IntelPython/mkl-service)
 - [open library](https://github.com/internetarchive/openlibrary)
 - [pandas](https://github.com/pandas-dev/pandas)
 - [pymatgen](https://github.com/materialsproject/pymatgen)
