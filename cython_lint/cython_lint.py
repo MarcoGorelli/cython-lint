@@ -33,6 +33,7 @@ with warnings.catch_warnings():
     from Cython import Tempita
     from Cython.Compiler.TreeFragment import StringParseContext
 import Cython
+import tokenize_rt
 from Cython.Compiler.ExprNodes import AttributeNode
 from Cython.Compiler.ExprNodes import ComprehensionAppendNode
 from Cython.Compiler.ExprNodes import ComprehensionNode
@@ -71,7 +72,6 @@ from Cython.Compiler.Nodes import Node
 from Cython.Compiler.Nodes import SingleAssignmentNode
 from Cython.Compiler.Nodes import StatListNode
 from Cython.Compiler.TreeFragment import parse_from_strings
-import tokenize_rt
 
 from cython_lint import __version__
 
@@ -710,7 +710,7 @@ def sanitise_input(code: str, filename: str) -> tuple[str, dict[int, str], list[
     code = tokenize_rt.tokens_to_src(tokens)
     _dir = os.path.dirname(filename)
     included_texts = []
-    lines = {i: line for i, line in enumerate(code.splitlines(keepends=True), start=1)}
+    lines = dict(enumerate(code.splitlines(keepends=True), start=1))
 
     tokens_by_line: dict[int, list[tokenize_rt.Token]] = collections.defaultdict(list)
     for token in tokens:
@@ -718,12 +718,14 @@ def sanitise_input(code: str, filename: str) -> tuple[str, dict[int, str], list[
 
     for lineno, tks in tokens_by_line.items():
         # Skip comment-only or empty lines
-        if not tks or all(t.name in ("UNIMPORTANT_WS", "COMMENT", "NEWLINE") for t in tks):
+        if not tks or all(
+            t.name in ("UNIMPORTANT_WS", "COMMENT", "NEWLINE") for t in tks
+        ):
             continue
 
         path = None
         # Will try to open files only if the first token in line is "include" or "DEF"
-        if tks[0].name == "NAME" and tks[0].src in ("include", "DEF"): 
+        if tks[0].name == "NAME" and tks[0].src in ("include", "DEF"):
             for tk in tks:
                 # Grab the first string and assume it's a path
                 if tk.name == "STRING":
@@ -740,13 +742,11 @@ def sanitise_input(code: str, filename: str) -> tuple[str, dict[int, str], list[
                         content = Tempita.sub(content)
                     included_texts.append(content)
                     break
-                
-            lines[lineno] = "\n"
 
+            lines[lineno] = "\n"
 
     code = "".join(lines.values())
     return code, lines, included_texts
-
 
 
 def run_ast_checks(
