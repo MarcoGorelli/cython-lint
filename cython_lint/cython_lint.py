@@ -71,8 +71,7 @@ from Cython.Compiler.Nodes import Node
 from Cython.Compiler.Nodes import SingleAssignmentNode
 from Cython.Compiler.Nodes import StatListNode
 from Cython.Compiler.TreeFragment import parse_from_strings
-from tokenize_rt import src_to_tokens
-from tokenize_rt import tokens_to_src
+import tokenize_rt
 
 from cython_lint import __version__
 
@@ -706,38 +705,48 @@ def _traverse_file(  # noqa: PLR0915
     return names, imported_names, global_names, exported_imports
 
 
-def sanitise_input(
-    code: str,
-    filename: str,
-) -> tuple[str, dict[int, str], list[str]]:
-    tokens = src_to_tokens(code)
-    exclude_lines = {
-        token.line
-        for token in tokens
-        if token.name == "NAME" and token.src in ("include", "DEF")
-    }
-    code = tokens_to_src(tokens)
-    lines = {}
+def sanitise_input(code: str, filename: str) -> tuple[str, dict[int, str], list[str]]:
+    tokens = tokenize_rt.src_to_tokens(code)
+    code = tokenize_rt.tokens_to_src(tokens)
     _dir = os.path.dirname(filename)
     included_texts = []
-    for i, line in enumerate(code.splitlines(keepends=True), start=1):
-        if i in exclude_lines:
-            _file = os.path.join(_dir, line.split()[-1].strip("'\""))
-            if os.path.exists(f"{_file}.in"):
-                with open(f"{_file}.in", encoding="utf-8") as fd:
-                    content = fd.read()
-                pyxcontent = Tempita.sub(content)
-                included_texts.append(pyxcontent)
-            elif os.path.exists(_file):
-                with open(_file, encoding="utf-8") as fd:
-                    content = fd.read()
-                included_texts.append(content)
-            lines[i] = "\n"
-        else:
-            lines[i] = line
+    lines = {i: line for i, line in enumerate(code.splitlines(keepends=True), start=1)}
+
+    tokens_by_line: dict[int, list[tokenize_rt.Token]] = collections.defaultdict(list)
+    for token in tokens:
+        tokens_by_line[token.line].append(token)
+
+    for lineno, tks in tokens_by_line.items():
+        # Skip comment-only or empty lines
+        if not tks or all(t.name in ("UNIMPORTANT_WS", "COMMENT", "NEWLINE") for t in tks):
+            continue
+
+        path = None
+        # Will try to open files only if the first token in line is "include" or "DEF"
+        if tks[0].name == "NAME" and tks[0].src in ("include", "DEF"): 
+            for tk in tks:
+                # Grab the first string and assume it's a path
+                if tk.name == "STRING":
+                    path = tk.src.strip("'\"")
+                    break
+
+        if path:
+            _file = os.path.join(_dir, path)
+            for fullpath in (f"{_file}.in", _file):
+                if os.path.exists(fullpath):
+                    with open(fullpath, encoding="utf-8") as fd:
+                        content = fd.read()
+                    if fullpath.endswith(".in"):
+                        content = Tempita.sub(content)
+                    included_texts.append(content)
+                    break
+                
+            lines[lineno] = "\n"
+
 
     code = "".join(lines.values())
     return code, lines, included_texts
+
 
 
 def run_ast_checks(
