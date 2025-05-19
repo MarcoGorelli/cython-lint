@@ -718,9 +718,7 @@ def sanitise_input(code: str, filename: str) -> tuple[str, dict[int, str], list[
 
     for lineno, tks in tokens_by_line.items():
         # Skip comment-only or empty lines
-        if not tks or all(
-            t.name in ("UNIMPORTANT_WS", "COMMENT", "NL") for t in tks
-        ):
+        if not tks or all(t.name in ("UNIMPORTANT_WS", "COMMENT", "NL") for t in tks):
             continue
 
         path = None
