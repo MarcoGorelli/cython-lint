@@ -882,7 +882,7 @@ def _get_config(paths: list[pathlib.Path]) -> dict[str, Any]:
         for basename in (".cython-lint.toml", "pyproject.toml"):
             config_file = root / basename
             if config_file.is_file():
-                config = tomllib.loads(config_file.read_text())
+                config: dict[str, Any] = tomllib.loads(config_file.read_text())
                 config = config.get("tool", {}).get("cython-lint", {})
                 if config:
                     return config
