@@ -597,6 +597,9 @@ def test_pycodestyle_when_ast_parsing_fails(
         "def foo():\n    cdef int size\n    asarray(<char[:size]> foo)\n",
         'include "heap_watershed.pxi"\n',
         "import foo\n\n\ndef bar():\n    a: foo\n",
+        'DEF SLASH = 47  # "/"\n',
+        "DEF SLASH = 47  # '/'\n",
+        'DEF NAME = include("heap_watershed.pxi")\n',
     ],
 )
 def test_noop(capsys: Any, src: str) -> None:
