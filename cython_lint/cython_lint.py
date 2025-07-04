@@ -402,12 +402,12 @@ def _traverse_file(  # noqa: PLR0915
         context = StringParseContext(filename)
         context.set_language_level(3)
         tree = parse_from_strings(filename, code, context=context)
-    except Exception as exp:  # pragma: no cover  # noqa: BLE001
+    except Exception as exp:  # pragma: no cover
         # If Cython can't parse this file, just skip it.
         print(
             f"Skipping file {filename}, as it cannot be parsed. Error: {exp!r}",
         )
-        raise CythonParseError  # noqa: B904
+        raise CythonParseError from exp
     nodes = list(traverse(tree))
     imported_names: list[Token] = []
     global_imports: list[Token] = []
@@ -724,13 +724,21 @@ def sanitise_input(
         if i in exclude_lines:
             _file = os.path.join(_dir, line.split()[-1].strip("'\""))
             if os.path.exists(f"{_file}.in"):
-                with open(f"{_file}.in", encoding="utf-8") as fd:
-                    content = fd.read()
-                pyxcontent = Tempita.sub(content)
+                try:
+                    with open(f"{_file}.in", encoding="utf-8") as fd:
+                        content = fd.read()
+                    pyxcontent = Tempita.sub(content)
+                except Exception as exc:  # pragma: no cover
+                    # If Cython can't parse this file, just skip it.
+                    raise CythonParseError from exc
                 included_texts.append(pyxcontent)
             elif os.path.exists(_file):
-                with open(_file, encoding="utf-8") as fd:
-                    content = fd.read()
+                try:
+                    with open(_file, encoding="utf-8") as fd:
+                        content = fd.read()
+                except Exception as exc:  # pragma: no cover
+                    # If Cython can't parse this file, just skip it.
+                    raise CythonParseError from exc
                 included_texts.append(content)
             lines[i] = "\n"
         else:
