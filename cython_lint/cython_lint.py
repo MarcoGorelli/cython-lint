@@ -461,14 +461,23 @@ def _traverse_file(  # noqa: PLR0915
         if isinstance(node, DictNode):
             visit_dict_node(node, violations)
 
-        if isinstance(node, CImportStatNode) and node.module_name == node.as_name:
-            violations.append(
-                (
-                    node.pos[1],
-                    node.pos[2] + 1,
-                    "Found useless import alias",
-                ),
-            )
+        if isinstance(node, CImportStatNode):
+            if node.module_name == node.as_name:
+                violations.append(
+                    (
+                        node.pos[1],
+                        node.pos[2] + 1,
+                        "Found useless import alias",
+                    ),
+                )
+            elif not node.is_absolute:
+                violations.append(
+                    (
+                        node.pos[1],
+                        node.pos[2] + 1,
+                        "Found relative import",
+                    ),
+                )
 
         if isinstance(node, FromCImportStatNode):
             for _imported_name in node.imported_names:
@@ -480,6 +489,14 @@ def _traverse_file(  # noqa: PLR0915
                             "Found useless import alias",
                         ),
                     )
+            if node.relative_level:
+                violations.append(
+                    (
+                        node.pos[1],
+                        node.pos[2],
+                        "Found relative import",
+                    ),
+                )
 
         if isinstance(node, (IfClauseNode, AssertStatNode)):
             if CYTHON_VERSION > ("3",) or isinstance(
