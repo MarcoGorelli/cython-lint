@@ -142,6 +142,10 @@ def test_useless_alias(capsys: Any, src: str, expected: str) -> None:
             "from ._common import foo\n_ = foo\n",
             "t.py:1:0: Found relative import\n",
         ),
+        (
+            "from ._common import foo as foot\n_ = foot\n",
+            "t.py:1:0: Found relative import\n",
+        ),
     ],
 )
 def test_relative_import(capsys: Any, src: str, expected: str) -> None:
