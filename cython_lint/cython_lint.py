@@ -462,23 +462,14 @@ def _traverse_file(  # noqa: PLR0915,PLR0913
         if isinstance(node, DictNode):
             visit_dict_node(node, violations)
 
-        if isinstance(node, CImportStatNode):
-            if node.module_name == node.as_name:
-                violations.append(
-                    (
-                        node.pos[1],
-                        node.pos[2] + 1,
-                        "Found useless import alias",
-                    ),
-                )
-            if ban_relative_imports and not node.is_absolute:
-                violations.append(
-                    (
-                        node.pos[1],
-                        node.pos[2] + 1,
-                        "Found relative import",
-                    ),
-                )
+        if isinstance(node, CImportStatNode) and node.module_name == node.as_name:
+            violations.append(
+                (
+                    node.pos[1],
+                    node.pos[2] + 1,
+                    "Found useless import alias",
+                ),
+            )
 
         if isinstance(node, FromCImportStatNode):
             for _imported_name in node.imported_names:
@@ -805,8 +796,8 @@ def run_ast_checks(
             filename,
             _lines,
             skip_check=True,
-            violations=violations,
-            ban_relative_imports=ban_relative_imports,
+            violations=None,
+            ban_relative_imports=False,
         )
         included_names.extend(_included_names)
     for _import in imported_names:
