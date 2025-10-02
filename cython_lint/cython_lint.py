@@ -394,7 +394,7 @@ def _traverse_file(  # noqa: PLR0915
     *,
     skip_check: bool = False,
     violations: list[tuple[int, int, str]] | None = None,
-) -> tuple[list[Token], list[Token], list[str], list[str]]:
+) -> tuple[list[Token], list[Token], list[str]]:
     """
     skip_check: only for when traversing an included file
     """
@@ -703,7 +703,7 @@ def _traverse_file(  # noqa: PLR0915
                 if isinstance(_import, UnicodeNode)
             )
 
-    return names, imported_names, global_names, exported_imports
+    return names, imported_names, exported_imports
 
 
 def sanitise_input(
@@ -754,7 +754,7 @@ def run_ast_checks(
     violations: list[tuple[int, int, str]],
 ) -> dict[int, str]:
     code, lines, included_texts = sanitise_input(code, filename)
-    names, imported_names, global_names, exported_imports = _traverse_file(
+    names, imported_names, exported_imports = _traverse_file(
         code,
         filename,
         lines,
@@ -764,7 +764,7 @@ def run_ast_checks(
     included_names = []
     for _code in included_texts:
         _code, _lines, __ = sanitise_input(_code, filename)
-        _included_names, _, __, ___ = _traverse_file(
+        _included_names, _, __ = _traverse_file(
             _code,
             filename,
             _lines,
