@@ -74,6 +74,7 @@ The following configuration options are available:
 as well as the following command-line arguments:
 - ``--max-line-length`` to control the maximum line length used by pycodestyle;
 - ``--no-pycodestyle`` if you don't want the pycodestyle checks;
+- ``--ban-relative-imports`` if you want to ban relative imports;
 - ``--ignore`` if you want to ignore some specific pycodestyle checks;
 - ``--files`` to pass a Regex pattern with which to match files to include;
 - ``--exclude`` to pass a Regex pattern with which to match files to exclude.
