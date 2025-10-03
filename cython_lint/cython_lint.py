@@ -387,13 +387,14 @@ def visit_dict_node(
             )
 
 
-def _traverse_file(  # noqa: PLR0915
+def _traverse_file(  # noqa: PLR0915,PLR0913
     code: str,
     filename: str,
     lines: Mapping[int, str],
     *,
-    skip_check: bool = False,
-    violations: list[tuple[int, int, str]] | None = None,
+    skip_check: bool,
+    violations: list[tuple[int, int, str]] | None,
+    ban_relative_imports: bool,
 ) -> tuple[list[Token], list[Token], list[str]]:
     """
     skip_check: only for when traversing an included file
@@ -480,6 +481,28 @@ def _traverse_file(  # noqa: PLR0915
                             "Found useless import alias",
                         ),
                     )
+            if ban_relative_imports and node.relative_level:
+                violations.append(
+                    (
+                        node.pos[1],
+                        node.pos[2],
+                        "Found relative import",
+                    ),
+                )
+
+        if (
+            ban_relative_imports
+            and isinstance(node, FromImportStatNode)
+            and isinstance(getattr(node, "module", None), ImportNode)
+            and node.module.level
+        ):
+            violations.append(
+                (
+                    node.pos[1],
+                    node.pos[2],
+                    "Found relative import",
+                ),
+            )
 
         if isinstance(node, (IfClauseNode, AssertStatNode)):
             if CYTHON_VERSION > ("3",) or isinstance(
@@ -752,6 +775,8 @@ def run_ast_checks(
     code: str,
     filename: str,
     violations: list[tuple[int, int, str]],
+    *,
+    ban_relative_imports: bool,
 ) -> dict[int, str]:
     code, lines, included_texts = sanitise_input(code, filename)
     names, imported_names, exported_imports = _traverse_file(
@@ -759,6 +784,8 @@ def run_ast_checks(
         filename,
         lines,
         violations=violations,
+        ban_relative_imports=ban_relative_imports,
+        skip_check=False,
     )
 
     included_names = []
@@ -769,6 +796,8 @@ def run_ast_checks(
             filename,
             _lines,
             skip_check=True,
+            violations=None,
+            ban_relative_imports=False,
         )
         included_names.extend(_included_names)
     for _import in imported_names:
@@ -828,6 +857,7 @@ def _main(  # noqa: PLR0913
     ext: str,
     line_length: int = 88,
     no_pycodestyle: bool = False,
+    ban_relative_imports: bool = False,
     ignore: set[str] | None = None,
 ) -> int:
     if ignore is None:
@@ -840,7 +870,9 @@ def _main(  # noqa: PLR0913
     lines = {}
     if ext == ".pyx":
         with contextlib.suppress(CythonParseError):
-            lines = run_ast_checks(code, filename, violations)
+            lines = run_ast_checks(
+                code, filename, violations, ban_relative_imports=ban_relative_imports
+            )
 
     ret = 0
     for lineno, col, message in sorted(violations):
@@ -923,6 +955,7 @@ def main(argv: Sequence[str] | None = None) -> int:  # pragma: no cover
     parser.add_argument("--max-line-length", type=int, default=88)
     parser.add_argument("--no-pycodestyle", action="store_true")
     parser.add_argument("--version", action="version", version=__version__)
+    parser.add_argument("--ban-relative-imports", action="store_true")
     parser.add_argument(
         "--ignore",
         nargs="*",
@@ -941,7 +974,7 @@ def main(argv: Sequence[str] | None = None) -> int:  # pragma: no cover
 
     if not isinstance(args.ignore, list):
         args.ignore = [args.ignore]
-    ignore = {code.strip() for s in args.ignore for code in s.split(",")}
+    ignore: set[str] = {code.strip() for s in args.ignore for code in s.split(",")}
 
     for path in paths:
         if path.is_file():
@@ -969,6 +1002,7 @@ def main(argv: Sequence[str] | None = None) -> int:  # pragma: no cover
                 line_length=args.max_line_length,
                 no_pycodestyle=args.no_pycodestyle,
                 ext=ext,
+                ban_relative_imports=args.ban_relative_imports,
                 ignore=ignore,
             )
     return ret

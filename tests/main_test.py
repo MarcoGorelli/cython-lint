@@ -131,6 +131,39 @@ def test_useless_alias(capsys: Any, src: str, expected: str) -> None:
     ("src", "expected"),
     [
         (
+            "from ._common cimport foo\n_ = foo\n",
+            "t.py:1:0: Found relative import\n",
+        ),
+        (
+            "from ._common cimport foo as foot\n_ = foot\n",
+            "t.py:1:0: Found relative import\n",
+        ),
+        (
+            "from ._common import foo\n_ = foo\n",
+            "t.py:1:0: Found relative import\n",
+        ),
+        (
+            "from ._common import foo as foot\n_ = foot\n",
+            "t.py:1:0: Found relative import\n",
+        ),
+    ],
+)
+def test_relative_import(capsys: Any, src: str, expected: str) -> None:
+    ret = _main(src, "t.py", ext=".pyx", no_pycodestyle=True, ban_relative_imports=True)
+    out, _ = capsys.readouterr()
+    assert out == expected
+    assert ret == 1
+
+    ret = _main(src, "t.py", ext=".pyx", no_pycodestyle=True)
+    out, _ = capsys.readouterr()
+    assert out == ""
+    assert ret == 0
+
+
+@pytest.mark.parametrize(
+    ("src", "expected"),
+    [
+        (
             'def foo():\n    print()\n    "foobar"\n',
             "t.py:3:5: pointless string statement\n",
         ),
