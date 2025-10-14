@@ -654,7 +654,7 @@ def _traverse_file(  # noqa: PLR0915,PLR0913
         if (
             isinstance(node, ExprStatNode)
             and isinstance(node.expr, UnicodeNode)
-            and isinstance(node_parent.parent, ExprStatNode)
+            and isinstance(node_parent.parent, StatListNode)
         ):
             try:
                 idx = node_parent.parent.stats.index(node)
