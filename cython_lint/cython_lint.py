@@ -673,6 +673,7 @@ def _traverse_file(  # noqa: PLR0915,PLR0913
                 or (
                     node.function.name == "dict"
                     and isinstance(node.args[0].loop.target, TupleNode)
+                    and len(node.args[0].loop.target.args) == 2
                 )
             )
         ):
