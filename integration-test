@@ -10,3 +10,4 @@ cd ../scikit-learn-dev && git ls-files | grep '\.pyx$' | xargs cython-lint --no-
 cd ../scipy-dev && git ls-files | grep '\.pyx$' | xargs cython-lint --no-pycodestyle
 cd ../yt-dev && git ls-files | grep '\.pyx$' | xargs cython-lint --no-pycodestyle
 cd ../arrow-dev && git ls-files | grep '\.pyx$' | xargs cython-lint --no-pycodestyle
+cd ../cython-lint-dev

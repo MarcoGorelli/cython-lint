@@ -108,6 +108,7 @@ exclude = 'my_project/excluded_cython_file.pyx'
 - unnecessary import alias
 - variable defined but unused
 - variable imported but unused
+- unnecessary `list`/`set`/`dict` + generator (just use a comprehension)
 
 In addition, the following automated fixers are implemented:
 
