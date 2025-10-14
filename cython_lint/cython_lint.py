@@ -40,6 +40,7 @@ from Cython.Compiler.ExprNodes import DictComprehensionAppendNode
 from Cython.Compiler.ExprNodes import DictNode
 from Cython.Compiler.ExprNodes import FloatNode
 from Cython.Compiler.ExprNodes import FormattedValueNode
+from Cython.Compiler.ExprNodes import GeneratorExpressionNode
 from Cython.Compiler.ExprNodes import ImportNode
 from Cython.Compiler.ExprNodes import IndexNode
 from Cython.Compiler.ExprNodes import IntNode
@@ -657,6 +658,23 @@ def _traverse_file(  # noqa: PLR0915,PLR0913
                     node.pos[1],
                     node.pos[2] + 1,
                     "pointless string statement",
+                ),
+            )
+
+        if (
+            isinstance(node, SimpleCallNode)
+            and isinstance(node.function, NameNode)
+            and hasattr(node.function, "name")
+            and node.function.name in {"list", "dict", "set"}
+            and node.args
+            and len(node.args) == 1
+            and isinstance(node.args[0], (GeneratorExpressionNode, ComprehensionNode))
+        ):
+            violations.append(
+                (
+                    node.pos[1],
+                    node.pos[2] + 1,
+                    f"unnecessary {node.function.name} + generator (just use a comprehension)",
                 ),
             )
 
