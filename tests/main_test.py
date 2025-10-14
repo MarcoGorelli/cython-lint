@@ -618,6 +618,7 @@ def test_pycodestyle_when_ast_parsing_fails(
         "for i, v in enumerate(values):\n    pass\n    arr.extend(values[i])\n    pass\n",
         "for i, v in enumerate(values):\n    b = t[i]\n",
         "import numpy as np\n\n\ndef foo() -> np.ndarray:\n    pass\n",
+        "dict([x for x in foo])\n",
         "current_notification = 3\n"
         "\n"
         "\n"
@@ -752,5 +753,33 @@ def test_exported_imports(
     ret = _main(src, "t.py", ext=".pyx", no_pycodestyle=True)
     out, _ = capsys.readouterr()
     expected = "t.py:2:8: 'polars' imported but unused\n"
+    assert out == expected
+    assert ret == 1
+
+
+@pytest.mark.parametrize(
+    ("src", "expected"),
+    [
+        (
+            "list([x for x in [1,2,3]])\n",
+            "t.py:1:5: unnecessary list + generator (just use a list comprehension)\n",
+        ),
+        (
+            "set([x for x in [1,2,3]])\n",
+            "t.py:1:4: unnecessary set + generator (just use a set comprehension)\n",
+        ),
+        (
+            "dict([(x, y) for x,y in foo])\n",
+            "t.py:1:5: unnecessary dict + generator (just use a dict comprehension)\n",
+        ),
+    ],
+)
+def test_unnecessary_dict_list_set(
+    capsys: Any,
+    src: str,
+    expected: str,
+) -> None:
+    ret = _main(src, "t.py", ext=".pyx", no_pycodestyle=True)
+    out, _ = capsys.readouterr()
     assert out == expected
     assert ret == 1
