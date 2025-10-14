@@ -665,16 +665,22 @@ def _traverse_file(  # noqa: PLR0915,PLR0913
             isinstance(node, SimpleCallNode)
             and isinstance(node.function, NameNode)
             and hasattr(node.function, "name")
-            and node.function.name in {"list", "dict", "set"}
             and node.args
             and len(node.args) == 1
             and isinstance(node.args[0], (GeneratorExpressionNode, ComprehensionNode))
+            and (
+                node.function.name in {"list", "set"}
+                or (
+                    node.function.name == "dict"
+                    and isinstance(node.args[0].loop.target, TupleNode)
+                )
+            )
         ):
             violations.append(
                 (
                     node.pos[1],
                     node.pos[2] + 1,
-                    f"unnecessary {node.function.name} + generator (just use a comprehension)",
+                    f"unnecessary {node.function.name} + generator (just use a {node.function.name} comprehension)",
                 ),
             )
 

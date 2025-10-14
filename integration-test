@@ -1,13 +1,13 @@
 # requires you to have done shallow clones of these repos first
 cd ../cudf-dev && git ls-files | grep '\.pyx$' | xargs cython-lint --no-pycodestyle
-# cd ../cupy-dev && git ls-files | grep '\.pyx$' | xargs cython-lint --no-pycodestyle
-# cd ../mdanalysis-dev && git ls-files | grep '\.pyx$' | xargs cython-lint --no-pycodestyle
-# cd ../numpy-dev && git ls-files | grep '\.pyx$' | xargs cython-lint --no-pycodestyle
-# cd ../pandas-dev && git ls-files | grep '\.pyx$' | xargs cython-lint --no-pycodestyle
-# cd ../pylibssh-dev && git ls-files | grep '\.pyx$' | xargs cython-lint --no-pycodestyle
-# cd ../ray-dev && git ls-files | grep '\.pyx$' | xargs cython-lint --no-pycodestyle
-# cd ../scikit-learn-dev && git ls-files | grep '\.pyx$' | xargs cython-lint --no-pycodestyle
-# cd ../scipy-dev && git ls-files | grep '\.pyx$' | xargs cython-lint --no-pycodestyle
-# cd ../yt-dev && git ls-files | grep '\.pyx$' | xargs cython-lint --no-pycodestyle
-# cd ../arrow-dev && git ls-files | grep '\.pyx$' | xargs cython-lint --no-pycodestyle
+cd ../cupy-dev && git ls-files | grep '\.pyx$' | xargs cython-lint --no-pycodestyle
+cd ../mdanalysis-dev && git ls-files | grep '\.pyx$' | xargs cython-lint --no-pycodestyle
+cd ../numpy-dev && git ls-files | grep '\.pyx$' | xargs cython-lint --no-pycodestyle
+cd ../pandas-dev && git ls-files | grep '\.pyx$' | xargs cython-lint --no-pycodestyle
+cd ../pylibssh-dev && git ls-files | grep '\.pyx$' | xargs cython-lint --no-pycodestyle
+cd ../ray-dev && git ls-files | grep '\.pyx$' | xargs cython-lint --no-pycodestyle
+cd ../scikit-learn-dev && git ls-files | grep '\.pyx$' | xargs cython-lint --no-pycodestyle
+cd ../scipy-dev && git ls-files | grep '\.pyx$' | xargs cython-lint --no-pycodestyle
+cd ../yt-dev && git ls-files | grep '\.pyx$' | xargs cython-lint --no-pycodestyle
+cd ../arrow-dev && git ls-files | grep '\.pyx$' | xargs cython-lint --no-pycodestyle
 cd ../cython-lint-dev
