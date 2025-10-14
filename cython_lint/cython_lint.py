@@ -652,14 +652,26 @@ def _traverse_file(  # noqa: PLR0915,PLR0913
                 ),
             )
 
-        if isinstance(node, ExprStatNode) and isinstance(node.expr, UnicodeNode):
-            violations.append(
-                (
-                    node.pos[1],
-                    node.pos[2] + 1,
-                    "pointless string statement",
-                ),
-            )
+        if (
+            isinstance(node, ExprStatNode)
+            and isinstance(node.expr, UnicodeNode)
+            and isinstance(node_parent.parent, StatListNode)
+        ):
+            try:
+                idx = node_parent.parent.stats.index(node)
+            except ValueError:  # pragma: no cover
+                pass  # defensive check
+            else:
+                if not isinstance(
+                    node_parent.parent.stats[idx - 1], SingleAssignmentNode
+                ):
+                    violations.append(
+                        (
+                            node.pos[1],
+                            node.pos[2] + 1,
+                            "pointless string statement",
+                        ),
+                    )
 
         if (
             isinstance(node, SimpleCallNode)
