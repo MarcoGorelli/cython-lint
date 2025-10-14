@@ -630,10 +630,12 @@ def test_pycodestyle_when_ast_parsing_fails(
         "def foo():\n    cdef int size\n    asarray(<char[:size]> foo)\n",
         'include "heap_watershed.pxi"\n',
         "import foo\n\n\ndef bar():\n    a: foo\n",
+        "DevicePointerT: TypeAlias = Union[driver.CUdeviceptr, int, None]\n"
+        '"A type union of :obj:`~driver.CUdeviceptr`, `int` and `None` for hinting :attr:`Buffer.handle`."',
     ],
 )
 def test_noop(capsys: Any, src: str) -> None:
-    ret = _main(src, "t.py", ext=".pyx")
+    ret = _main(src, "test.py", ext=".pyx")
     out, _ = capsys.readouterr()
     assert out == ""
     assert ret == 0
