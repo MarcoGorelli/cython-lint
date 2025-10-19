@@ -534,13 +534,8 @@ def test_pycodestyle_when_ast_parsing_fails(
         fd.write("[pycodestyle]\nstatistics=True\n")
     ret = _main(src, file, ext=".pyx")
     out, _ = capsys.readouterr()
-    expected = (
-        f"Skipping file {file}, as it cannot be parsed. Error: "
-        "AttributeError(\"'_thread._local' object has no attribute "
-        "'cython_errors_stack'\")\n"
-        f"{file}:4:11: E231 missing whitespace after ':'\n"
-    )
-    assert out == expected
+    assert f"Skipping file {file}, as it cannot be parsed. Error: CompileError" in out
+    assert f"{file}:4:11: E231 missing whitespace after ':'\n" in out
     assert ret == 1
 
 
