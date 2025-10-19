@@ -20,6 +20,8 @@ from typing import NamedTuple
 from typing import NoReturn
 from typing import Sequence
 
+from Cython.Compiler.Errors import init_thread
+
 if sys.version_info >= (3, 11):  # pragma: no cover
     import tomllib
 else:  # pragma: no cover
@@ -403,6 +405,7 @@ def _traverse_file(  # noqa: PLR0915,PLR0913
     try:
         context = StringParseContext(filename)
         context.set_language_level(3)
+        init_thread()
         tree = parse_from_strings(filename, code, context=context)
     except Exception as exp:  # pragma: no cover
         # If Cython can't parse this file, just skip it.
