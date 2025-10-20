@@ -80,9 +80,9 @@ as well as the following command-line arguments:
 - ``--files`` to pass a Regex pattern with which to match files to include;
 - ``--exclude`` to pass a Regex pattern with which to match files to exclude.
 
-Configuration can be set project-wise in a `pyproject.toml` file at the root of the project.
-Here's an example `pyproject.toml`:
-```
+Configuration can be set project-wide in a `.cython-lint.toml` or `pyproject.toml` file
+at the root of the project. Here's an example:
+```toml
 [tool.cython-lint]
 max-line-length = 88
 ignore = ['E503', 'E504']
