@@ -389,7 +389,8 @@ def _args_from_cargdecl(node: CArgDeclNode) -> Iterator[Token]:
 
 def _record_imports(node: Node) -> Iterator[Token]:
     if isinstance(node, FromCImportStatNode):
-        yield from (Token(imp[2] or imp[1], *imp[0][1:]) for imp in node.imported_names)
+        _imported_names: list[ExprNode] = node.imported_names  # type: ignore[assignment]
+        yield from (Token(imp[2] or imp[1], *imp[0][1:]) for imp in _imported_names)
     elif isinstance(node, CImportStatNode):
         _as_name: str = node.as_name  # type: ignore[assignment]
         _module_name: str = node.module_name  # type: ignore[assignment]
