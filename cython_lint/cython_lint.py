@@ -638,7 +638,7 @@ def _traverse_file(  # noqa: PLR0915,PLR0913
         ):
             for _stat in node.body.stats:
                 if isinstance(_stat, (DefNode, CFuncDefNode)):
-                    expr = _stat.body
+                    expr: StatListNode = _stat.body  # type: ignore[assignment]
                     _children = [j.node for j in traverse(expr)]
                     _names = [
                         _name_from_name_node(i)
