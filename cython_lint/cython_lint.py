@@ -84,7 +84,7 @@ from tokenize_rt import tokens_to_src
 
 from cython_lint import __version__
 
-CYTHON_VERSION = tuple(Cython.__version__.split("."))
+CYTHON_VERSION = tuple(Cython.__version__.split("."))  # type: ignore[attr-defined]
 
 EXCLUDES = (
     r"/("
@@ -95,7 +95,7 @@ EXCLUDES = (
 )
 
 if CYTHON_VERSION > ("3",):  # pragma: no cover
-    from Cython.Compiler.ExprNodes import AnnotationNode
+    from Cython.Compiler.ExprNodes import AnnotationNode  # type: ignore[assignment]
 else:  # pragma: no cover
 
     class AnnotationNode:  # type: ignore[no-redef]
@@ -267,7 +267,7 @@ def visit_funcdef(
     if isinstance(node, CFuncDefNode):
         _declarator: CDeclaratorNode = node.declarator  # type: ignore[assignment]
         func = _func_from_base(_declarator)
-        func_name = _name_from_name_node(_name_from_base(func.base))
+        func_name = _name_from_name_node(_name_from_base(func.base))  # type: ignore[attr-defined]
     else:
         func_name = _name_from_name_node(node)
 
@@ -360,7 +360,7 @@ def _name_from_base(node: Node) -> NameNode:
     return node  # type: ignore[return-type]
 
 
-def _func_from_base(node: Node) -> Node:
+def _func_from_base(node: Node) -> CFuncDeclaratorNode | CFuncDefNode:
     while not isinstance(node, (CFuncDeclaratorNode, CFuncDefNode)):
         if hasattr(node, "base"):
             node = node.base  # type: ignore[attr-defined]
