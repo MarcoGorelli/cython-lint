@@ -11,7 +11,7 @@ import subprocess
 import sys
 import warnings
 from typing import TYPE_CHECKING
-from typing import Any
+from typing import Any, cast
 from typing import Hashable
 from typing import Iterator
 from typing import Mapping
@@ -227,7 +227,7 @@ def visit_funcdef(
     ]
     # e.g. a = 3
     simple_assignments = [
-        Token(_child.lhs.name, *_child.lhs.pos[1:])
+        Token(_name_from_name_node(_child.lhs), *_child.lhs.pos[1:])
         for _child in children
         if isinstance(_child, SingleAssignmentNode)
         and isinstance(_child.lhs, NameNode)
@@ -244,7 +244,7 @@ def visit_funcdef(
         ):
             tuple_assignments.extend(
                 [
-                    Token(_arg.name, *_arg.pos[1:])
+                    Token(_name_from_name_node(_arg), *_arg.pos[1:])
                     for _arg in _child.lhs.args
                     if isinstance(_arg, NameNode)
                 ]
@@ -252,7 +252,7 @@ def visit_funcdef(
     defs = [*defs, *simple_assignments, *tuple_assignments]
 
     names = [
-        Token(_child.name, *_child.pos[1:])
+        Token(_name_from_name_node(_child), *_child.pos[1:])
         for _child in children
         if isinstance(_child, NameNode)
     ]
@@ -264,9 +264,9 @@ def visit_funcdef(
 
     if isinstance(node, CFuncDefNode):
         func = _func_from_base(node.declarator)
-        func_name = _name_from_base(func.base).name
+        func_name = _name_from_name_node(_name_from_base(func.base))
     else:
-        func_name = node.name
+        func_name = _name_from_name_node(node)
 
     for _def in defs:
         # we don't report on unused function args
@@ -298,6 +298,14 @@ def visit_funcdef(
                 )
             )
 
+# Helper functions to work around upstream issues.
+
+def _name_from_name_node(node: NameNode) -> str:
+    return node.name  # type: ignore[attr-defined]
+
+def _value_from_unicode_node(node: UnicodeNode) -> str:
+    return node.value  # type: ignore[attr-defined]
+
 
 def _name_from_base(node: Node) -> Node:
     while not hasattr(node, "name"):
@@ -323,13 +331,13 @@ def _args_from_cargdecl(node: CArgDeclNode) -> Iterator[Token]:
         for _arg in node.declarator.args:
             yield from _args_from_cargdecl(_arg)
         _base = _name_from_base(node.declarator.base)
-        yield Token(_base.name, *_base.pos[1:])
+        yield Token(_name_from_name_node(_base), *_base.pos[1:])
     elif hasattr(node.declarator, "base"):
         # e.g. cdef foo(vector[FrontierRecord]& frontier)
         # e.g. cdef foo(double x[])
         _base = _name_from_base(node.declarator)
         yield Token(
-            _base.name,
+            _name_from_name_node(_base),
             *_base.pos[1:],
         )
     # e.g. foo(int a), foo(int* a)
@@ -437,7 +445,7 @@ def _traverse_file(  # noqa: PLR0915,PLR0913
         node = node_parent.node
         if isinstance(node, (NameNode, CSimpleBaseTypeNode)):
             # do we need node.module_path?
-            names.append(Token(node.name, *node.pos[1:]))
+            names.append(Token(_name_from_name_node(node), *node.pos[1:]))
             # need this for:
             # ctypedef fused foo:
             #     bar.quox
@@ -571,14 +579,14 @@ def _traverse_file(  # noqa: PLR0915,PLR0913
                 # attribute, so need to exclude it.
                 _children = [j.node for j in traverse(expr)]
                 _names = [
-                    _child.name
+                    _name_from_name_node(_child)
                     for _child in _children
                     if isinstance(
                         _child,
                         NameNode,
                     )
                 ]
-                if node.loop.target.name in _names:
+                if _name_from_name_node(node.loop.target) in _names:
                     violations.append(
                         (
                             node.pos[1],
@@ -598,8 +606,12 @@ def _traverse_file(  # noqa: PLR0915,PLR0913
                 if isinstance(_stat, (DefNode, CFuncDefNode)):
                     expr = _stat.body
                     _children = [j.node for j in traverse(expr)]
-                    _names = [i.name for i in _children if isinstance(i, NameNode)]
-                    if node.target.name in _names:
+                    _names = [
+                        _name_from_name_node(i)
+                        for i in _children
+                        if isinstance(i, NameNode)
+                    ]
+                    if _name_from_name_node(node.target) in _names:
                         violations.append(
                             (
                                 node.pos[1],
@@ -644,7 +656,7 @@ def _traverse_file(  # noqa: PLR0915,PLR0913
             and (
                 node.args
                 and isinstance(node.args[0], UnicodeNode)
-                and len(set(node.args[0].value)) != len(node.args[0].value)
+                and len(set(_value_from_unicode_node(node.args[0]))) != len(_value_from_unicode_node(node.args[0]))
             )
         ):
             violations.append(
@@ -696,7 +708,7 @@ def _traverse_file(  # noqa: PLR0915,PLR0913
                 (
                     node.pos[1],
                     node.pos[2] + 1,
-                    f"unnecessary {node.function.name} + generator (just use a {node.function.name} comprehension)",
+                    f"unnecessary {_name_from_name_node(node.function)} + generator (just use a {_name_from_name_node(node.function)} comprehension)",
                 ),
             )
 
@@ -740,28 +752,34 @@ def _traverse_file(  # noqa: PLR0915,PLR0913
                 if (
                     isinstance(index_node.base, NameNode)
                     and isinstance(index_node.index, NameNode)
-                    and (index_node.base.name == node.iterator.sequence.args[0].name)
-                    and (index_node.index.name == node.target.args[0].name)
+                    and (
+                        _name_from_name_node(index_node.base)
+                        == _name_from_name_node(node.iterator.sequence.args[0])
+                    )
+                    and (
+                        _name_from_name_node(index_node.index)
+                        == _name_from_name_node(node.target.args[0])
+                    )
                 ):
                     violations.append(
                         (
                             index_node.base.pos[1],
                             index_node.base.pos[2] + 1,
                             "unnecessary list index lookup: use "
-                            f"`{node.target.args[1].name}` instead of "
-                            f"`{index_node.base.name}"
-                            f"[{index_node.index.name}]`",
+                            f"`{_name_from_name_node(node.target.args[1])}` instead of "
+                            f"`{_name_from_name_node(index_node.base)}"
+                            f"[{_name_from_name_node(index_node.index)}]`",
                         ),
                     )
 
         if (
             isinstance(node, SingleAssignmentNode)
             and isinstance(node.lhs, NameNode)
-            and node.lhs.name == "__all__"
+            and _name_from_name_node(node.lhs) == "__all__"
             and isinstance(node.rhs, ListNode)
         ):
             exported_imports.extend(
-                _import.value
+                _value_from_unicode_node(_import)
                 for _import in node.rhs.args
                 if isinstance(_import, UnicodeNode)
             )
@@ -935,7 +953,8 @@ def traverse(tree: ModuleNode) -> Iterator[NodeParent]:
         if not hasattr(node, "child_attrs"):
             continue
 
-        child_attrs = set(copy.deepcopy(node.child_attrs))
+        node_child_attrs = cast(list[str], node.child_attrs)
+        child_attrs = set(copy.deepcopy(node_child_attrs))
         for attr in MISSING_CHILD_ATTRS:
             if hasattr(node, attr):
                 child_attrs.add(attr)
