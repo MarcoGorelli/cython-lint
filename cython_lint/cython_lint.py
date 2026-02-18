@@ -53,6 +53,7 @@ from Cython.Compiler.ExprNodes import LambdaNode
 from Cython.Compiler.ExprNodes import ListNode
 from Cython.Compiler.ExprNodes import NameNode
 from Cython.Compiler.ExprNodes import PrimaryCmpNode
+from Cython.Compiler.ExprNodes import SequenceNode
 from Cython.Compiler.ExprNodes import SetNode
 from Cython.Compiler.ExprNodes import SimpleCallNode
 from Cython.Compiler.ExprNodes import TupleNode
@@ -304,6 +305,20 @@ def visit_funcdef(
 
 def _name_from_name_node(node: NameNode) -> str:
     return node.name  # type: ignore[attr-defined]
+
+
+def _loop_from_loop_node(
+    node: GeneratorExpressionNode | ComprehensionNode,
+) -> ForInStatNode:
+    return node.loop  # type: ignore[attr-defined]
+
+
+def _target_from_for_in_stat_node(node: ForInStatNode) -> ExprNode:
+    return node.target  # type: ignore[attr-defined]
+
+
+def _args_from_sequence_node(node: SequenceNode) -> list[ExprNode]:
+    return node.args  # type: ignore[attr-defined]
 
 
 def _rhs_from_single_assignment_node(node: SingleAssignmentNode) -> ExprNode:
@@ -712,25 +727,38 @@ def _traverse_file(  # noqa: PLR0915,PLR0913
             isinstance(node, SimpleCallNode)
             and isinstance(node.function, NameNode)
             and hasattr(node.function, "name")
-            and node.args
-            and len(node.args) == 1
-            and isinstance(node.args[0], (GeneratorExpressionNode, ComprehensionNode))
-            and (
-                node.function.name in {"list", "set"}
-                or (
-                    node.function.name == "dict"
-                    and isinstance(node.args[0].loop.target, TupleNode)
-                    and len(node.args[0].loop.target.args) == 2
-                )
-            )
         ):
-            violations.append(
-                (
-                    node.pos[1],
-                    node.pos[2] + 1,
-                    f"unnecessary {_name_from_name_node(node.function)} + generator (just use a {_name_from_name_node(node.function)} comprehension)",
-                ),
-            )
+            args: list[ExprNode] = node.args  # type: ignore[assignment]
+            if (
+                args
+                and len(args) == 1
+                and isinstance(args[0], (GeneratorExpressionNode, ComprehensionNode))
+                and (
+                    _name_from_name_node(node.function) in {"list", "set"}
+                    or (
+                        _name_from_name_node(node.function) == "dict"
+                        and isinstance(
+                            _target_from_for_in_stat_node(_loop_from_loop_node(args[0])),
+                            TupleNode,
+                        )
+                        and len(
+                            _args_from_sequence_node(
+                                _target_from_for_in_stat_node(
+                                    _loop_from_loop_node(args[0])
+                                )
+                            )
+                        )
+                        == 2
+                    )
+                )
+            ):
+                violations.append(
+                    (
+                        node.pos[1],
+                        node.pos[2] + 1,
+                        f"unnecessary {_name_from_name_node(node.function)} + generator (just use a {_name_from_name_node(node.function)} comprehension)",
+                    ),
+                )
 
         if (
             isinstance(node, ForInStatNode)
