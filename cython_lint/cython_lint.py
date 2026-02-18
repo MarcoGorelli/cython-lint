@@ -313,7 +313,7 @@ def _loop_from_loop_node(
     return node.loop  # type: ignore[attr-defined]
 
 
-def _target_from_for_in_stat_node(node: ForInStatNode) -> ExprNode:
+def _target_from_for_in_stat_node(node: ForInStatNode) -> SequenceNode:
     return node.target  # type: ignore[attr-defined]
 
 
@@ -670,10 +670,11 @@ def _traverse_file(  # noqa: PLR0915,PLR0913
             )
 
         if isinstance(node, SetNode):
+            args: list[ExprNode] = node.args  # type: ignore[assignment]
             counts: MutableMapping[object, int] = collections.Counter()
-            for _arg in node.args:
-                if hasattr(_arg, "value"):
-                    counts[_arg.value] += 1
+            for arg in args:
+                if hasattr(arg, "value"):
+                    counts[arg.value] += 1  # type: ignore[attr-defined]
             if counts and max(counts.values()) > 1:
                 violations.append(
                     (
