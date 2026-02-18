@@ -371,7 +371,8 @@ def _args_from_cargdecl(node: CArgDeclNode) -> Iterator[Token]:
     _declarator: CArgDeclNode = node.declarator  # type: ignore[assignment]
     if isinstance(_declarator, CFuncDeclaratorNode):
         # e.g. cdef foo(object (*operation)(int64_t value))
-        for _arg in _declarator.args:
+        _args: list[CArgDeclNode] = _declarator.args  # type: ignore[assignment]
+        for _arg in _args:
             yield from _args_from_cargdecl(_arg)
         _base = _name_from_base(_declarator.base)
         yield Token(_name_from_name_node(_base), *_base.pos[1:])
