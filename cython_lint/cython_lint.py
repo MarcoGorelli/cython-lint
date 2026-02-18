@@ -398,7 +398,7 @@ def _record_imports(node: Node) -> Iterator[Token]:
     ):
         _lhs: NameNode = node.lhs  # type: ignore[assignment]
         # e.g. import numpy as np
-        yield (Token(_lhs.name, *_lhs.pos[1:]))
+        yield (Token(_name_from_name_node(_lhs), *_lhs.pos[1:]))
     elif isinstance(node, FromImportStatNode):
         # from numpy import array
         _items: list[tuple[str, NameNode]] = node.items  # type: ignore[assignment]
