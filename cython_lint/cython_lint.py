@@ -765,8 +765,8 @@ def _traverse_file(  # noqa: PLR0915,PLR0913
                     and (
                         _name_from_name_node(index_node.base)
                         == _name_from_name_node(
-                            _args_from_simple_call_node(  # type: ignore[arg-type]
-                                cast("SimpleCallNode", node.iterator.sequence)
+                            _args_from_simple_call_node(
+                                node.iterator.sequence  # type: ignore[attr-defined]
                             )[0]
                         )
                     )
