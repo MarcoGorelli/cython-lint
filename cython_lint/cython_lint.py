@@ -44,7 +44,7 @@ from Cython.Compiler.ExprNodes import FloatNode
 from Cython.Compiler.ExprNodes import FormattedValueNode
 from Cython.Compiler.ExprNodes import GeneratorExpressionNode
 from Cython.Compiler.ExprNodes import ImportNode
-from Cython.Compiler.ExprNodes import IndexNode
+from Cython.Compiler.ExprNodes import IndexNode, ExprNode
 from Cython.Compiler.ExprNodes import IntNode
 from Cython.Compiler.ExprNodes import JoinedStrNode
 from Cython.Compiler.ExprNodes import LambdaNode
@@ -305,6 +305,9 @@ def _name_from_name_node(node: NameNode) -> str:
 
 def _value_from_unicode_node(node: UnicodeNode) -> str:
     return node.value  # type: ignore[attr-defined]
+
+def _args_from_simple_call_node(node: SimpleCallNode) -> list[ExprNode]:
+    return node.args  # type: ignore[attr-defined]
 
 
 def _name_from_base(node: Node) -> Node:
@@ -742,7 +745,7 @@ def _traverse_file(  # noqa: PLR0915,PLR0913
                     and isinstance(_child.node.function, AttributeNode)
                     and isinstance(_child.node.function.obj, NameNode)
                     and _child.node.function.attribute == "append"
-                    and len(_child.node.args) == 1
+                    and len(_args_from_simple_call_node(_child.node)) == 1
                     and isinstance(_child.node.args[0], IndexNode)
                 ):
                     index_node = _child.node.args[0]
