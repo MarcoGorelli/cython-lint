@@ -746,9 +746,9 @@ def _traverse_file(  # noqa: PLR0915,PLR0913
                     and isinstance(_child.node.function.obj, NameNode)
                     and _child.node.function.attribute == "append"
                     and len(_args_from_simple_call_node(_child.node)) == 1
-                    and isinstance(_child.node.args[0], IndexNode)
+                    and isinstance(_args_from_simple_call_node(_child.node)[0], IndexNode)
                 ):
-                    index_node = _child.node.args[0]
+                    index_node = _args_from_simple_call_node(_child.node)[0]
                 else:  # pragma: no cover
                     # This branch is definitely hit - bug in coverage?
                     continue
@@ -757,7 +757,7 @@ def _traverse_file(  # noqa: PLR0915,PLR0913
                     and isinstance(index_node.index, NameNode)
                     and (
                         _name_from_name_node(index_node.base)
-                        == _name_from_name_node(node.iterator.sequence.args[0])
+                        == _name_from_name_node(_args_from_simple_call_node(node.iterator.sequence)[0])
                     )
                     and (
                         _name_from_name_node(index_node.index)
