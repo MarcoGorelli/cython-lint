@@ -306,6 +306,18 @@ def _name_from_name_node(node: NameNode) -> str:
     return node.name  # type: ignore[attr-defined]
 
 
+def _rhs_from_single_assignment_node(node: SingleAssignmentNode) -> ExprNode:
+    return node.rhs  # type: ignore[attr-defined]
+
+
+def _operand1_from_primary_cmp_node(node: PrimaryCmpNode) -> ExprNode:
+    return node.operand1  # type: ignore[attr-defined]
+
+
+def _operand2_from_primary_cmp_node(node: PrimaryCmpNode) -> ExprNode:
+    return node.operand2  # type: ignore[attr-defined]
+
+
 def _value_from_unicode_node(node: UnicodeNode) -> str:
     return node.value  # type: ignore[attr-defined]
 
@@ -729,67 +741,74 @@ def _traverse_file(  # noqa: PLR0915,PLR0913
         ):
             iterator: IteratorNode = node.iterator  # type: ignore[assignment]
             sequence: ExprNode = iterator.sequence  # type: ignore[assignment]
-            if (
-                isinstance(sequence, SimpleCallNode)
-                and isinstance(sequence.function, NameNode)
-                and sequence.function.name == "enumerate"
-                and len(sequence.args) == 1
-                and isinstance(sequence.args[0], NameNode)
+            if isinstance(sequence, SimpleCallNode) and isinstance(
+                sequence.function, NameNode
             ):
-                body: StatNode = node.body  # type: ignore[assignment]
-                for _child in traverse(body):
-                    if isinstance(_child.node, SingleAssignmentNode) and isinstance(
-                        _child.node.rhs, IndexNode
-                    ):
-                        index_node: IndexNode = _child.node.rhs
-                    elif isinstance(_child.node, PrimaryCmpNode) and (
-                        isinstance(_child.node.operand1, IndexNode)
-                    ):
-                        index_node = _child.node.operand1
-                    elif isinstance(_child.node, PrimaryCmpNode) and (
-                        isinstance(_child.node.operand2, IndexNode)
-                    ):
-                        index_node = _child.node.operand2
-                    elif (
-                        isinstance(_child.node, SimpleCallNode)
-                        and isinstance(_child.node.function, AttributeNode)
-                        and isinstance(_child.node.function.obj, NameNode)
-                        and _child.node.function.attribute == "append"
-                        and len(_args_from_simple_call_node(_child.node)) == 1
-                        and isinstance(
-                            _args_from_simple_call_node(_child.node)[0], IndexNode
-                        )
-                    ):
-                        index_node = _args_from_simple_call_node(_child.node)[0]  # type: ignore[assignment]
-                    else:  # pragma: no cover
-                        # This branch is definitely hit - bug in coverage?
-                        continue
-                    if (
-                        isinstance(index_node.base, NameNode)
-                        and isinstance(index_node.index, NameNode)
-                        and (
-                            _name_from_name_node(index_node.base)
-                            == _name_from_name_node(
-                                _args_from_simple_call_node(
-                                    node.iterator.sequence  # type: ignore[attr-defined]
-                                )[0]
+                function: NameNode = sequence.function  # type: ignore[assignment]
+                args: list[ExprNode] = sequence.args  # type: ignore[assignment]
+                if (
+                    _name_from_name_node(function) == "enumerate"
+                    and len(args) == 1
+                    and isinstance(args[0], NameNode)
+                ):
+                    body: StatNode = node.body  # type: ignore[assignment]
+                    for _child in traverse(body):
+                        if isinstance(_child.node, SingleAssignmentNode) and isinstance(
+                            _rhs_from_single_assignment_node(_child.node), IndexNode
+                        ):
+                            index_node: IndexNode = _child.node.rhs  # type: ignore[assignment]
+                        elif isinstance(_child.node, PrimaryCmpNode) and (
+                            isinstance(
+                                _operand1_from_primary_cmp_node(_child.node), IndexNode
                             )
-                        )
-                        and (
-                            _name_from_name_node(index_node.index)
-                            == _name_from_name_node(node.target.args[0])
-                        )
-                    ):
-                        violations.append(
-                            (
-                                index_node.base.pos[1],
-                                index_node.base.pos[2] + 1,
-                                "unnecessary list index lookup: use "
-                                f"`{_name_from_name_node(node.target.args[1])}` instead of "
-                                f"`{_name_from_name_node(index_node.base)}"
-                                f"[{_name_from_name_node(index_node.index)}]`",
-                            ),
-                        )
+                        ):
+                            index_node = _child.node.operand1  # type: ignore[assignment]
+                        elif isinstance(_child.node, PrimaryCmpNode) and (
+                            isinstance(
+                                _operand2_from_primary_cmp_node(_child.node), IndexNode
+                            )
+                        ):
+                            index_node = _child.node.operand2  # type: ignore[assignment]
+                        elif (
+                            isinstance(_child.node, SimpleCallNode)
+                            and isinstance(_child.node.function, AttributeNode)
+                            and isinstance(_child.node.function.obj, NameNode)
+                            and _child.node.function.attribute == "append"
+                            and len(_args_from_simple_call_node(_child.node)) == 1
+                            and isinstance(
+                                _args_from_simple_call_node(_child.node)[0], IndexNode
+                            )
+                        ):
+                            index_node = _args_from_simple_call_node(_child.node)[0]  # type: ignore[assignment]
+                        else:  # pragma: no cover
+                            # This branch is definitely hit - bug in coverage?
+                            continue
+                        if (
+                            isinstance(index_node.base, NameNode)
+                            and isinstance(index_node.index, NameNode)
+                            and (
+                                _name_from_name_node(index_node.base)
+                                == _name_from_name_node(
+                                    _args_from_simple_call_node(
+                                        node.iterator.sequence  # type: ignore[attr-defined]
+                                    )[0]
+                                )
+                            )
+                            and (
+                                _name_from_name_node(index_node.index)
+                                == _name_from_name_node(node.target.args[0])
+                            )
+                        ):
+                            violations.append(
+                                (
+                                    index_node.base.pos[1],
+                                    index_node.base.pos[2] + 1,
+                                    "unnecessary list index lookup: use "
+                                    f"`{_name_from_name_node(node.target.args[1])}` instead of "
+                                    f"`{_name_from_name_node(index_node.base)}"
+                                    f"[{_name_from_name_node(index_node.index)}]`",
+                                ),
+                            )
 
         if (
             isinstance(node, SingleAssignmentNode)
