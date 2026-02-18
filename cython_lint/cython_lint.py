@@ -400,7 +400,10 @@ def _record_imports(node: Node) -> Iterator[Token]:
         yield (Token(node.lhs.name, *node.lhs.pos[1:]))
     elif isinstance(node, FromImportStatNode):
         # from numpy import array
-        yield from (Token(imp[1].name, *imp[1].pos[1:]) for imp in node.items)
+        _items: list[tuple[str, NameNode]] = node.items  # type: ignore[assignment]
+        yield from (
+            Token(_name_from_name_node(imp[1]), *imp[1].pos[1:]) for imp in _items
+        )
 
 
 def visit_dict_node(
