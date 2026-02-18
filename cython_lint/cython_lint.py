@@ -383,8 +383,8 @@ def _args_from_cargdecl(node: CArgDeclNode) -> Iterator[Token]:
             *_base.pos[1:],
         )
     # e.g. foo(int a), foo(int* a)
-    _decl = _name_from_base(node.declarator)
-    yield Token(_decl.name, *_decl.pos[1:])
+    _decl = _name_from_base(_default_from_cargdecl_node(node))
+    yield Token(_name_from_name_node(_decl), *_decl.pos[1:])
 
 
 def _record_imports(node: Node) -> Iterator[Token]:
