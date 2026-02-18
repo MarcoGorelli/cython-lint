@@ -481,7 +481,8 @@ def _traverse_file(  # noqa: PLR0915,PLR0913
         node = node_parent.node
         imported_names.extend(_record_imports(node))
         if isinstance(node, GlobalNode):
-            global_names.extend(node.names)
+            _names: list[str] = node.names  # type: ignore[assignment]
+            global_names.extend(_names)
 
     for node_parent in nodes:
         node = node_parent.node
