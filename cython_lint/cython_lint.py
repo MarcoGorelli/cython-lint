@@ -391,7 +391,9 @@ def _record_imports(node: Node) -> Iterator[Token]:
     if isinstance(node, FromCImportStatNode):
         yield from (Token(imp[2] or imp[1], *imp[0][1:]) for imp in node.imported_names)
     elif isinstance(node, CImportStatNode):
-        yield (Token(node.as_name or node.module_name, *node.pos[1:]))
+        _as_name: str = node.as_name  # type: ignore[assignment]
+        _module_name: str = node.module_name  # type: ignore[assignment]
+        yield (Token(_as_name or _module_name, *node.pos[1:]))
     elif isinstance(node, SingleAssignmentNode) and isinstance(
         node.rhs,
         ImportNode,
