@@ -349,7 +349,7 @@ def _args_from_simple_call_node(node: SimpleCallNode) -> list[ExprNode]:
     return node.args  # type: ignore[attr-defined]
 
 
-def _name_from_base(node: Node) -> Node:
+def _name_from_base(node: Node) -> NameNode:
     while not hasattr(node, "name"):
         if hasattr(node, "base"):
             node = node.base
@@ -389,8 +389,10 @@ def _args_from_cargdecl(node: CArgDeclNode) -> Iterator[Token]:
 
 def _record_imports(node: Node) -> Iterator[Token]:
     if isinstance(node, FromCImportStatNode):
-        _imported_names: list[tuple[tuple[int, int], str, str]] = node.imported_names  # type: ignore[assignment]
-        yield from (Token(imp[2] or imp[1], *imp[0][1:]) for imp in _imported_names)
+        _imported_names: list[tuple[tuple[int, int, int], str, str]] = node.imported_names  # type: ignore[assignment]
+        yield from (
+            Token(imp[2] or imp[1], imp[0][1], imp[0][2]) for imp in _imported_names
+        )
     elif isinstance(node, CImportStatNode):
         _as_name: str = node.as_name  # type: ignore[assignment]
         _module_name: str = node.module_name  # type: ignore[assignment]
