@@ -11,7 +11,7 @@ import subprocess
 import sys
 import warnings
 from typing import TYPE_CHECKING
-from typing import Any, cast
+from typing import Any
 from typing import Hashable
 from typing import Iterator
 from typing import Mapping
@@ -19,6 +19,7 @@ from typing import MutableMapping
 from typing import NamedTuple
 from typing import NoReturn
 from typing import Sequence
+from typing import cast
 
 from Cython.Compiler.Errors import init_thread
 
@@ -40,12 +41,14 @@ from Cython.Compiler.ExprNodes import ComprehensionAppendNode
 from Cython.Compiler.ExprNodes import ComprehensionNode
 from Cython.Compiler.ExprNodes import DictComprehensionAppendNode
 from Cython.Compiler.ExprNodes import DictNode
+from Cython.Compiler.ExprNodes import ExprNode
 from Cython.Compiler.ExprNodes import FloatNode
 from Cython.Compiler.ExprNodes import FormattedValueNode
 from Cython.Compiler.ExprNodes import GeneratorExpressionNode
 from Cython.Compiler.ExprNodes import ImportNode
-from Cython.Compiler.ExprNodes import IndexNode, ExprNode
+from Cython.Compiler.ExprNodes import IndexNode
 from Cython.Compiler.ExprNodes import IntNode
+from Cython.Compiler.ExprNodes import IteratorNode
 from Cython.Compiler.ExprNodes import JoinedStrNode
 from Cython.Compiler.ExprNodes import LambdaNode
 from Cython.Compiler.ExprNodes import ListNode
@@ -298,13 +301,17 @@ def visit_funcdef(
                 )
             )
 
+
 # Helper functions to work around upstream issues.
+
 
 def _name_from_name_node(node: NameNode) -> str:
     return node.name  # type: ignore[attr-defined]
 
+
 def _value_from_unicode_node(node: UnicodeNode) -> str:
     return node.value  # type: ignore[attr-defined]
+
 
 def _args_from_simple_call_node(node: SimpleCallNode) -> list[ExprNode]:
     return node.args  # type: ignore[attr-defined]
@@ -659,7 +666,8 @@ def _traverse_file(  # noqa: PLR0915,PLR0913
             and (
                 node.args
                 and isinstance(node.args[0], UnicodeNode)
-                and len(set(_value_from_unicode_node(node.args[0]))) != len(_value_from_unicode_node(node.args[0]))
+                and len(set(_value_from_unicode_node(node.args[0])))
+                != len(_value_from_unicode_node(node.args[0]))
             )
         ):
             violations.append(
@@ -731,7 +739,7 @@ def _traverse_file(  # noqa: PLR0915,PLR0913
                 if isinstance(_child.node, SingleAssignmentNode) and isinstance(
                     _child.node.rhs, IndexNode
                 ):
-                    index_node = _child.node.rhs
+                    index_node: IndexNode = _child.node.rhs
                 elif isinstance(_child.node, PrimaryCmpNode) and (
                     isinstance(_child.node.operand1, IndexNode)
                 ):
@@ -757,7 +765,11 @@ def _traverse_file(  # noqa: PLR0915,PLR0913
                     and isinstance(index_node.index, NameNode)
                     and (
                         _name_from_name_node(index_node.base)
-                        == _name_from_name_node(_args_from_simple_call_node(node.iterator.sequence)[0])
+                        == _name_from_name_node(
+                            _args_from_simple_call_node(
+                                cast("IteratorNode", node.iterator).sequence
+                            )[0]
+                        )  # type: ignore[arg-type]
                     )
                     and (
                         _name_from_name_node(index_node.index)
@@ -956,7 +968,7 @@ def traverse(tree: ModuleNode) -> Iterator[NodeParent]:
         if not hasattr(node, "child_attrs"):
             continue
 
-        node_child_attrs = cast(list[str], node.child_attrs)
+        node_child_attrs = cast("list[str]", node.child_attrs)
         child_attrs = set(copy.deepcopy(node_child_attrs))
         for attr in MISSING_CHILD_ATTRS:
             if hasattr(node, attr):
