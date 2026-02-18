@@ -368,22 +368,22 @@ def _func_from_base(node: Node) -> Node:
 
 
 def _args_from_cargdecl(node: CArgDeclNode) -> Iterator[Token]:
-    if isinstance(node.declarator, CFuncDeclaratorNode):
+    _declarator: CArgDeclNode = node.declarator  # type: ignore[assignment]
+    if isinstance(_declarator, CFuncDeclaratorNode):
         # e.g. cdef foo(object (*operation)(int64_t value))
-        for _arg in node.declarator.args:
+        for _arg in _declarator.args:
             yield from _args_from_cargdecl(_arg)
-        _base = _name_from_base(node.declarator.base)
+        _base = _name_from_base(_declarator.base)
         yield Token(_name_from_name_node(_base), *_base.pos[1:])
-    elif hasattr(node.declarator, "base"):
+    elif hasattr(_declarator, "base"):
         # e.g. cdef foo(vector[FrontierRecord]& frontier)
         # e.g. cdef foo(double x[])
-        _base = _name_from_base(node.declarator)
+        _base = _name_from_base(_declarator)
         yield Token(
             _name_from_name_node(_base),
             *_base.pos[1:],
         )
     # e.g. foo(int a), foo(int* a)
-    _declarator: CArgDeclNode = node.declarator  # type: ignore[assignment]
     _decl = _name_from_base(_declarator)
     yield Token(_name_from_name_node(_decl), *_decl.pos[1:])
 
