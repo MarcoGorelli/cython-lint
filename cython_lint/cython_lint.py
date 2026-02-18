@@ -307,6 +307,14 @@ def _name_from_name_node(node: NameNode) -> str:
     return node.name  # type: ignore[attr-defined]
 
 
+def _cond_from_assert_stat_node(node: AssertStatNode) -> ExprNode:
+    return node.cond  # type: ignore[attr-defined]
+
+
+def _default_from_cargdecl_node(node: CArgDeclNode) -> ExprNode | None:
+    return node.default  # type: ignore[attr-defined]
+
+
 def _loop_from_loop_node(
     node: GeneratorExpressionNode | ComprehensionNode,
 ) -> ForInStatNode:
@@ -518,7 +526,8 @@ def _traverse_file(  # noqa: PLR0915,PLR0913
             )
 
         if isinstance(node, FromCImportStatNode):
-            for _imported_name in node.imported_names:
+            _imported_names: list[tuple[tuple[int, int], str, str]] = node.imported_names  # type: ignore[assignment]
+            for _imported_name in _imported_names:
                 if _imported_name[1] == _imported_name[2]:
                     violations.append(
                         (
@@ -557,7 +566,7 @@ def _traverse_file(  # noqa: PLR0915,PLR0913
                 test = isinstance(node.condition, TupleNode)
             else:  # pragma: no cover
                 # Cython renamed this in version 3
-                test = isinstance(node.cond, TupleNode)
+                test = isinstance(_cond_from_assert_stat_node(node), TupleNode)
 
             if test:
                 if isinstance(node, IfClauseNode):
@@ -589,7 +598,7 @@ def _traverse_file(  # noqa: PLR0915,PLR0913
         if (
             isinstance(node, CArgDeclNode)
             and not skip_check
-            and isinstance(node.default, (ListNode, DictNode))
+            and isinstance(_default_from_cargdecl_node(node), (ListNode, DictNode))
         ):
             violations.append(
                 (
