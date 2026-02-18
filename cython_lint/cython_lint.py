@@ -755,7 +755,7 @@ def _traverse_file(  # noqa: PLR0915,PLR0913
                     and len(_args_from_simple_call_node(_child.node)) == 1
                     and isinstance(_args_from_simple_call_node(_child.node)[0], IndexNode)
                 ):
-                    index_node = _args_from_simple_call_node(_child.node)[0]
+                    index_node = _args_from_simple_call_node(_child.node)[0]  # type: ignore[assignment]
                 else:  # pragma: no cover
                     # This branch is definitely hit - bug in coverage?
                     continue
