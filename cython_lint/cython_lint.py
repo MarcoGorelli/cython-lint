@@ -48,7 +48,6 @@ from Cython.Compiler.ExprNodes import GeneratorExpressionNode
 from Cython.Compiler.ExprNodes import ImportNode
 from Cython.Compiler.ExprNodes import IndexNode
 from Cython.Compiler.ExprNodes import IntNode
-from Cython.Compiler.ExprNodes import IteratorNode
 from Cython.Compiler.ExprNodes import JoinedStrNode
 from Cython.Compiler.ExprNodes import LambdaNode
 from Cython.Compiler.ExprNodes import ListNode
@@ -766,10 +765,10 @@ def _traverse_file(  # noqa: PLR0915,PLR0913
                     and (
                         _name_from_name_node(index_node.base)
                         == _name_from_name_node(
-                            _args_from_simple_call_node(
-                                cast("IteratorNode", node.iterator).sequence
+                            _args_from_simple_call_node(  # type: ignore[arg-type]
+                                cast("SimpleCallNode", node.iterator.sequence)
                             )[0]
-                        )  # type: ignore[arg-type]
+                        )
                     )
                     and (
                         _name_from_name_node(index_node.index)
