@@ -469,8 +469,10 @@ def _traverse_file(  # noqa: PLR0915,PLR0913
     global_names: list[str] = []
     exported_imports: list[str] = []
 
-    if isinstance(tree.body, StatListNode):
-        for node in tree.body.stats:
+    _body: ExprNode = tree.body  # type: ignore[assignment]
+    if isinstance(_body, StatListNode):
+        _stats: list[StatNode] = tree.body.stats  # type: ignore[assignment]
+        for node in _stats:
             if isinstance(node, StatListNode):
                 for _node in node.stats:
                     global_imports.extend(_record_imports(_node))
