@@ -728,12 +728,13 @@ def _traverse_file(  # noqa: PLR0915,PLR0913
             and isinstance(node.target.args[1], NameNode)
         ):
             iterator: IteratorNode = node.iterator  # type: ignore[assignment]
+            sequence: ExprNode = iterator.sequence  # type: ignore[assignment]
             if (
-                isinstance(iterator.sequence, SimpleCallNode)
-                and isinstance(iterator.sequence.function, NameNode)
-                and iterator.sequence.function.name == "enumerate"
-                and len(iterator.sequence.args) == 1
-                and isinstance(iterator.sequence.args[0], NameNode)
+                isinstance(sequence, SimpleCallNode)
+                and isinstance(sequence.function, NameNode)
+                and sequence.function.name == "enumerate"
+                and len(sequence.args) == 1
+                and isinstance(sequence.args[0], NameNode)
             ):
                 body: StatNode = node.body  # type: ignore[assignment]
                 for _child in traverse(body):
