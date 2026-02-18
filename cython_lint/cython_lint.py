@@ -10,7 +10,6 @@ import re
 import subprocess
 import sys
 import warnings
-from typing import TYPE_CHECKING
 from typing import Any
 from typing import Hashable
 from typing import Iterator
@@ -48,6 +47,7 @@ from Cython.Compiler.ExprNodes import GeneratorExpressionNode
 from Cython.Compiler.ExprNodes import ImportNode
 from Cython.Compiler.ExprNodes import IndexNode
 from Cython.Compiler.ExprNodes import IntNode
+from Cython.Compiler.ExprNodes import IteratorNode
 from Cython.Compiler.ExprNodes import JoinedStrNode
 from Cython.Compiler.ExprNodes import LambdaNode
 from Cython.Compiler.ExprNodes import ListNode
@@ -75,14 +75,12 @@ from Cython.Compiler.Nodes import IfClauseNode
 from Cython.Compiler.Nodes import Node
 from Cython.Compiler.Nodes import SingleAssignmentNode
 from Cython.Compiler.Nodes import StatListNode
+from Cython.Compiler.Nodes import StatNode
 from Cython.Compiler.TreeFragment import parse_from_strings
 from tokenize_rt import src_to_tokens
 from tokenize_rt import tokens_to_src
 
 from cython_lint import __version__
-
-if TYPE_CHECKING:
-    from Cython.Compiler.ModuleNode import ModuleNode
 
 CYTHON_VERSION = tuple(Cython.__version__.split("."))
 
@@ -728,63 +726,69 @@ def _traverse_file(  # noqa: PLR0915,PLR0913
             and len(node.target.args) == 2
             and isinstance(node.target.args[0], NameNode)
             and isinstance(node.target.args[1], NameNode)
-            and isinstance(node.iterator.sequence, SimpleCallNode)
-            and isinstance(node.iterator.sequence.function, NameNode)
-            and node.iterator.sequence.function.name == "enumerate"
-            and len(node.iterator.sequence.args) == 1
-            and isinstance(node.iterator.sequence.args[0], NameNode)
         ):
-            for _child in traverse(node.body):
-                if isinstance(_child.node, SingleAssignmentNode) and isinstance(
-                    _child.node.rhs, IndexNode
-                ):
-                    index_node: IndexNode = _child.node.rhs
-                elif isinstance(_child.node, PrimaryCmpNode) and (
-                    isinstance(_child.node.operand1, IndexNode)
-                ):
-                    index_node = _child.node.operand1
-                elif isinstance(_child.node, PrimaryCmpNode) and (
-                    isinstance(_child.node.operand2, IndexNode)
-                ):
-                    index_node = _child.node.operand2
-                elif (
-                    isinstance(_child.node, SimpleCallNode)
-                    and isinstance(_child.node.function, AttributeNode)
-                    and isinstance(_child.node.function.obj, NameNode)
-                    and _child.node.function.attribute == "append"
-                    and len(_args_from_simple_call_node(_child.node)) == 1
-                    and isinstance(_args_from_simple_call_node(_child.node)[0], IndexNode)
-                ):
-                    index_node = _args_from_simple_call_node(_child.node)[0]  # type: ignore[assignment]
-                else:  # pragma: no cover
-                    # This branch is definitely hit - bug in coverage?
-                    continue
-                if (
-                    isinstance(index_node.base, NameNode)
-                    and isinstance(index_node.index, NameNode)
-                    and (
-                        _name_from_name_node(index_node.base)
-                        == _name_from_name_node(
-                            _args_from_simple_call_node(
-                                node.iterator.sequence  # type: ignore[attr-defined]
-                            )[0]
+            iterator: IteratorNode = node.iterator  # type: ignore[assignment]
+            if (
+                isinstance(iterator.sequence, SimpleCallNode)
+                and isinstance(iterator.sequence.function, NameNode)
+                and iterator.sequence.function.name == "enumerate"
+                and len(iterator.sequence.args) == 1
+                and isinstance(iterator.sequence.args[0], NameNode)
+            ):
+                body: StatNode = node.body  # type: ignore[assignment]
+                for _child in traverse(body):
+                    if isinstance(_child.node, SingleAssignmentNode) and isinstance(
+                        _child.node.rhs, IndexNode
+                    ):
+                        index_node: IndexNode = _child.node.rhs
+                    elif isinstance(_child.node, PrimaryCmpNode) and (
+                        isinstance(_child.node.operand1, IndexNode)
+                    ):
+                        index_node = _child.node.operand1
+                    elif isinstance(_child.node, PrimaryCmpNode) and (
+                        isinstance(_child.node.operand2, IndexNode)
+                    ):
+                        index_node = _child.node.operand2
+                    elif (
+                        isinstance(_child.node, SimpleCallNode)
+                        and isinstance(_child.node.function, AttributeNode)
+                        and isinstance(_child.node.function.obj, NameNode)
+                        and _child.node.function.attribute == "append"
+                        and len(_args_from_simple_call_node(_child.node)) == 1
+                        and isinstance(
+                            _args_from_simple_call_node(_child.node)[0], IndexNode
                         )
-                    )
-                    and (
-                        _name_from_name_node(index_node.index)
-                        == _name_from_name_node(node.target.args[0])
-                    )
-                ):
-                    violations.append(
-                        (
-                            index_node.base.pos[1],
-                            index_node.base.pos[2] + 1,
-                            "unnecessary list index lookup: use "
-                            f"`{_name_from_name_node(node.target.args[1])}` instead of "
-                            f"`{_name_from_name_node(index_node.base)}"
-                            f"[{_name_from_name_node(index_node.index)}]`",
-                        ),
-                    )
+                    ):
+                        index_node = _args_from_simple_call_node(_child.node)[0]  # type: ignore[assignment]
+                    else:  # pragma: no cover
+                        # This branch is definitely hit - bug in coverage?
+                        continue
+                    if (
+                        isinstance(index_node.base, NameNode)
+                        and isinstance(index_node.index, NameNode)
+                        and (
+                            _name_from_name_node(index_node.base)
+                            == _name_from_name_node(
+                                _args_from_simple_call_node(
+                                    node.iterator.sequence  # type: ignore[attr-defined]
+                                )[0]
+                            )
+                        )
+                        and (
+                            _name_from_name_node(index_node.index)
+                            == _name_from_name_node(node.target.args[0])
+                        )
+                    ):
+                        violations.append(
+                            (
+                                index_node.base.pos[1],
+                                index_node.base.pos[2] + 1,
+                                "unnecessary list index lookup: use "
+                                f"`{_name_from_name_node(node.target.args[1])}` instead of "
+                                f"`{_name_from_name_node(index_node.base)}"
+                                f"[{_name_from_name_node(index_node.index)}]`",
+                            ),
+                        )
 
         if (
             isinstance(node, SingleAssignmentNode)
@@ -956,7 +960,7 @@ def _main(  # noqa: PLR0913
     return ret
 
 
-def traverse(tree: ModuleNode) -> Iterator[NodeParent]:
+def traverse(tree: Node) -> Iterator[NodeParent]:
     nodes = [NodeParent(tree, None)]
 
     while nodes:
