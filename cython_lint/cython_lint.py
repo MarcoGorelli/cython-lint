@@ -303,7 +303,7 @@ def visit_funcdef(
 # Helper functions to work around upstream issues.
 
 
-def _name_from_name_node(node: NameNode) -> str:
+def _name_from_name_node(node: NameNode | CSimpleBaseTypeNode) -> str:
     return node.name  # type: ignore[attr-defined]
 
 
@@ -516,14 +516,17 @@ def _traverse_file(  # noqa: PLR0915,PLR0913
         if isinstance(node, DictNode):
             visit_dict_node(node, violations)
 
-        if isinstance(node, CImportStatNode) and node.module_name == node.as_name:
-            violations.append(
-                (
-                    node.pos[1],
-                    node.pos[2] + 1,
-                    "Found useless import alias",
-                ),
-            )
+        if isinstance(node, CImportStatNode):
+            _module_name: str = node.module_name  # type: ignore[assignment]
+            _as_name: str = node.as_name  # type: ignore[assignment]
+            if _module_name == _as_name:
+                violations.append(
+                    (
+                        node.pos[1],
+                        node.pos[2] + 1,
+                        "Found useless import alias",
+                    ),
+                )
 
         if isinstance(node, FromCImportStatNode):
             _imported_names: list[tuple[tuple[int, int], str, str]] = node.imported_names  # type: ignore[assignment]
