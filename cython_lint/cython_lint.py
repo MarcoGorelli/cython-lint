@@ -60,6 +60,7 @@ from Cython.Compiler.ExprNodes import TupleNode
 from Cython.Compiler.ExprNodes import UnicodeNode
 from Cython.Compiler.Nodes import AssertStatNode
 from Cython.Compiler.Nodes import CArgDeclNode
+from Cython.Compiler.Nodes import CDeclaratorNode
 from Cython.Compiler.Nodes import CFuncDeclaratorNode
 from Cython.Compiler.Nodes import CFuncDefNode
 from Cython.Compiler.Nodes import CImportStatNode
@@ -264,7 +265,8 @@ def visit_funcdef(
             args.extend(_args_from_cargdecl(_child))
 
     if isinstance(node, CFuncDefNode):
-        func = _func_from_base(node.declarator)
+        _declarator: CDeclaratorNode = node.declarator  # type: ignore[assignment]
+        func = _func_from_base(_declarator)
         func_name = _name_from_name_node(_name_from_base(func.base))
     else:
         func_name = _name_from_name_node(node)
@@ -303,7 +305,7 @@ def visit_funcdef(
 # Helper functions to work around upstream issues.
 
 
-def _name_from_name_node(node: NameNode | CSimpleBaseTypeNode) -> str:
+def _name_from_name_node(node: NameNode | CSimpleBaseTypeNode | DefNode) -> str:
     return node.name  # type: ignore[attr-defined]
 
 
@@ -352,16 +354,16 @@ def _args_from_simple_call_node(node: SimpleCallNode) -> list[ExprNode]:
 def _name_from_base(node: Node) -> NameNode:
     while not hasattr(node, "name"):
         if hasattr(node, "base"):
-            node = node.base
+            node = node.base  # type: ignore[attr-defined]
         else:
             err_msg(node, "CNameDeclaratorNode")  # pragma: no cover
-    return node
+    return node  # type: ignore[return-type]
 
 
 def _func_from_base(node: Node) -> Node:
     while not isinstance(node, (CFuncDeclaratorNode, CFuncDefNode)):
         if hasattr(node, "base"):
-            node = node.base
+            node = node.base  # type: ignore[attr-defined]
         else:
             err_msg(node, "CFuncDeclaratorNode")  # pragma: no cover
     return node
