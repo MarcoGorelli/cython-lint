@@ -10,7 +10,6 @@ import re
 import subprocess
 import sys
 import warnings
-from typing import TYPE_CHECKING
 from typing import Any
 from typing import Hashable
 from typing import Iterator
@@ -19,6 +18,7 @@ from typing import MutableMapping
 from typing import NamedTuple
 from typing import NoReturn
 from typing import Sequence
+from typing import cast
 
 from Cython.Compiler.Errors import init_thread
 
@@ -40,23 +40,27 @@ from Cython.Compiler.ExprNodes import ComprehensionAppendNode
 from Cython.Compiler.ExprNodes import ComprehensionNode
 from Cython.Compiler.ExprNodes import DictComprehensionAppendNode
 from Cython.Compiler.ExprNodes import DictNode
+from Cython.Compiler.ExprNodes import ExprNode
 from Cython.Compiler.ExprNodes import FloatNode
 from Cython.Compiler.ExprNodes import FormattedValueNode
 from Cython.Compiler.ExprNodes import GeneratorExpressionNode
 from Cython.Compiler.ExprNodes import ImportNode
 from Cython.Compiler.ExprNodes import IndexNode
 from Cython.Compiler.ExprNodes import IntNode
+from Cython.Compiler.ExprNodes import IteratorNode
 from Cython.Compiler.ExprNodes import JoinedStrNode
 from Cython.Compiler.ExprNodes import LambdaNode
 from Cython.Compiler.ExprNodes import ListNode
 from Cython.Compiler.ExprNodes import NameNode
 from Cython.Compiler.ExprNodes import PrimaryCmpNode
+from Cython.Compiler.ExprNodes import SequenceNode
 from Cython.Compiler.ExprNodes import SetNode
 from Cython.Compiler.ExprNodes import SimpleCallNode
 from Cython.Compiler.ExprNodes import TupleNode
 from Cython.Compiler.ExprNodes import UnicodeNode
 from Cython.Compiler.Nodes import AssertStatNode
 from Cython.Compiler.Nodes import CArgDeclNode
+from Cython.Compiler.Nodes import CDeclaratorNode
 from Cython.Compiler.Nodes import CFuncDeclaratorNode
 from Cython.Compiler.Nodes import CFuncDefNode
 from Cython.Compiler.Nodes import CImportStatNode
@@ -73,16 +77,14 @@ from Cython.Compiler.Nodes import IfClauseNode
 from Cython.Compiler.Nodes import Node
 from Cython.Compiler.Nodes import SingleAssignmentNode
 from Cython.Compiler.Nodes import StatListNode
+from Cython.Compiler.Nodes import StatNode
 from Cython.Compiler.TreeFragment import parse_from_strings
 from tokenize_rt import src_to_tokens
 from tokenize_rt import tokens_to_src
 
 from cython_lint import __version__
 
-if TYPE_CHECKING:
-    from Cython.Compiler.ModuleNode import ModuleNode
-
-CYTHON_VERSION = tuple(Cython.__version__.split("."))
+CYTHON_VERSION = tuple(Cython.__version__.split("."))  # type: ignore[attr-defined]
 
 EXCLUDES = (
     r"/("
@@ -93,7 +95,7 @@ EXCLUDES = (
 )
 
 if CYTHON_VERSION > ("3",):  # pragma: no cover
-    from Cython.Compiler.ExprNodes import AnnotationNode
+    from Cython.Compiler.ExprNodes import AnnotationNode  # type: ignore[assignment]
 else:  # pragma: no cover
 
     class AnnotationNode:  # type: ignore[no-redef]
@@ -227,7 +229,7 @@ def visit_funcdef(
     ]
     # e.g. a = 3
     simple_assignments = [
-        Token(_child.lhs.name, *_child.lhs.pos[1:])
+        Token(_name_from_name_node(_child.lhs), *_child.lhs.pos[1:])
         for _child in children
         if isinstance(_child, SingleAssignmentNode)
         and isinstance(_child.lhs, NameNode)
@@ -244,7 +246,7 @@ def visit_funcdef(
         ):
             tuple_assignments.extend(
                 [
-                    Token(_arg.name, *_arg.pos[1:])
+                    Token(_name_from_name_node(_arg), *_arg.pos[1:])
                     for _arg in _child.lhs.args
                     if isinstance(_arg, NameNode)
                 ]
@@ -252,7 +254,7 @@ def visit_funcdef(
     defs = [*defs, *simple_assignments, *tuple_assignments]
 
     names = [
-        Token(_child.name, *_child.pos[1:])
+        Token(_name_from_name_node(_child), *_child.pos[1:])
         for _child in children
         if isinstance(_child, NameNode)
     ]
@@ -263,10 +265,11 @@ def visit_funcdef(
             args.extend(_args_from_cargdecl(_child))
 
     if isinstance(node, CFuncDefNode):
-        func = _func_from_base(node.declarator)
-        func_name = _name_from_base(func.base).name
+        _declarator: CDeclaratorNode = node.declarator  # type: ignore[assignment]
+        func = _func_from_base(_declarator)
+        func_name = _name_from_name_node(_name_from_base(func.base))  # type: ignore[attr-defined]
     else:
-        func_name = node.name
+        func_name = _name_from_name_node(node)
 
     for _def in defs:
         # we don't report on unused function args
@@ -299,58 +302,118 @@ def visit_funcdef(
             )
 
 
-def _name_from_base(node: Node) -> Node:
+# Helper functions to work around upstream issues.
+
+
+def _name_from_name_node(node: NameNode | CSimpleBaseTypeNode | DefNode) -> str:
+    return node.name  # type: ignore[attr-defined]
+
+
+def _cond_from_assert_stat_node(node: AssertStatNode) -> ExprNode:
+    return node.cond  # type: ignore[attr-defined]
+
+
+def _default_from_cargdecl_node(node: CArgDeclNode) -> ExprNode | None:
+    return node.default  # type: ignore[attr-defined]
+
+
+def _loop_from_loop_node(
+    node: GeneratorExpressionNode | ComprehensionNode,
+) -> ForInStatNode:
+    return node.loop  # type: ignore[attr-defined]
+
+
+def _target_from_for_in_stat_node(node: ForInStatNode) -> SequenceNode:
+    return node.target  # type: ignore[attr-defined]
+
+
+def _args_from_sequence_node(node: SequenceNode) -> list[ExprNode]:
+    return node.args  # type: ignore[attr-defined]
+
+
+def _rhs_from_single_assignment_node(node: SingleAssignmentNode) -> ExprNode:
+    return node.rhs  # type: ignore[attr-defined]
+
+
+def _operand1_from_primary_cmp_node(node: PrimaryCmpNode) -> ExprNode:
+    return node.operand1  # type: ignore[attr-defined]
+
+
+def _operand2_from_primary_cmp_node(node: PrimaryCmpNode) -> ExprNode:
+    return node.operand2  # type: ignore[attr-defined]
+
+
+def _value_from_unicode_node(node: UnicodeNode) -> str:
+    return node.value  # type: ignore[attr-defined]
+
+
+def _args_from_simple_call_node(node: SimpleCallNode) -> list[ExprNode]:
+    return node.args  # type: ignore[attr-defined]
+
+
+def _name_from_base(node: Node) -> NameNode:
     while not hasattr(node, "name"):
         if hasattr(node, "base"):
-            node = node.base
+            node = node.base  # type: ignore[attr-defined]
         else:
             err_msg(node, "CNameDeclaratorNode")  # pragma: no cover
-    return node
+    return node  # type: ignore[return-type]
 
 
-def _func_from_base(node: Node) -> Node:
+def _func_from_base(node: Node) -> CFuncDeclaratorNode | CFuncDefNode:
     while not isinstance(node, (CFuncDeclaratorNode, CFuncDefNode)):
         if hasattr(node, "base"):
-            node = node.base
+            node = node.base  # type: ignore[attr-defined]
         else:
             err_msg(node, "CFuncDeclaratorNode")  # pragma: no cover
     return node
 
 
 def _args_from_cargdecl(node: CArgDeclNode) -> Iterator[Token]:
-    if isinstance(node.declarator, CFuncDeclaratorNode):
+    _declarator: CArgDeclNode = node.declarator  # type: ignore[assignment]
+    if isinstance(_declarator, CFuncDeclaratorNode):
         # e.g. cdef foo(object (*operation)(int64_t value))
-        for _arg in node.declarator.args:
+        _args: list[CArgDeclNode] = _declarator.args  # type: ignore[assignment]
+        for _arg in _args:
             yield from _args_from_cargdecl(_arg)
-        _base = _name_from_base(node.declarator.base)
-        yield Token(_base.name, *_base.pos[1:])
-    elif hasattr(node.declarator, "base"):
+        _base = _name_from_base(_declarator.base)
+        yield Token(_name_from_name_node(_base), *_base.pos[1:])
+    elif hasattr(_declarator, "base"):
         # e.g. cdef foo(vector[FrontierRecord]& frontier)
         # e.g. cdef foo(double x[])
-        _base = _name_from_base(node.declarator)
+        _base = _name_from_base(_declarator)
         yield Token(
-            _base.name,
+            _name_from_name_node(_base),
             *_base.pos[1:],
         )
     # e.g. foo(int a), foo(int* a)
-    _decl = _name_from_base(node.declarator)
-    yield Token(_decl.name, *_decl.pos[1:])
+    _decl = _name_from_base(_declarator)
+    yield Token(_name_from_name_node(_decl), *_decl.pos[1:])
 
 
 def _record_imports(node: Node) -> Iterator[Token]:
     if isinstance(node, FromCImportStatNode):
-        yield from (Token(imp[2] or imp[1], *imp[0][1:]) for imp in node.imported_names)
+        _imported_names: list[tuple[tuple[int, int, int], str, str]] = node.imported_names  # type: ignore[assignment]
+        yield from (
+            Token(imp[2] or imp[1], imp[0][1], imp[0][2]) for imp in _imported_names
+        )
     elif isinstance(node, CImportStatNode):
-        yield (Token(node.as_name or node.module_name, *node.pos[1:]))
+        _as_name: str = node.as_name  # type: ignore[assignment]
+        _module_name: str = node.module_name  # type: ignore[assignment]
+        yield (Token(_as_name or _module_name, *node.pos[1:]))
     elif isinstance(node, SingleAssignmentNode) and isinstance(
         node.rhs,
         ImportNode,
     ):
+        _lhs: NameNode = node.lhs  # type: ignore[assignment]
         # e.g. import numpy as np
-        yield (Token(node.lhs.name, *node.lhs.pos[1:]))
+        yield (Token(_name_from_name_node(_lhs), *_lhs.pos[1:]))
     elif isinstance(node, FromImportStatNode):
         # from numpy import array
-        yield from (Token(imp[1].name, *imp[1].pos[1:]) for imp in node.items)
+        _items: list[tuple[str, NameNode]] = node.items  # type: ignore[assignment]
+        yield from (
+            Token(_name_from_name_node(imp[1]), *imp[1].pos[1:]) for imp in _items
+        )
 
 
 def visit_dict_node(
@@ -419,8 +482,10 @@ def _traverse_file(  # noqa: PLR0915,PLR0913
     global_names: list[str] = []
     exported_imports: list[str] = []
 
-    if isinstance(tree.body, StatListNode):
-        for node in tree.body.stats:
+    _body: ExprNode = tree.body  # type: ignore[assignment]
+    if isinstance(_body, StatListNode):
+        _stats: list[StatNode] = tree.body.stats  # type: ignore[assignment]
+        for node in _stats:
             if isinstance(node, StatListNode):
                 for _node in node.stats:
                     global_imports.extend(_record_imports(_node))
@@ -431,13 +496,14 @@ def _traverse_file(  # noqa: PLR0915,PLR0913
         node = node_parent.node
         imported_names.extend(_record_imports(node))
         if isinstance(node, GlobalNode):
-            global_names.extend(node.names)
+            _names: list[str] = node.names  # type: ignore[assignment]
+            global_names.extend(_names)
 
     for node_parent in nodes:
         node = node_parent.node
         if isinstance(node, (NameNode, CSimpleBaseTypeNode)):
             # do we need node.module_path?
-            names.append(Token(node.name, *node.pos[1:]))
+            names.append(Token(_name_from_name_node(node), *node.pos[1:]))
             # need this for:
             # ctypedef fused foo:
             #     bar.quox
@@ -466,17 +532,21 @@ def _traverse_file(  # noqa: PLR0915,PLR0913
         if isinstance(node, DictNode):
             visit_dict_node(node, violations)
 
-        if isinstance(node, CImportStatNode) and node.module_name == node.as_name:
-            violations.append(
-                (
-                    node.pos[1],
-                    node.pos[2] + 1,
-                    "Found useless import alias",
-                ),
-            )
+        if isinstance(node, CImportStatNode):
+            _module_name: str = node.module_name  # type: ignore[assignment]
+            _as_name: str = node.as_name  # type: ignore[assignment]
+            if _module_name == _as_name:
+                violations.append(
+                    (
+                        node.pos[1],
+                        node.pos[2] + 1,
+                        "Found useless import alias",
+                    ),
+                )
 
         if isinstance(node, FromCImportStatNode):
-            for _imported_name in node.imported_names:
+            _imported_names: list[tuple[tuple[int, int], str, str]] = node.imported_names  # type: ignore[assignment]
+            for _imported_name in _imported_names:
                 if _imported_name[1] == _imported_name[2]:
                     violations.append(
                         (
@@ -515,7 +585,7 @@ def _traverse_file(  # noqa: PLR0915,PLR0913
                 test = isinstance(node.condition, TupleNode)
             else:  # pragma: no cover
                 # Cython renamed this in version 3
-                test = isinstance(node.cond, TupleNode)
+                test = isinstance(_cond_from_assert_stat_node(node), TupleNode)
 
             if test:
                 if isinstance(node, IfClauseNode):
@@ -547,7 +617,7 @@ def _traverse_file(  # noqa: PLR0915,PLR0913
         if (
             isinstance(node, CArgDeclNode)
             and not skip_check
-            and isinstance(node.default, (ListNode, DictNode))
+            and isinstance(_default_from_cargdecl_node(node), (ListNode, DictNode))
         ):
             violations.append(
                 (
@@ -571,14 +641,14 @@ def _traverse_file(  # noqa: PLR0915,PLR0913
                 # attribute, so need to exclude it.
                 _children = [j.node for j in traverse(expr)]
                 _names = [
-                    _child.name
+                    _name_from_name_node(_child)
                     for _child in _children
                     if isinstance(
                         _child,
                         NameNode,
                     )
                 ]
-                if node.loop.target.name in _names:
+                if _name_from_name_node(node.loop.target) in _names:
                     violations.append(
                         (
                             node.pos[1],
@@ -596,10 +666,14 @@ def _traverse_file(  # noqa: PLR0915,PLR0913
         ):
             for _stat in node.body.stats:
                 if isinstance(_stat, (DefNode, CFuncDefNode)):
-                    expr = _stat.body
+                    expr: StatListNode = _stat.body  # type: ignore[assignment]
                     _children = [j.node for j in traverse(expr)]
-                    _names = [i.name for i in _children if isinstance(i, NameNode)]
-                    if node.target.name in _names:
+                    _names = [
+                        _name_from_name_node(i)
+                        for i in _children
+                        if isinstance(i, NameNode)
+                    ]
+                    if _name_from_name_node(node.target) in _names:
                         violations.append(
                             (
                                 node.pos[1],
@@ -624,10 +698,11 @@ def _traverse_file(  # noqa: PLR0915,PLR0913
             )
 
         if isinstance(node, SetNode):
+            args: list[ExprNode] = node.args  # type: ignore[assignment]
             counts: MutableMapping[object, int] = collections.Counter()
-            for _arg in node.args:
-                if hasattr(_arg, "value"):
-                    counts[_arg.value] += 1
+            for arg in args:
+                if hasattr(arg, "value"):
+                    counts[arg.value] += 1  # type: ignore[attr-defined]
             if counts and max(counts.values()) > 1:
                 violations.append(
                     (
@@ -644,7 +719,8 @@ def _traverse_file(  # noqa: PLR0915,PLR0913
             and (
                 node.args
                 and isinstance(node.args[0], UnicodeNode)
-                and len(set(node.args[0].value)) != len(node.args[0].value)
+                and len(set(_value_from_unicode_node(node.args[0])))
+                != len(_value_from_unicode_node(node.args[0]))
             )
         ):
             violations.append(
@@ -680,25 +756,38 @@ def _traverse_file(  # noqa: PLR0915,PLR0913
             isinstance(node, SimpleCallNode)
             and isinstance(node.function, NameNode)
             and hasattr(node.function, "name")
-            and node.args
-            and len(node.args) == 1
-            and isinstance(node.args[0], (GeneratorExpressionNode, ComprehensionNode))
-            and (
-                node.function.name in {"list", "set"}
-                or (
-                    node.function.name == "dict"
-                    and isinstance(node.args[0].loop.target, TupleNode)
-                    and len(node.args[0].loop.target.args) == 2
-                )
-            )
         ):
-            violations.append(
-                (
-                    node.pos[1],
-                    node.pos[2] + 1,
-                    f"unnecessary {node.function.name} + generator (just use a {node.function.name} comprehension)",
-                ),
-            )
+            args: list[ExprNode] = node.args  # type: ignore[assignment]
+            if (
+                args
+                and len(args) == 1
+                and isinstance(args[0], (GeneratorExpressionNode, ComprehensionNode))
+                and (
+                    _name_from_name_node(node.function) in {"list", "set"}
+                    or (
+                        _name_from_name_node(node.function) == "dict"
+                        and isinstance(
+                            _target_from_for_in_stat_node(_loop_from_loop_node(args[0])),
+                            TupleNode,
+                        )
+                        and len(
+                            _args_from_sequence_node(
+                                _target_from_for_in_stat_node(
+                                    _loop_from_loop_node(args[0])
+                                )
+                            )
+                        )
+                        == 2
+                    )
+                )
+            ):
+                violations.append(
+                    (
+                        node.pos[1],
+                        node.pos[2] + 1,
+                        f"unnecessary {_name_from_name_node(node.function)} + generator (just use a {_name_from_name_node(node.function)} comprehension)",
+                    ),
+                )
 
         if (
             isinstance(node, ForInStatNode)
@@ -706,62 +795,86 @@ def _traverse_file(  # noqa: PLR0915,PLR0913
             and len(node.target.args) == 2
             and isinstance(node.target.args[0], NameNode)
             and isinstance(node.target.args[1], NameNode)
-            and isinstance(node.iterator.sequence, SimpleCallNode)
-            and isinstance(node.iterator.sequence.function, NameNode)
-            and node.iterator.sequence.function.name == "enumerate"
-            and len(node.iterator.sequence.args) == 1
-            and isinstance(node.iterator.sequence.args[0], NameNode)
         ):
-            for _child in traverse(node.body):
-                if isinstance(_child.node, SingleAssignmentNode) and isinstance(
-                    _child.node.rhs, IndexNode
-                ):
-                    index_node = _child.node.rhs
-                elif isinstance(_child.node, PrimaryCmpNode) and (
-                    isinstance(_child.node.operand1, IndexNode)
-                ):
-                    index_node = _child.node.operand1
-                elif isinstance(_child.node, PrimaryCmpNode) and (
-                    isinstance(_child.node.operand2, IndexNode)
-                ):
-                    index_node = _child.node.operand2
-                elif (
-                    isinstance(_child.node, SimpleCallNode)
-                    and isinstance(_child.node.function, AttributeNode)
-                    and isinstance(_child.node.function.obj, NameNode)
-                    and _child.node.function.attribute == "append"
-                    and len(_child.node.args) == 1
-                    and isinstance(_child.node.args[0], IndexNode)
-                ):
-                    index_node = _child.node.args[0]
-                else:  # pragma: no cover
-                    # This branch is definitely hit - bug in coverage?
-                    continue
+            iterator: IteratorNode = node.iterator  # type: ignore[assignment]
+            sequence: ExprNode = iterator.sequence  # type: ignore[assignment]
+            if isinstance(sequence, SimpleCallNode) and isinstance(
+                sequence.function, NameNode
+            ):
+                function: NameNode = sequence.function  # type: ignore[assignment]
+                args: list[ExprNode] = sequence.args  # type: ignore[assignment]
                 if (
-                    isinstance(index_node.base, NameNode)
-                    and isinstance(index_node.index, NameNode)
-                    and (index_node.base.name == node.iterator.sequence.args[0].name)
-                    and (index_node.index.name == node.target.args[0].name)
+                    _name_from_name_node(function) == "enumerate"
+                    and len(args) == 1
+                    and isinstance(args[0], NameNode)
                 ):
-                    violations.append(
-                        (
-                            index_node.base.pos[1],
-                            index_node.base.pos[2] + 1,
-                            "unnecessary list index lookup: use "
-                            f"`{node.target.args[1].name}` instead of "
-                            f"`{index_node.base.name}"
-                            f"[{index_node.index.name}]`",
-                        ),
-                    )
+                    body: StatNode = node.body  # type: ignore[assignment]
+                    for _child in traverse(body):
+                        if isinstance(_child.node, SingleAssignmentNode) and isinstance(
+                            _rhs_from_single_assignment_node(_child.node), IndexNode
+                        ):
+                            index_node: IndexNode = _child.node.rhs  # type: ignore[assignment]
+                        elif isinstance(_child.node, PrimaryCmpNode) and (
+                            isinstance(
+                                _operand1_from_primary_cmp_node(_child.node), IndexNode
+                            )
+                        ):
+                            index_node = _child.node.operand1  # type: ignore[assignment]
+                        elif isinstance(_child.node, PrimaryCmpNode) and (
+                            isinstance(
+                                _operand2_from_primary_cmp_node(_child.node), IndexNode
+                            )
+                        ):
+                            index_node = _child.node.operand2  # type: ignore[assignment]
+                        elif (
+                            isinstance(_child.node, SimpleCallNode)
+                            and isinstance(_child.node.function, AttributeNode)
+                            and isinstance(_child.node.function.obj, NameNode)
+                            and _child.node.function.attribute == "append"
+                            and len(_args_from_simple_call_node(_child.node)) == 1
+                            and isinstance(
+                                _args_from_simple_call_node(_child.node)[0], IndexNode
+                            )
+                        ):
+                            index_node = _args_from_simple_call_node(_child.node)[0]  # type: ignore[assignment]
+                        else:  # pragma: no cover
+                            # This branch is definitely hit - bug in coverage?
+                            continue
+                        if (
+                            isinstance(index_node.base, NameNode)
+                            and isinstance(index_node.index, NameNode)
+                            and (
+                                _name_from_name_node(index_node.base)
+                                == _name_from_name_node(
+                                    _args_from_simple_call_node(  # pyrefly: ignore[bad-argument-type]
+                                        node.iterator.sequence  # type: ignore[attr-defined]
+                                    )[0]
+                                )
+                            )
+                            and (
+                                _name_from_name_node(index_node.index)
+                                == _name_from_name_node(node.target.args[0])
+                            )
+                        ):
+                            violations.append(
+                                (
+                                    index_node.base.pos[1],
+                                    index_node.base.pos[2] + 1,
+                                    "unnecessary list index lookup: use "
+                                    f"`{_name_from_name_node(node.target.args[1])}` instead of "
+                                    f"`{_name_from_name_node(index_node.base)}"
+                                    f"[{_name_from_name_node(index_node.index)}]`",
+                                ),
+                            )
 
         if (
             isinstance(node, SingleAssignmentNode)
             and isinstance(node.lhs, NameNode)
-            and node.lhs.name == "__all__"
+            and _name_from_name_node(node.lhs) == "__all__"
             and isinstance(node.rhs, ListNode)
         ):
             exported_imports.extend(
-                _import.value
+                _value_from_unicode_node(_import)
                 for _import in node.rhs.args
                 if isinstance(_import, UnicodeNode)
             )
@@ -924,7 +1037,7 @@ def _main(  # noqa: PLR0913
     return ret
 
 
-def traverse(tree: ModuleNode) -> Iterator[NodeParent]:
+def traverse(tree: Node) -> Iterator[NodeParent]:
     nodes = [NodeParent(tree, None)]
 
     while nodes:
@@ -935,7 +1048,8 @@ def traverse(tree: ModuleNode) -> Iterator[NodeParent]:
         if not hasattr(node, "child_attrs"):
             continue
 
-        child_attrs = set(copy.deepcopy(node.child_attrs))
+        node_child_attrs = cast("list[str]", node.child_attrs)
+        child_attrs = set(copy.deepcopy(node_child_attrs))
         for attr in MISSING_CHILD_ATTRS:
             if hasattr(node, attr):
                 child_attrs.add(attr)
