@@ -869,7 +869,7 @@ def run_pycodestyle(
     violations: list[tuple[int, int, str]],
     ignore: set[str],
 ) -> None:
-    class _Report(pycodestyle.BaseReport):
+    class _Report(pycodestyle.BaseReport):  # type: ignore[misc]
         def error(
             self,
             line_number: int,
@@ -877,7 +877,7 @@ def run_pycodestyle(
             text: str,
             check: Any,
         ) -> str | None:
-            code = super().error(line_number, offset, text, check)
+            code: str | None = super().error(line_number, offset, text, check)
             if code:
                 violations.append((line_number, offset + 1, text))
             return code
