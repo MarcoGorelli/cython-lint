@@ -34,6 +34,7 @@ with warnings.catch_warnings():
     from Cython import Tempita
     from Cython.Compiler.TreeFragment import StringParseContext
 import Cython
+import pycodestyle
 from Cython.Compiler.ExprNodes import AttributeNode
 from Cython.Compiler.ExprNodes import ComprehensionAppendNode
 from Cython.Compiler.ExprNodes import ComprehensionNode
@@ -73,7 +74,6 @@ from Cython.Compiler.Nodes import Node
 from Cython.Compiler.Nodes import SingleAssignmentNode
 from Cython.Compiler.Nodes import StatListNode
 from Cython.Compiler.TreeFragment import parse_from_strings
-import pycodestyle
 from tokenize_rt import src_to_tokens
 from tokenize_rt import tokens_to_src
 
