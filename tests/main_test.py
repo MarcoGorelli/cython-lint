@@ -485,6 +485,13 @@ def test_late_binding_closure(
             1,
         ),
         (
+            # empty string from --ignore="" must not suppress everything
+            {""},
+            "{0}:1:11: E701 multiple statements on one line (colon)\n"
+            "{0}:2:6: W291 trailing whitespace\n",
+            1,
+        ),
+        (
             {"W291"},
             "{0}:1:11: E701 multiple statements on one line (colon)\n",
             1,
@@ -503,14 +510,44 @@ def test_pycodestyle(
     with open(file, "w", encoding="utf-8") as fd:
         fd.write("while True: pass\n")  # E701
         fd.write("x = 1 \n")  # W291
-    with open(os.path.join(tmpdir, "tox.ini"), "w") as fd:
-        fd.write("[pycodestyle]\nstatistics=True\n")
     src = ""
     ret = _main(src, file, ext=".pxd", ignore=ignore)
     out, _ = capsys.readouterr()
 
     assert out == expected.format(file)
     assert ret == exp_ret
+
+
+@pytest.mark.parametrize(
+    "tox_ini",
+    [
+        "[pycodestyle]\nexclude = t.py\n",
+        "[pycodestyle]\nignore = E701\n",
+    ],
+)
+def test_pycodestyle_with_tox(tmpdir: Any, capsys: Any, tox_ini: str) -> None:
+    file = os.path.join(tmpdir, "t.py")
+    with open(file, "w", encoding="utf-8") as fd:
+        fd.write("while True: pass\n")  # would trigger E701
+    with open(os.path.join(tmpdir, "tox.ini"), "w") as fd:
+        fd.write(tox_ini)
+    ret = _main("", file, ext=".pxd")
+    out, _ = capsys.readouterr()
+    assert "E701" not in out
+    assert ret == 0
+
+
+def test_pycodestyle_with_tox_merge(tmpdir: Any, capsys: Any) -> None:
+    file = os.path.join(tmpdir, "t.py")
+    with open(file, "w", encoding="utf-8") as fd:
+        fd.write("while True: pass\n")  # E701
+        fd.write("x = 1 \n")  # W291
+    with open(os.path.join(tmpdir, "tox.ini"), "w") as fd:
+        fd.write("[pycodestyle]\nignore = W291\n")
+    ret = _main("", file, ext=".pxd", ignore={"E701"})
+    out, _ = capsys.readouterr()
+    assert out == ""
+    assert ret == 0
 
 
 @pytest.mark.skipif(
@@ -530,8 +567,6 @@ def test_pycodestyle_when_ast_parsing_fails(
     )
     with open(file, "w", encoding="utf-8") as fd:
         fd.write(src)
-    with open(os.path.join(tmpdir, "tox.ini"), "w") as fd:
-        fd.write("[pycodestyle]\nstatistics=True\n")
     ret = _main(src, file, ext=".pyx")
     out, _ = capsys.readouterr()
     assert f"Skipping file {file}, as it cannot be parsed. Error: CompileError" in out
