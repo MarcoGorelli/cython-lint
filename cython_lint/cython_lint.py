@@ -13,12 +13,8 @@ import warnings
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Hashable
-from typing import Iterator
-from typing import Mapping
-from typing import MutableMapping
 from typing import NamedTuple
 from typing import NoReturn
-from typing import Sequence
 
 from Cython.Compiler.Errors import init_thread
 
@@ -80,6 +76,11 @@ from tokenize_rt import tokens_to_src
 from cython_lint import __version__
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+    from collections.abc import Mapping
+    from collections.abc import MutableMapping
+    from collections.abc import Sequence
+
     from Cython.Compiler.ModuleNode import ModuleNode
 
 CYTHON_VERSION = tuple(Cython.__version__.split("."))
