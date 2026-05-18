@@ -34,10 +34,10 @@ double-quote-cython-strings = "cython_lint.string_fixer:main"
 [tool.ruff]
 line-length = 90
 fix = true
-target-version = "py38"
+target-version = "py310"
 
 lint.select = [
-  "ALL",
+  "ALL", "UP"
 ]
 lint.ignore = [
   'A001',

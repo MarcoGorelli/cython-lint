@@ -12,7 +12,6 @@ import sys
 import warnings
 from typing import TYPE_CHECKING
 from typing import Any
-from typing import Hashable
 from typing import NamedTuple
 from typing import NoReturn
 
@@ -76,6 +75,7 @@ from tokenize_rt import tokens_to_src
 from cython_lint import __version__
 
 if TYPE_CHECKING:
+    from collections.abc import Hashable
     from collections.abc import Iterator
     from collections.abc import Mapping
     from collections.abc import MutableMapping
