@@ -1,0 +1,84 @@
+name: integration-test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  integration-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Install cython-lint
+        run: pip install .
+
+      - name: apache/arrow
+        continue-on-error: true
+        run: |
+          git clone --depth=1 https://github.com/apache/arrow /tmp/arrow
+          git -C /tmp/arrow ls-files | grep '\.pyx$' | xargs -r cython-lint --no-pycodestyle
+
+      - name: rapidsai/cudf
+        continue-on-error: true
+        run: |
+          git clone --depth=1 https://github.com/rapidsai/cudf /tmp/cudf
+          git -C /tmp/cudf ls-files | grep '\.pyx$' | xargs -r cython-lint --no-pycodestyle
+
+      - name: cupy/cupy
+        continue-on-error: true
+        run: |
+          git clone --depth=1 https://github.com/cupy/cupy /tmp/cupy
+          git -C /tmp/cupy ls-files | grep '\.pyx$' | xargs -r cython-lint --no-pycodestyle
+
+      - name: MDAnalysis/mdanalysis
+        continue-on-error: true
+        run: |
+          git clone --depth=1 https://github.com/MDAnalysis/mdanalysis /tmp/mdanalysis
+          git -C /tmp/mdanalysis ls-files | grep '\.pyx$' | xargs -r cython-lint --no-pycodestyle
+
+      - name: numpy/numpy
+        continue-on-error: true
+        run: |
+          git clone --depth=1 https://github.com/numpy/numpy /tmp/numpy
+          git -C /tmp/numpy ls-files | grep '\.pyx$' | xargs -r cython-lint --no-pycodestyle
+
+      - name: pandas-dev/pandas
+        continue-on-error: true
+        run: |
+          git clone --depth=1 https://github.com/pandas-dev/pandas /tmp/pandas
+          git -C /tmp/pandas ls-files | grep '\.pyx$' | xargs -r cython-lint --no-pycodestyle
+
+      - name: ansible/pylibssh
+        continue-on-error: true
+        run: |
+          git clone --depth=1 https://github.com/ansible/pylibssh /tmp/pylibssh
+          git -C /tmp/pylibssh ls-files | grep '\.pyx$' | xargs -r cython-lint --no-pycodestyle
+
+      - name: ray-project/ray
+        continue-on-error: true
+        run: |
+          git clone --depth=1 https://github.com/ray-project/ray /tmp/ray
+          git -C /tmp/ray ls-files | grep '\.pyx$' | xargs -r cython-lint --no-pycodestyle
+
+      - name: scikit-learn/scikit-learn
+        continue-on-error: true
+        run: |
+          git clone --depth=1 https://github.com/scikit-learn/scikit-learn /tmp/scikit-learn
+          git -C /tmp/scikit-learn ls-files | grep '\.pyx$' | xargs -r cython-lint --no-pycodestyle
+
+      - name: scipy/scipy
+        continue-on-error: true
+        run: |
+          git clone --depth=1 https://github.com/scipy/scipy /tmp/scipy
+          git -C /tmp/scipy ls-files | grep '\.pyx$' | xargs -r cython-lint --no-pycodestyle
+
+      - name: yt-project/yt
+        continue-on-error: true
+        run: |
+          git clone --depth=1 https://github.com/yt-project/yt /tmp/yt
+          git -C /tmp/yt ls-files | grep '\.pyx$' | xargs -r cython-lint --no-pycodestyle
