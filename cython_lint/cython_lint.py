@@ -54,6 +54,7 @@ from Cython.Compiler.Nodes import AssertStatNode
 from Cython.Compiler.Nodes import CArgDeclNode
 from Cython.Compiler.Nodes import CFuncDeclaratorNode
 from Cython.Compiler.Nodes import CFuncDefNode
+from Cython.Compiler.Nodes import FuncDefNode
 from Cython.Compiler.Nodes import CImportStatNode
 from Cython.Compiler.Nodes import CNameDeclaratorNode
 from Cython.Compiler.Nodes import CSimpleBaseTypeNode
@@ -389,6 +390,46 @@ def visit_dict_node(
                     f"dict key variable {key} repeated {value} times",
                 ),
             )
+
+
+def _iter_target_name_nodes(target: Node) -> Iterator[NameNode]:
+    if isinstance(target, NameNode):
+        yield target
+    elif isinstance(target, TupleNode):
+        for arg in target.args:
+            if isinstance(arg, NameNode):
+                yield arg
+
+
+def _traverse_loop_body(
+    node: Node,
+    loop_vars: frozenset[str],
+) -> Iterator[Node]:
+    """Yield nodes in a for-loop body without entering new scopes.
+
+    Stops recursing into an inner ForInStatNode's body if its target variable
+    shadows one of loop_vars (that inner loop will be checked on its own).
+    """
+    stack: list[Node] = [node]
+    while stack:
+        n = stack.pop()
+        yield n
+        if isinstance(n, (FuncDefNode, LambdaNode, ComprehensionNode)):
+            continue
+        if isinstance(n, ForInStatNode) and any(
+            a.name in loop_vars for a in _iter_target_name_nodes(n.target)
+        ):
+            continue
+        for attr in getattr(n, "child_attrs", ()):
+            child = getattr(n, attr, None)
+            if child is None:
+                continue
+            if isinstance(child, list):
+                for c in child:
+                    if c is not None and hasattr(c, "child_attrs"):
+                        stack.append(c)
+            elif hasattr(child, "child_attrs"):
+                stack.append(child)
 
 
 def _traverse_file(  # noqa: PLR0915,PLR0913
@@ -766,6 +807,24 @@ def _traverse_file(  # noqa: PLR0915,PLR0913
                 for _import in node.rhs.args
                 if isinstance(_import, UnicodeNode)
             )
+
+        if isinstance(node, ForInStatNode):
+            loop_vars: frozenset[str] = frozenset(
+                n.name for n in _iter_target_name_nodes(node.target)
+            )
+            if loop_vars:
+                for _child in _traverse_loop_body(node.body, loop_vars):
+                    if isinstance(_child, ForInStatNode):
+                        for _name_node in _iter_target_name_nodes(_child.target):
+                            if _name_node.name in loop_vars:
+                                violations.append(
+                                    (
+                                        _name_node.pos[1],
+                                        _name_node.pos[2] + 1,
+                                        f"Outer for loop variable '{_name_node.name}' "
+                                        "overwritten by inner for-loop target",
+                                    ),
+                                )
 
     return names, imported_names, exported_imports
 
