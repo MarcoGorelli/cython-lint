@@ -208,6 +208,47 @@ def test_unnecessary_index(capsys: Any, src: str, expected: str) -> None:
     assert ret == 1
 
 
+@pytest.mark.parametrize(
+    ("src", "expected"),
+    [
+        (
+            "for i in range(10):\n    for i in range(5):\n        pass\n",
+            "t.py:2:9: Outer for loop variable 'i' overwritten by inner for-loop target\n",
+        ),
+        (
+            "for i, j in items:\n    for i, k in other:\n        pass\n",
+            "t.py:2:9: Outer for loop variable 'i' overwritten by inner for-loop target\n",
+        ),
+        (
+            "for (a, b), c in items:\n    for c in range(5):\n        pass\n",
+            "t.py:2:9: Outer for loop variable 'c' overwritten by inner for-loop target\n",
+        ),
+    ],
+)
+def test_for_loop_variable_overwritten(capsys: Any, src: str, expected: str) -> None:
+    ret = _main(src, "t.py", ext=".pyx", no_pycodestyle=True)
+    out, _ = capsys.readouterr()
+    assert out == expected
+    assert ret == 1
+
+
+def test_for_loop_underscore_variable_no_violation(capsys: Any) -> None:
+    src = "for _ in range(10):\n    for _ in range(5):\n        pass\n"
+    ret = _main(src, "t.py", ext=".pyx", no_pycodestyle=True)
+    out, _ = capsys.readouterr()
+    assert out == ""
+    assert ret == 0
+
+
+def test_for_loop_list_target_no_violation(capsys: Any) -> None:
+    # list-unpacking target (ListNode) is not NameNode or TupleNode — hits else: pass
+    src = "for [x, y] in items:\n    pass\n"
+    ret = _main(src, "t.py", ext=".pyx", no_pycodestyle=True)
+    out, _ = capsys.readouterr()
+    assert out == ""
+    assert ret == 0
+
+
 @pytest.mark.skipif(
     tuple(Cython.__version__.split(".")) > ("3",),
     reason="invalid syntax in new Cython",
@@ -628,6 +669,14 @@ def test_pycodestyle_when_ast_parsing_fails(
         "import foo\n\n\ndef bar():\n    a: foo\n",
         "DevicePointerT: TypeAlias = Union[driver.CUdeviceptr, int, None]\n"
         '"A type union of :obj:`~driver.CUdeviceptr`, `int` and `None` for hinting :attr:`Buffer.handle`."',
+        # for-loop variable overwrite: these should NOT trigger
+        "for i in range(10):\n    j = i\n",
+        "for i in range(10):\n    x = [i for i in range(5)]\n",
+        "for i in range(10):\n    i = 5\n",
+        "for i in range(10):\n    i += 1\n",
+        "for i in range(10):\n    a, i = 1, 2\n",
+        "for i in range(10):\n    for j in range(5):\n        i = j\n",
+        "for i, j in items:\n    i = 5\n",
     ],
 )
 def test_noop(capsys: Any, src: str) -> None:

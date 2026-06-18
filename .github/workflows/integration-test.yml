@@ -1,0 +1,84 @@
+name: integration-test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  integration-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Install cython-lint
+        run: pip install .
+
+      - name: apache/arrow
+        continue-on-error: true
+        run: |
+          git clone --depth=1 https://github.com/apache/arrow /tmp/arrow
+          cython-lint /tmp/arrow --no-pycodestyle
+
+      - name: rapidsai/cudf
+        continue-on-error: true
+        run: |
+          git clone --depth=1 https://github.com/rapidsai/cudf /tmp/cudf
+          cython-lint /tmp/cudf --no-pycodestyle
+
+      - name: cupy/cupy
+        continue-on-error: true
+        run: |
+          git clone --depth=1 https://github.com/cupy/cupy /tmp/cupy
+          cython-lint /tmp/cupy --no-pycodestyle
+
+      - name: MDAnalysis/mdanalysis
+        continue-on-error: true
+        run: |
+          git clone --depth=1 https://github.com/MDAnalysis/mdanalysis /tmp/mdanalysis
+          cython-lint /tmp/mdanalysis --no-pycodestyle
+
+      - name: numpy/numpy
+        continue-on-error: true
+        run: |
+          git clone --depth=1 https://github.com/numpy/numpy /tmp/numpy
+          cython-lint /tmp/numpy --no-pycodestyle
+
+      - name: pandas-dev/pandas
+        continue-on-error: true
+        run: |
+          git clone --depth=1 https://github.com/pandas-dev/pandas /tmp/pandas
+          cython-lint /tmp/pandas --no-pycodestyle
+
+      - name: ansible/pylibssh
+        continue-on-error: true
+        run: |
+          git clone --depth=1 https://github.com/ansible/pylibssh /tmp/pylibssh
+          cython-lint /tmp/pylibssh --no-pycodestyle
+
+      - name: ray-project/ray
+        continue-on-error: true
+        run: |
+          git clone --depth=1 https://github.com/ray-project/ray /tmp/ray
+          cython-lint /tmp/ray --no-pycodestyle
+
+      - name: scikit-learn/scikit-learn
+        continue-on-error: true
+        run: |
+          git clone --depth=1 https://github.com/scikit-learn/scikit-learn /tmp/scikit-learn
+          cython-lint /tmp/scikit-learn --no-pycodestyle
+
+      - name: scipy/scipy
+        continue-on-error: true
+        run: |
+          git clone --depth=1 https://github.com/scipy/scipy /tmp/scipy
+          cython-lint /tmp/scipy --no-pycodestyle
+
+      - name: yt-project/yt
+        continue-on-error: true
+        run: |
+          git clone --depth=1 https://github.com/yt-project/yt /tmp/yt
+          cython-lint /tmp/yt --no-pycodestyle
