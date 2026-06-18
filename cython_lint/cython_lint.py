@@ -54,7 +54,6 @@ from Cython.Compiler.Nodes import AssertStatNode
 from Cython.Compiler.Nodes import CArgDeclNode
 from Cython.Compiler.Nodes import CFuncDeclaratorNode
 from Cython.Compiler.Nodes import CFuncDefNode
-from Cython.Compiler.Nodes import FuncDefNode
 from Cython.Compiler.Nodes import CImportStatNode
 from Cython.Compiler.Nodes import CNameDeclaratorNode
 from Cython.Compiler.Nodes import CSimpleBaseTypeNode
@@ -64,6 +63,7 @@ from Cython.Compiler.Nodes import ExprStatNode
 from Cython.Compiler.Nodes import ForInStatNode
 from Cython.Compiler.Nodes import FromCImportStatNode
 from Cython.Compiler.Nodes import FromImportStatNode
+from Cython.Compiler.Nodes import FuncDefNode
 from Cython.Compiler.Nodes import GlobalNode
 from Cython.Compiler.Nodes import IfClauseNode
 from Cython.Compiler.Nodes import Node
@@ -429,7 +429,7 @@ def _traverse_loop_body(
             if isinstance(child, list):
                 for c in child:
                     if c is not None and hasattr(c, "child_attrs"):
-                        stack.append(c)
+                        stack.append(c)  # noqa: PERF401
             elif hasattr(child, "child_attrs"):
                 stack.append(child)
 
