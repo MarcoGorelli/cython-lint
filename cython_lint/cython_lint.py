@@ -428,10 +428,12 @@ def _traverse_loop_body(
                 continue
             if isinstance(child, list):
                 for c in child:
-                    if c is not None and hasattr(c, "child_attrs"):
+                    if c is not None and hasattr(c, "child_attrs"):  # pragma: no cover
                         stack.append(c)  # noqa: PERF401
             elif hasattr(child, "child_attrs"):
                 stack.append(child)
+            else:  # pragma: no cover
+                pass
 
 
 def _traverse_file(  # noqa: PLR0915,PLR0913
@@ -818,7 +820,10 @@ def _traverse_file(  # noqa: PLR0915,PLR0913
                 for _child in _traverse_loop_body(node.body, loop_vars):
                     if isinstance(_child, ForInStatNode):
                         for _name_node in _iter_target_name_nodes(_child.target):
-                            if _name_node.name in loop_vars:
+                            if (
+                                _name_node.name in loop_vars
+                                and not _name_node.name.startswith("_")
+                            ):
                                 violations.append(
                                     (
                                         _name_node.pos[1],

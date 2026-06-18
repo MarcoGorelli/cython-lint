@@ -219,6 +219,10 @@ def test_unnecessary_index(capsys: Any, src: str, expected: str) -> None:
             "for i, j in items:\n    for i, k in other:\n        pass\n",
             "t.py:2:9: Outer for loop variable 'i' overwritten by inner for-loop target\n",
         ),
+        (
+            "for (a, b), c in items:\n    for c in range(5):\n        pass\n",
+            "t.py:2:9: Outer for loop variable 'c' overwritten by inner for-loop target\n",
+        ),
     ],
 )
 def test_for_loop_variable_overwritten(capsys: Any, src: str, expected: str) -> None:
@@ -226,6 +230,14 @@ def test_for_loop_variable_overwritten(capsys: Any, src: str, expected: str) -> 
     out, _ = capsys.readouterr()
     assert out == expected
     assert ret == 1
+
+
+def test_for_loop_underscore_variable_no_violation(capsys: Any) -> None:
+    src = "for _ in range(10):\n    for _ in range(5):\n        pass\n"
+    ret = _main(src, "t.py", ext=".pyx", no_pycodestyle=True)
+    out, _ = capsys.readouterr()
+    assert out == ""
+    assert ret == 0
 
 
 def test_for_loop_list_target_no_violation(capsys: Any) -> None:

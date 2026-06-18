@@ -100,6 +100,7 @@ exclude = 'my_project/excluded_cython_file.pyx'
 - f-string without placeholders
 - if-statement with tuple condition (always true...)
 - late-binding closures https://docs.python-guide.org/writing/gotchas/#late-binding-closures
+- outer loop variable name overwritten by inner loop variable name
 - pointless string statement
 - ``pycodestyle`` nitpicks (which you can turn off with ``--no-pycodestyle``)
 - repeated element in set
