@@ -228,6 +228,15 @@ def test_for_loop_variable_overwritten(capsys: Any, src: str, expected: str) -> 
     assert ret == 1
 
 
+def test_for_loop_list_target_no_violation(capsys: Any) -> None:
+    # list-unpacking target (ListNode) is not NameNode or TupleNode — hits else: pass
+    src = "for [x, y] in items:\n    pass\n"
+    ret = _main(src, "t.py", ext=".pyx", no_pycodestyle=True)
+    out, _ = capsys.readouterr()
+    assert out == ""
+    assert ret == 0
+
+
 @pytest.mark.skipif(
     tuple(Cython.__version__.split(".")) > ("3",),
     reason="invalid syntax in new Cython",

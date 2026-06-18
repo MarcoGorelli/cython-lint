@@ -399,6 +399,8 @@ def _iter_target_name_nodes(target: Node) -> Iterator[NameNode]:
         for arg in target.args:
             if isinstance(arg, NameNode):
                 yield arg
+    else:
+        pass
 
 
 def _traverse_loop_body(
