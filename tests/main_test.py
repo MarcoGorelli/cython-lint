@@ -212,15 +212,15 @@ def test_unnecessary_index(capsys: Any, src: str, expected: str) -> None:
     ("src", "expected"),
     [
         (
-            "for i in range(10):\n    for i in range(5):\n        pass\n",
+            "for i in range(10):\n    for i in range(5):\n        use(i)\n",
             "t.py:2:9: Outer for loop variable 'i' overwritten by inner for-loop target\n",
         ),
         (
-            "for i, j in items:\n    for i, k in other:\n        pass\n",
+            "for i, j in items:\n    for i, k in other:\n        use(i, j, k)\n",
             "t.py:2:9: Outer for loop variable 'i' overwritten by inner for-loop target\n",
         ),
         (
-            "for (a, b), c in items:\n    for c in range(5):\n        pass\n",
+            "for (a, b), c in items:\n    for c in range(5):\n        use(c)\n",
             "t.py:2:9: Outer for loop variable 'c' overwritten by inner for-loop target\n",
         ),
     ],
@@ -247,6 +247,45 @@ def test_for_loop_list_target_no_violation(capsys: Any) -> None:
     out, _ = capsys.readouterr()
     assert out == ""
     assert ret == 0
+
+
+@pytest.mark.parametrize(
+    ("src", "expected"),
+    [
+        (
+            "for i in range(10):\n    pass\n",
+            "t.py:1:5: Loop control variable 'i' not used within the loop body "
+            "(if this is intended, start the name with an underscore)\n",
+        ),
+        (
+            "for i, j in items:\n    use(j)\n",
+            "t.py:1:5: Loop control variable 'i' not used within the loop body "
+            "(if this is intended, start the name with an underscore)\n",
+        ),
+        (
+            "for i, j in items:\n    pass\n",
+            "t.py:1:5: Loop control variable 'i' not used within the loop body "
+            "(if this is intended, start the name with an underscore)\n"
+            "t.py:1:8: Loop control variable 'j' not used within the loop body "
+            "(if this is intended, start the name with an underscore)\n",
+        ),
+        (
+            "for i, j in items:\n    i = 5\n",
+            "t.py:1:8: Loop control variable 'j' not used within the loop body "
+            "(if this is intended, start the name with an underscore)\n",
+        ),
+        (
+            "cdef bint foo():\n    cdef int i\n    for i in bar: pass\n",
+            "t.py:3:9: Loop control variable 'i' not used within the loop body "
+            "(if this is intended, start the name with an underscore)\n",
+        ),
+    ],
+)
+def test_loop_control_var_unused(capsys: Any, src: str, expected: str) -> None:
+    ret = _main(src, "t.py", ext=".pyx", no_pycodestyle=True)
+    out, _ = capsys.readouterr()
+    assert out == expected
+    assert ret == 1
 
 
 @pytest.mark.skipif(
@@ -584,12 +623,12 @@ def test_pycodestyle_when_ast_parsing_fails(
     "src",
     [
         "cdef bint foo():\n    raise NotImplemen",
-        "cdef bint foo():\n    cdef int i\n    for i in bar: pass\n",
+        "cdef bint foo():\n    cdef int i\n    for i in bar: baz(i)\n",
         "cdef bint foo(a):\n   pass\n",
         "cdef bint foo(int a):\n   pass\n",
         "cdef bint foo(int *a):\n   pass\n",
         "cdef bint* foo(int a):\n   pass\n",
-        "cdef bint foo():\n    cdef int i\n    for i, j in bar: pass\n",
+        "cdef bint foo():\n    cdef int i\n    for i, j in bar: baz(i, j)\n",
         "cdef bint foo(object (*operation)(int64_t value, object right)):\n   pass\n",
         "class Foo: pass\n",
         "cdef class Foo: pass\n",
@@ -676,7 +715,13 @@ def test_pycodestyle_when_ast_parsing_fails(
         "for i in range(10):\n    i += 1\n",
         "for i in range(10):\n    a, i = 1, 2\n",
         "for i in range(10):\n    for j in range(5):\n        i = j\n",
-        "for i, j in items:\n    i = 5\n",
+        "for i, j in items:\n    print(i, j)\n",
+        # loop control variable unused: these should NOT trigger
+        "for _ in range(10):\n    pass\n",
+        "for _i in range(10):\n    pass\n",
+        "for _, j in items:\n    use(j)\n",
+        "for i in range(10):\n    print(i)\n",
+        "for i in range(10):\n    for j in range(5):\n        use(i, j)\n",
     ],
 )
 def test_noop(capsys: Any, src: str) -> None:

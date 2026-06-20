@@ -833,6 +833,29 @@ def _traverse_file(  # noqa: PLR0915,PLR0913
                                     ),
                                 )
 
+        if isinstance(node, ForInStatNode):
+            _target_nodes = list(_iter_target_name_nodes(node.target))
+            if _target_nodes:
+                _body_names: frozenset[str] = frozenset(
+                    _child.node.name
+                    for _child in traverse(node.body)
+                    if isinstance(_child.node, NameNode)
+                )
+                for _target_node in _target_nodes:
+                    if (
+                        not _target_node.name.startswith("_")
+                        and _target_node.name not in _body_names
+                    ):
+                        violations.append(
+                            (
+                                _target_node.pos[1],
+                                _target_node.pos[2] + 1,
+                                f"Loop control variable '{_target_node.name}' not used "
+                                "within the loop body (if this is intended, start the "
+                                "name with an underscore)",
+                            ),
+                        )
+
     return names, imported_names, exported_imports
 
 
