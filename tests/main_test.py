@@ -180,34 +180,24 @@ def test_pointless_string_statement(
     assert ret == 1
 
 
-_UNUSED_LOOP_VAR_V = (
-    "t.py:1:8: Loop control variable 'v' not used within the loop body "
-    "(if this is intended, start the name with an underscore)\n"
-)
-
-
 @pytest.mark.parametrize(
     ("src", "expected"),
     [
         (
-            "for i, v in enumerate(values):\n    a == values[i]\n",
-            _UNUSED_LOOP_VAR_V
-            + "t.py:2:10: unnecessary list index lookup: use `v` instead of `values[i]`\n",
+            "for i, _v in enumerate(values):\n    a == values[i]\n",
+            "t.py:2:10: unnecessary list index lookup: use `v` instead of `values[i]`\n",
         ),
         (
-            "for i, v in enumerate(values):\n    a = values[i]\n",
-            _UNUSED_LOOP_VAR_V
-            + "t.py:2:9: unnecessary list index lookup: use `v` instead of `values[i]`\n",
+            "for i, _v in enumerate(values):\n    a = values[i]\n",
+            "t.py:2:9: unnecessary list index lookup: use `v` instead of `values[i]`\n",
         ),
         (
-            "for i, v in enumerate(values):\n    a.append(values[i])\n",
-            _UNUSED_LOOP_VAR_V
-            + "t.py:2:14: unnecessary list index lookup: use `v` instead of `values[i]`\n",
+            "for i, _v in enumerate(values):\n    a.append(values[i])\n",
+            "t.py:2:14: unnecessary list index lookup: use `v` instead of `values[i]`\n",
         ),
         (
-            "for i, v in enumerate(values):\n    values[i] == a\n",
-            _UNUSED_LOOP_VAR_V
-            + "t.py:2:5: unnecessary list index lookup: use `v` instead of `values[i]`\n",
+            "for i, _v in enumerate(values):\n    values[i] == a\n",
+            "t.py:2:5: unnecessary list index lookup: use `v` instead of `values[i]`\n",
         ),
     ],
 )
