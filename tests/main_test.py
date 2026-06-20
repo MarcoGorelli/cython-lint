@@ -180,24 +180,34 @@ def test_pointless_string_statement(
     assert ret == 1
 
 
+_UNUSED_LOOP_VAR_V = (
+    "t.py:1:8: Loop control variable 'v' not used within the loop body "
+    "(if this is intended, start the name with an underscore)\n"
+)
+
+
 @pytest.mark.parametrize(
     ("src", "expected"),
     [
         (
             "for i, v in enumerate(values):\n    a == values[i]\n",
-            "t.py:2:10: unnecessary list index lookup: use `v` instead of `values[i]`\n",
+            _UNUSED_LOOP_VAR_V
+            + "t.py:2:10: unnecessary list index lookup: use `v` instead of `values[i]`\n",
         ),
         (
             "for i, v in enumerate(values):\n    a = values[i]\n",
-            "t.py:2:9: unnecessary list index lookup: use `v` instead of `values[i]`\n",
+            _UNUSED_LOOP_VAR_V
+            + "t.py:2:9: unnecessary list index lookup: use `v` instead of `values[i]`\n",
         ),
         (
             "for i, v in enumerate(values):\n    a.append(values[i])\n",
-            "t.py:2:14: unnecessary list index lookup: use `v` instead of `values[i]`\n",
+            _UNUSED_LOOP_VAR_V
+            + "t.py:2:14: unnecessary list index lookup: use `v` instead of `values[i]`\n",
         ),
         (
             "for i, v in enumerate(values):\n    values[i] == a\n",
-            "t.py:2:5: unnecessary list index lookup: use `v` instead of `values[i]`\n",
+            _UNUSED_LOOP_VAR_V
+            + "t.py:2:5: unnecessary list index lookup: use `v` instead of `values[i]`\n",
         ),
     ],
 )
@@ -676,10 +686,10 @@ def test_pycodestyle_when_ast_parsing_fails(
         "import foo\n\ndef bar():\n    import foo.bat\n",
         "def foo():\n    _ = bar()\n",
         "def create_multipliers():\n    return 3\n",
-        'def create_multipliers():\n    return [f"a{3}" for i in range(10)]\n',
-        "def create_multipliers():\n    return [lambda x: y for i in range(10)]\n",
+        'def create_multipliers():\n    return [f"a{3}" for _ in range(10)]\n',
+        "def create_multipliers():\n    return [lambda x: y for _ in range(10)]\n",
         "lst = []\n"
-        "for i in range(5):\n"
+        "for _i in range(5):\n"
         "    def foo(a):\n"
         "        return b * a\n"
         "    lst.append(foo(a))\n",
@@ -689,9 +699,9 @@ def test_pycodestyle_when_ast_parsing_fails(
         'mystring.rstrip("abc")\n',
         "mystring.rstrip(suffix)\n",
         "[(j for j in i) for i in items]\n",
-        "for i, v in enumerate(values):\n    a == values[[i]]\n",
-        "for i, v in enumerate(values):\n    pass\n    arr.extend(values[i])\n    pass\n",
-        "for i, v in enumerate(values):\n    b = t[i]\n",
+        "for i, _v in enumerate(values):\n    a == values[[i]]\n",
+        "for i, _v in enumerate(values):\n    pass\n    arr.extend(values[i])\n    pass\n",
+        "for i, _v in enumerate(values):\n    b = t[i]\n",
         "import numpy as np\n\n\ndef foo() -> np.ndarray:\n    pass\n",
         "dict([x for x in foo])\n",
         "current_notification = 3\n"
