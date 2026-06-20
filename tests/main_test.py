@@ -722,6 +722,7 @@ def test_pycodestyle_when_ast_parsing_fails(
         "for _, j in items:\n    use(j)\n",
         "for i in range(10):\n    print(i)\n",
         "for i in range(10):\n    for j in range(5):\n        use(i, j)\n",
+        "for i in items:\n    pass\nelse:\n    use(i)\n",
     ],
 )
 def test_noop(capsys: Any, src: str) -> None:

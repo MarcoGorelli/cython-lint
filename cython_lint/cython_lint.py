@@ -794,7 +794,7 @@ def _traverse_file(  # noqa: PLR0915,PLR0913
                             index_node.base.pos[1],
                             index_node.base.pos[2] + 1,
                             "unnecessary list index lookup: use "
-                            f"`{node.target.args[1].name}` instead of "
+                            f"`{node.target.args[1].name.lstrip('_')}` instead of "
                             f"`{index_node.base.name}"
                             f"[{index_node.index.name}]`",
                         ),
@@ -838,7 +838,8 @@ def _traverse_file(  # noqa: PLR0915,PLR0913
             if _target_nodes:
                 _body_names: frozenset[str] = frozenset(
                     _child.node.name
-                    for _child in traverse(node.body)
+                    for _root in filter(None, [node.body, node.else_clause])
+                    for _child in traverse(_root)
                     if isinstance(_child.node, NameNode)
                 )
                 for _target_node in _target_nodes:
