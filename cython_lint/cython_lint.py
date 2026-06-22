@@ -7,7 +7,6 @@ import copy
 import os
 import pathlib
 import re
-import subprocess
 import sys
 import warnings
 from typing import TYPE_CHECKING
@@ -30,6 +29,7 @@ with warnings.catch_warnings():
     from Cython import Tempita
     from Cython.Compiler.TreeFragment import StringParseContext
 import Cython
+import pycodestyle
 from Cython.Compiler.ExprNodes import AttributeNode
 from Cython.Compiler.ExprNodes import ComprehensionAppendNode
 from Cython.Compiler.ExprNodes import ComprehensionNode
@@ -960,25 +960,38 @@ def run_pycodestyle(
     violations: list[tuple[int, int, str]],
     ignore: set[str],
 ) -> None:
-    output = subprocess.run(
-        [
-            "pycodestyle",
-            f"--ignore={','.join(PYCODESTYLE_CODES | ignore)}",
-            f"--max-line-length={line_length}",
-            "--format=%(row)d:%(col)d:%(code)s %(text)s",
-            filename,
-        ],
-        text=True,
-        capture_output=True,
-        check=False,
+    class _Report(pycodestyle.BaseReport):  # type: ignore[misc]
+        def error(
+            self,
+            line_number: int,
+            offset: int,
+            text: str,
+            check: Any,
+        ) -> str | None:
+            code: str | None = super().error(line_number, offset, text, check)
+            if code:
+                violations.append((line_number, offset + 1, text))
+            return code
+
+    style = pycodestyle.StyleGuide(
+        max_line_length=line_length,
+        reporter=_Report,
+        # paths= seeds the parent-walk that finds tox.ini / setup.cfg
+        paths=[filename],
     )
-    extra_lines = output.stdout.splitlines()
-    for extra_line in extra_lines:
-        if re.search(r"^\d+:\d+:", extra_line) is None:
-            # could be an extra line with pycodestyle statistics
-            continue
-        _lineno, _col, message = extra_line.split(":", maxsplit=2)
-        violations.append((int(_lineno), int(_col), message))
+    # merge our codes with config-loaded ignores; passing ignore= as a kwarg
+    # would clobber the config.
+    config_ignore = set(style.options.ignore or ())
+    style.options.ignore = tuple(
+        sorted(
+            code
+            for code in config_ignore | PYCODESTYLE_CODES | ignore
+            # filter empty strings (from --ignore="") since they match every
+            # code as a prefix.
+            if code
+        )
+    )
+    style.check_files([filename])
 
 
 def _main(  # noqa: PLR0913
