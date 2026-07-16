@@ -184,6 +184,62 @@ def err_msg(node: Node, expected: str) -> NoReturn:
 Violations = list[tuple[int, int, str]]
 
 
+class SharedState:
+    """Track state that involves multiple files."""
+
+    def __init__(self) -> None:
+        # Map (filename without extension, function_name) to
+        #     (filename, line number):
+        self._declared_functions: dict[tuple[str, str], tuple[str, int]] = {}
+        # Map (filename without extension, function_name) to
+        #     (filename, line number):
+        self._inline_cfunctions: dict[tuple[str, str], tuple[str, int]] = {}
+
+    def register_inline_cfunction(
+        self, filename: str, func_name: str, lineno: int, violations: Violations
+    ) -> None:
+        """Register a ``cdef inline`` in a .pyx/.py file."""
+        self._register_inline_cfunction_or_declaration(
+            True, filename, func_name, lineno, violations
+        )
+
+    def register_declaration(
+        self, filename: str, func_name: str, lineno: int, violations: Violations
+    ) -> None:
+        """Register a ``cdef`` declaration in a .pxd file."""
+        self._register_inline_cfunction_or_declaration(
+            False, filename, func_name, lineno, violations
+        )
+
+    def _register_inline_cfunction_or_declaration(
+        self,
+        is_inline_cfunction: bool,
+        filename: str,
+        func_name: str,
+        lineno: int,
+        violations: Violations,
+    ) -> None:
+        filename_without_ext, _ = os.path.splitext(filename)
+        if is_inline_cfunction:
+            to_add = self._inline_cfunctions
+        else:
+            to_add = self._declared_functions
+        key = (filename_without_ext, func_name)
+        to_add[key] = (filename, lineno)
+        if key in self._declared_functions and key in self._inline_cfunctions:
+            decl_filename, decl_lineno = self._declared_functions[key]
+            impl_filename, impl_lineno = self._inline_cfunctions[key]
+            message = (
+                f"C function '{func_name}' is declared in "
+                f"{decl_filename}:{decl_lineno}, and implemented "
+                f"and marked inline in {impl_filename}:{impl_lineno}. Inlining "
+                "will NOT happen across modules, the inline will be ignored. "
+                "If you want inlining, move the full implementation into "
+                f"{decl_filename}, instead of just declaring it there."
+            )
+            violations.append((lineno, 0, message))
+
+
 def visit_cvardef(
     node: CVarDefNode,
     lines: Mapping[int, str],
@@ -217,8 +273,10 @@ def visit_cvardef(
 
 def visit_funcdef(
     node: CFuncDefNode | DefNode,
+    filename: str,
     global_names: list[str],
     global_imports: list[Token],
+    shared_state: SharedState,
     violations: Violations,
 ) -> None:
     children = [i.node for i in traverse(node)][1:]
@@ -270,6 +328,10 @@ def visit_funcdef(
     if isinstance(node, CFuncDefNode):
         func = _func_from_base(node.declarator)
         func_name = _name_from_base(func.base).name
+        if "inline" in node.modifiers:
+            shared_state.register_inline_cfunction(
+                filename, func_name, node.pos[1], violations
+            )
     else:
         func_name = node.name
 
@@ -443,6 +505,7 @@ def _traverse_file(  # noqa: PLR0915,PLR0913
     code: str,
     filename: str,
     lines: Mapping[int, str],
+    shared_state: SharedState,
     *,
     skip_check: bool,
     violations: Violations | None,
@@ -504,9 +567,16 @@ def _traverse_file(  # noqa: PLR0915,PLR0913
         if isinstance(node, (CFuncDefNode, DefNode)):
             visit_funcdef(
                 node,
+                filename,
                 global_names,
                 global_imports,
+                shared_state,
                 violations=violations,
+            )
+
+        if isinstance(node, CFuncDeclaratorNode) and filename.endswith(".pxd"):
+            shared_state.register_declaration(
+                filename, node.declared_name(), node.pos[1], violations
             )
 
         if isinstance(node, CVarDefNode):
@@ -908,6 +978,7 @@ def sanitise_input(
 def run_ast_checks(
     code: str,
     filename: str,
+    shared_state: SharedState,
     violations: Violations,
     *,
     ban_relative_imports: bool,
@@ -917,6 +988,7 @@ def run_ast_checks(
         code,
         filename,
         lines,
+        shared_state,
         violations=violations,
         ban_relative_imports=ban_relative_imports,
         skip_check=False,
@@ -929,6 +1001,7 @@ def run_ast_checks(
             _code,
             filename,
             _lines,
+            shared_state,
             skip_check=True,
             violations=None,
             ban_relative_imports=False,
@@ -946,6 +1019,7 @@ def run_ast_checks(
             _import[0] not in [_name[0] for _name in names if _import != _name]
             and _import[0] not in [_name[0] for _name in included_names]
             and _import[0] not in exported_imports
+            and not filename.endswith(".pxd")
         ):
             violations.append(
                 (
@@ -987,6 +1061,7 @@ def run_pycodestyle(
 def _main(  # noqa: PLR0913
     code: str,
     filename: str,
+    shared_state: SharedState,
     *,
     ext: str,
     line_length: int = 88,
@@ -1002,10 +1077,14 @@ def _main(  # noqa: PLR0913
         run_pycodestyle(line_length, filename, violations, ignore)
 
     lines = {}
-    if ext == ".pyx":
+    if ext in (".pyx", ".pxd"):
         with contextlib.suppress(CythonParseError):
             lines = run_ast_checks(
-                code, filename, violations, ban_relative_imports=ban_relative_imports
+                code,
+                filename,
+                shared_state,
+                violations,
+                ban_relative_imports=ban_relative_imports,
             )
 
     ret = 0
@@ -1110,6 +1189,8 @@ def main(argv: Sequence[str] | None = None) -> int:  # pragma: no cover
         args.ignore = [args.ignore]
     ignore: set[str] = {code.strip() for s in args.ignore for code in s.split(",")}
 
+    shared_state = SharedState()
+
     for path in paths:
         if path.is_file():
             filepaths = iter((path,))
@@ -1133,6 +1214,7 @@ def main(argv: Sequence[str] | None = None) -> int:  # pragma: no cover
             ret |= _main(
                 content,
                 str(filepath),
+                shared_state,
                 line_length=args.max_line_length,
                 no_pycodestyle=args.no_pycodestyle,
                 ext=ext,
