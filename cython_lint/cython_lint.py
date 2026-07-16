@@ -215,7 +215,7 @@ class SharedState:
 
     def _register_inline_cfunction_or_declaration(
         self,
-        is_inline_cfunction: bool,
+        is_inline_cfunction: bool,  # noqa: FBT001
         filename: str,
         func_name: str,
         lineno: int,
@@ -273,7 +273,7 @@ def visit_cvardef(
         )
 
 
-def visit_funcdef(
+def visit_funcdef(  # noqa: PLR0913
     node: CFuncDefNode | DefNode,
     filename: str,
     global_names: list[str],
