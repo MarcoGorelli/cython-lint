@@ -181,10 +181,13 @@ def err_msg(node: Node, expected: str) -> NoReturn:
     )
 
 
+Violations = list[tuple[int, int, str]]
+
+
 def visit_cvardef(
     node: CVarDefNode,
     lines: Mapping[int, str],
-    violations: list[tuple[int, int, str]],
+    violations: Violations,
 ) -> None:
     _base = lines[node.pos[1]][node.pos[2] :]
     round_parens = 0
@@ -216,7 +219,7 @@ def visit_funcdef(
     node: CFuncDefNode | DefNode,
     global_names: list[str],
     global_imports: list[Token],
-    violations: list[tuple[int, int, str]],
+    violations: Violations,
 ) -> None:
     children = [i.node for i in traverse(node)][1:]
 
@@ -357,7 +360,7 @@ def _record_imports(node: Node) -> Iterator[Token]:
 
 def visit_dict_node(
     node: DictNode,
-    violations: list[tuple[int, int, str]],
+    violations: Violations,
 ) -> None:
     literal_counts: MutableMapping[
         Hashable,
@@ -442,7 +445,7 @@ def _traverse_file(  # noqa: PLR0915,PLR0913
     lines: Mapping[int, str],
     *,
     skip_check: bool,
-    violations: list[tuple[int, int, str]] | None,
+    violations: Violations | None,
     ban_relative_imports: bool,
 ) -> tuple[list[Token], list[Token], list[str]]:
     """
@@ -905,7 +908,7 @@ def sanitise_input(
 def run_ast_checks(
     code: str,
     filename: str,
-    violations: list[tuple[int, int, str]],
+    violations: Violations,
     *,
     ban_relative_imports: bool,
 ) -> dict[int, str]:
@@ -957,7 +960,7 @@ def run_ast_checks(
 def run_pycodestyle(
     line_length: int,
     filename: str,
-    violations: list[tuple[int, int, str]],
+    violations: Violations,
     ignore: set[str],
 ) -> None:
     output = subprocess.run(
@@ -994,7 +997,7 @@ def _main(  # noqa: PLR0913
     if ignore is None:
         ignore = set()
     assert ignore is not None  # help mypy
-    violations: list[tuple[int, int, str]] = []
+    violations: Violations = []
     if not no_pycodestyle:
         run_pycodestyle(line_length, filename, violations, ignore)
 
