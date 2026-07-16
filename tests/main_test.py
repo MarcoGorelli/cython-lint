@@ -1,12 +1,17 @@
 from __future__ import annotations
 
 import os
+from typing import TYPE_CHECKING
 from typing import Any
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 import Cython
 import pytest
 
-from cython_lint.cython_lint import _main, SharedState
+from cython_lint.cython_lint import SharedState
+from cython_lint.cython_lint import _main
 from cython_lint.cython_lint import main
 
 INCLUDE_FILE_0 = os.path.join("tests", "data", "foo.pxi")
@@ -107,9 +112,10 @@ def test_imported_unused(capsys: Any, src: str, expected: str) -> None:
     assert ret == 1
 
 
-def test_imported_unused_not_checked_in_pxd(capsys) -> None:
+@pytest.mark.parametrize("suffix", [".pxd", ".pxi"])
+def test_imported_unused_not_checked_in_pxd_and_pxi(capsys: Any, suffix: str) -> None:
     src = "from foo import bar, bar2\n"
-    ret = _main(src, "t.pxd", SharedState(), ext=".pxd")
+    ret = _main(src, "t." + suffix, SharedState(), ext=suffix)
     out, _ = capsys.readouterr()
     assert out == ""
     assert ret == 0
@@ -892,7 +898,7 @@ def test_unnecessary_dict_list_set(
     assert ret == 1
 
 
-def test_inline_pxd(tmp_path, capsys):
+def test_inline_pxd(tmp_path: Path, capsys: Any) -> None:
     pyx = str(tmp_path / "example.pyx")
     pxd = str(tmp_path / "example.pxd")
 
