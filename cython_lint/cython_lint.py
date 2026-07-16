@@ -199,17 +199,19 @@ class SharedState:
         self, filename: str, func_name: str, lineno: int, violations: Violations
     ) -> None:
         """Register a ``cdef inline`` in a .pyx/.py file."""
-        self._register_inline_cfunction_or_declaration(
-            True, filename, func_name, lineno, violations
-        )
+        if filename.endswith(".pyx"):
+            self._register_inline_cfunction_or_declaration(
+                True, filename, func_name, lineno, violations
+            )
 
     def register_declaration(
         self, filename: str, func_name: str, lineno: int, violations: Violations
     ) -> None:
         """Register a ``cdef`` declaration in a .pxd file."""
-        self._register_inline_cfunction_or_declaration(
-            False, filename, func_name, lineno, violations
-        )
+        if filename.endswith(".pxd"):
+            self._register_inline_cfunction_or_declaration(
+                False, filename, func_name, lineno, violations
+            )
 
     def _register_inline_cfunction_or_declaration(
         self,
@@ -574,7 +576,7 @@ def _traverse_file(  # noqa: PLR0915,PLR0913
                 violations=violations,
             )
 
-        if isinstance(node, CFuncDeclaratorNode) and filename.endswith(".pxd"):
+        if isinstance(node, CFuncDeclaratorNode):
             shared_state.register_declaration(
                 filename, node.declared_name(), node.pos[1], violations
             )

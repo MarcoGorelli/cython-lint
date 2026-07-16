@@ -6,7 +6,7 @@ from typing import Any
 import Cython
 import pytest
 
-from cython_lint.cython_lint import _main
+from cython_lint.cython_lint import _main, SharedState
 from cython_lint.cython_lint import main
 
 INCLUDE_FILE_0 = os.path.join("tests", "data", "foo.pxi")
@@ -44,7 +44,7 @@ INCLUDE_FILE_1 = os.path.join("tests", "data", "bar.pxi")
     ],
 )
 def test_named_unused(capsys: Any, src: str) -> None:
-    ret = _main(src, "t.py", ext=".pyx", no_pycodestyle=True)
+    ret = _main(src, "t.py", SharedState(), ext=".pyx", no_pycodestyle=True)
     out, _ = capsys.readouterr()
     assert out == ""
     assert ret == 0
@@ -68,7 +68,7 @@ def test_named_unused(capsys: Any, src: str) -> None:
     ],
 )
 def test_assigned_unused(capsys: Any, src: str, expected: str) -> None:
-    ret = _main(src, "t.py", ext=".pyx", no_pycodestyle=True)
+    ret = _main(src, "t.py", SharedState(), ext=".pyx", no_pycodestyle=True)
     out, _ = capsys.readouterr()
     assert out == expected
     assert ret == 1
@@ -101,10 +101,18 @@ def test_assigned_unused(capsys: Any, src: str, expected: str) -> None:
     ],
 )
 def test_imported_unused(capsys: Any, src: str, expected: str) -> None:
-    ret = _main(src, "t.py", ext=".pyx")
+    ret = _main(src, "t.py", SharedState(), ext=".pyx")
     out, _ = capsys.readouterr()
     assert out == expected
     assert ret == 1
+
+
+def test_imported_unused_not_checked_in_pxd(capsys) -> None:
+    src = "from foo import bar, bar2\n"
+    ret = _main(src, "t.pxd", SharedState(), ext=".pxd")
+    out, _ = capsys.readouterr()
+    assert out == ""
+    assert ret == 0
 
 
 @pytest.mark.parametrize(
@@ -121,7 +129,7 @@ def test_imported_unused(capsys: Any, src: str, expected: str) -> None:
     ],
 )
 def test_useless_alias(capsys: Any, src: str, expected: str) -> None:
-    ret = _main(src, "t.py", ext=".pyx", no_pycodestyle=True)
+    ret = _main(src, "t.py", SharedState(), ext=".pyx", no_pycodestyle=True)
     out, _ = capsys.readouterr()
     assert out == expected
     assert ret == 1
@@ -149,12 +157,19 @@ def test_useless_alias(capsys: Any, src: str, expected: str) -> None:
     ],
 )
 def test_relative_import(capsys: Any, src: str, expected: str) -> None:
-    ret = _main(src, "t.py", ext=".pyx", no_pycodestyle=True, ban_relative_imports=True)
+    ret = _main(
+        src,
+        "t.py",
+        SharedState(),
+        ext=".pyx",
+        no_pycodestyle=True,
+        ban_relative_imports=True,
+    )
     out, _ = capsys.readouterr()
     assert out == expected
     assert ret == 1
 
-    ret = _main(src, "t.py", ext=".pyx", no_pycodestyle=True)
+    ret = _main(src, "t.py", SharedState(), ext=".pyx", no_pycodestyle=True)
     out, _ = capsys.readouterr()
     assert out == ""
     assert ret == 0
@@ -174,7 +189,7 @@ def test_pointless_string_statement(
     src: str,
     expected: str,
 ) -> None:
-    ret = _main(src, "t.py", ext=".pyx", no_pycodestyle=True)
+    ret = _main(src, "t.py", SharedState(), ext=".pyx", no_pycodestyle=True)
     out, _ = capsys.readouterr()
     assert out == expected
     assert ret == 1
@@ -202,7 +217,7 @@ def test_pointless_string_statement(
     ],
 )
 def test_unnecessary_index(capsys: Any, src: str, expected: str) -> None:
-    ret = _main(src, "t.py", ext=".pyx", no_pycodestyle=True)
+    ret = _main(src, "t.py", SharedState(), ext=".pyx", no_pycodestyle=True)
     out, _ = capsys.readouterr()
     assert out == expected
     assert ret == 1
@@ -226,7 +241,7 @@ def test_unnecessary_index(capsys: Any, src: str, expected: str) -> None:
     ],
 )
 def test_for_loop_variable_overwritten(capsys: Any, src: str, expected: str) -> None:
-    ret = _main(src, "t.py", ext=".pyx", no_pycodestyle=True)
+    ret = _main(src, "t.py", SharedState(), ext=".pyx", no_pycodestyle=True)
     out, _ = capsys.readouterr()
     assert out == expected
     assert ret == 1
@@ -234,7 +249,7 @@ def test_for_loop_variable_overwritten(capsys: Any, src: str, expected: str) -> 
 
 def test_for_loop_underscore_variable_no_violation(capsys: Any) -> None:
     src = "for _ in range(10):\n    for _ in range(5):\n        pass\n"
-    ret = _main(src, "t.py", ext=".pyx", no_pycodestyle=True)
+    ret = _main(src, "t.py", SharedState(), ext=".pyx", no_pycodestyle=True)
     out, _ = capsys.readouterr()
     assert out == ""
     assert ret == 0
@@ -243,7 +258,7 @@ def test_for_loop_underscore_variable_no_violation(capsys: Any) -> None:
 def test_for_loop_list_target_no_violation(capsys: Any) -> None:
     # list-unpacking target (ListNode) is not NameNode or TupleNode — hits else: pass
     src = "for [x, y] in items:\n    pass\n"
-    ret = _main(src, "t.py", ext=".pyx", no_pycodestyle=True)
+    ret = _main(src, "t.py", SharedState(), ext=".pyx", no_pycodestyle=True)
     out, _ = capsys.readouterr()
     assert out == ""
     assert ret == 0
@@ -282,7 +297,7 @@ def test_for_loop_list_target_no_violation(capsys: Any) -> None:
     ],
 )
 def test_loop_control_var_unused(capsys: Any, src: str, expected: str) -> None:
-    ret = _main(src, "t.py", ext=".pyx", no_pycodestyle=True)
+    ret = _main(src, "t.py", SharedState(), ext=".pyx", no_pycodestyle=True)
     out, _ = capsys.readouterr()
     assert out == expected
     assert ret == 1
@@ -310,7 +325,7 @@ def test_misplaced_comma_old_cython(
     src: str,
     expected: str,
 ) -> None:  # pragma: no cover
-    ret = _main(src, "t.py", ext=".pyx", no_pycodestyle=True)
+    ret = _main(src, "t.py", SharedState(), ext=".pyx", no_pycodestyle=True)
     out, _ = capsys.readouterr()
     assert out == expected
     assert ret == 1
@@ -330,7 +345,7 @@ def test_f_string_not_formatted(
     src: str,
     expected: str,
 ) -> None:
-    ret = _main(src, "t.py", ext=".pyx", no_pycodestyle=True)
+    ret = _main(src, "t.py", SharedState(), ext=".pyx", no_pycodestyle=True)
     out, _ = capsys.readouterr()
     assert out == expected
     assert ret == 1
@@ -354,7 +369,7 @@ def test_shadows_import(
     src: str,
     expected: str,
 ) -> None:
-    ret = _main(src, "t.py", ext=".pyx", no_pycodestyle=True)
+    ret = _main(src, "t.py", SharedState(), ext=".pyx", no_pycodestyle=True)
     out, _ = capsys.readouterr()
     if tuple(Cython.__version__.split(".")) < ("3",):  # pragma: no cover
         # old Cython records the location slightly differently
@@ -378,7 +393,7 @@ def test_repeated_set_element(
     src: str,
     expected: str,
 ) -> None:
-    ret = _main(src, "t.py", ext=".pyx", no_pycodestyle=True)
+    ret = _main(src, "t.py", SharedState(), ext=".pyx", no_pycodestyle=True)
     out, _ = capsys.readouterr()
     assert out == expected
     assert ret == 1
@@ -402,7 +417,7 @@ def test_repeated_dict_keys(
     src: str,
     expected: str,
 ) -> None:
-    ret = _main(src, "t.py", ext=".pyx", no_pycodestyle=True)
+    ret = _main(src, "t.py", SharedState(), ext=".pyx", no_pycodestyle=True)
     out, _ = capsys.readouterr()
     assert out == expected
     assert ret == 1
@@ -426,7 +441,7 @@ def test_dangerous_default(
     src: str,
     expected: str,
 ) -> None:
-    ret = _main(src, "t.py", ext=".pyx", no_pycodestyle=True)
+    ret = _main(src, "t.py", SharedState(), ext=".pyx", no_pycodestyle=True)
     out, _ = capsys.readouterr()
     assert out == expected
     assert ret == 1
@@ -457,7 +472,7 @@ def test_always_true(
     src: str,
     expected: str,
 ) -> None:
-    ret = _main(src, "t.py", ext=".pyx", no_pycodestyle=True)
+    ret = _main(src, "t.py", SharedState(), ext=".pyx", no_pycodestyle=True)
     out, _ = capsys.readouterr()
     assert out == expected
     assert ret == 1
@@ -481,7 +496,7 @@ def test_constants_comparison(
     src: str,
     expected: str,
 ) -> None:
-    ret = _main(src, "t.py", ext=".pyx", no_pycodestyle=True)
+    ret = _main(src, "t.py", SharedState(), ext=".pyx", no_pycodestyle=True)
     out, _ = capsys.readouterr()
     assert out == expected
     assert ret == 1
@@ -509,7 +524,7 @@ def test_strip_repeated_elements(
     src: str,
     expected: str,
 ) -> None:
-    ret = _main(src, "t.py", ext=".pyx", no_pycodestyle=True)
+    ret = _main(src, "t.py", SharedState(), ext=".pyx", no_pycodestyle=True)
     out, _ = capsys.readouterr()
     assert out == expected
     assert ret == 1
@@ -549,7 +564,7 @@ def test_late_binding_closure(
     src: str,
     expected: str,
 ) -> None:
-    ret = _main(src, "t.py", ext=".pyx", no_pycodestyle=True)
+    ret = _main(src, "t.py", SharedState(), ext=".pyx", no_pycodestyle=True)
     out, _ = capsys.readouterr()
     assert out == expected
     assert ret == 1
@@ -586,7 +601,7 @@ def test_pycodestyle(
     with open(os.path.join(tmpdir, "tox.ini"), "w") as fd:
         fd.write("[pycodestyle]\nstatistics=True\n")
     src = ""
-    ret = _main(src, file, ext=".pxd", ignore=ignore)
+    ret = _main(src, file, SharedState(), ext=".pxd", ignore=ignore)
     out, _ = capsys.readouterr()
 
     assert out == expected.format(file)
@@ -612,7 +627,7 @@ def test_pycodestyle_when_ast_parsing_fails(
         fd.write(src)
     with open(os.path.join(tmpdir, "tox.ini"), "w") as fd:
         fd.write("[pycodestyle]\nstatistics=True\n")
-    ret = _main(src, file, ext=".pyx")
+    ret = _main(src, file, SharedState(), ext=".pyx")
     out, _ = capsys.readouterr()
     assert f"Skipping file {file}, as it cannot be parsed. Error: CompileError" in out
     assert f"{file}:4:11: E231 missing whitespace after ':'\n" in out
@@ -726,7 +741,7 @@ def test_pycodestyle_when_ast_parsing_fails(
     ],
 )
 def test_noop(capsys: Any, src: str) -> None:
-    ret = _main(src, "test.py", ext=".pyx")
+    ret = _main(src, "test.py", SharedState(), ext=".pyx")
     out, _ = capsys.readouterr()
     assert out == ""
     assert ret == 0
@@ -741,7 +756,7 @@ def test_noop(capsys: Any, src: str) -> None:
     reason="invalid syntax in new Cython",
 )
 def test_noop_old_cython(capsys: Any, src: str) -> None:  # pragma: no cover
-    ret = _main(src, "t.py", ext=".pyx", no_pycodestyle=True)
+    ret = _main(src, "t.py", SharedState(), ext=".pyx", no_pycodestyle=True)
     out, _ = capsys.readouterr()
     assert out == ""
     assert ret == 0
@@ -842,7 +857,7 @@ def test_exported_imports(
     capsys: Any,
 ) -> None:
     src = 'import numpy\nimport polars\n__all__ = ["numpy", "os", 3]\n'
-    ret = _main(src, "t.py", ext=".pyx", no_pycodestyle=True)
+    ret = _main(src, "t.py", SharedState(), ext=".pyx", no_pycodestyle=True)
     out, _ = capsys.readouterr()
     expected = "t.py:2:8: 'polars' imported but unused\n"
     assert out == expected
@@ -871,7 +886,42 @@ def test_unnecessary_dict_list_set(
     src: str,
     expected: str,
 ) -> None:
-    ret = _main(src, "t.py", ext=".pyx", no_pycodestyle=True)
+    ret = _main(src, "t.py", SharedState(), ext=".pyx", no_pycodestyle=True)
     out, _ = capsys.readouterr()
     assert out == expected
     assert ret == 1
+
+
+def test_inline_pxd(tmp_path, capsys):
+    pyx = str(tmp_path / "example.pyx")
+    pxd = str(tmp_path / "example.pxd")
+
+    with open(pxd, "w") as f:
+        f.write("""\
+cdef int not_inline(int a)
+
+cdef int is_inline(int a)
+
+cdef inline int inline_in_pxd(int a):
+    return a
+""")
+
+    with open(pyx, "w") as f:
+        f.write("""
+cdef int not_inline(int a):
+    return a
+
+cdef inline int is_inline(int a):
+    return a
+""")
+
+    for ordered_files, lineno in [((pyx, pxd), 3), ((pxd, pyx), 5)]:
+        main(ordered_files)
+        out, _ = capsys.readouterr()
+        assert "inline_in_pxd" not in out
+        assert "not_inline" not in out
+        assert (
+            f"{ordered_files[1]}:{lineno}:0: C function 'is_inline' "
+            f"is declared in {pxd}:3, and implemented and marked inline in "
+            f"{pyx}:5."
+        ) in out
