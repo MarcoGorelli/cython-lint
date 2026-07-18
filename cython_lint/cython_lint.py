@@ -315,7 +315,7 @@ def _name_from_name_node(node: NameNode | CSimpleBaseTypeNode | DefNode) -> str:
 
 
 def _cond_from_assert_stat_node(node: AssertStatNode) -> ExprNode:
-    return node.cond  # type: ignore[attr-defined]
+    return node.cond  # type: ignore[attr-defined]  # pragma: no cover
 
 
 def _default_from_cargdecl_node(node: CArgDeclNode) -> ExprNode | None:
@@ -895,11 +895,7 @@ def _traverse_file(  # noqa: PLR0915,PLR0913
                             and isinstance(index_node.index, NameNode)
                             and (
                                 _name_from_name_node(index_node.base)
-                                == _name_from_name_node(
-                                    _args_from_simple_call_node(  # pyrefly: ignore[bad-argument-type]
-                                        node.iterator.sequence  # type: ignore[attr-defined]
-                                    )[0]
-                                )
+                                == _name_from_name_node(args[0])
                             )
                             and (
                                 _name_from_name_node(index_node.index)
