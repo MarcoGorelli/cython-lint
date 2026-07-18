@@ -185,19 +185,19 @@ def test_pointless_string_statement(
     [
         (
             "for i, _v in enumerate(values):\n    a == values[i]\n",
-            "t.py:2:10: unnecessary list index lookup: use `v` instead of `values[i]`\n",
+            "t.py:2:10: unnecessary list index lookup: use `_v` instead of `values[i]`\n",
         ),
         (
             "for i, _v in enumerate(values):\n    a = values[i]\n",
-            "t.py:2:9: unnecessary list index lookup: use `v` instead of `values[i]`\n",
+            "t.py:2:9: unnecessary list index lookup: use `_v` instead of `values[i]`\n",
         ),
         (
             "for i, _v in enumerate(values):\n    a.append(values[i])\n",
-            "t.py:2:14: unnecessary list index lookup: use `v` instead of `values[i]`\n",
+            "t.py:2:14: unnecessary list index lookup: use `_v` instead of `values[i]`\n",
         ),
         (
             "for i, _v in enumerate(values):\n    values[i] == a\n",
-            "t.py:2:5: unnecessary list index lookup: use `v` instead of `values[i]`\n",
+            "t.py:2:5: unnecessary list index lookup: use `_v` instead of `values[i]`\n",
         ),
     ],
 )
