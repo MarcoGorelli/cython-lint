@@ -91,8 +91,6 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
 
-CYTHON_VERSION = tuple(Cython.__version__.split("."))
-
 EXCLUDES = (
     r"/("
     r"\.direnv|\.eggs|\.git|\.hg|\.ipynb_checkpoints|\.mypy_cache|\.nox|\.svn|"
@@ -487,7 +485,8 @@ def _traverse_loop_body(
         if isinstance(n, (FuncDefNode, LambdaNode, ComprehensionNode)):
             continue
         if isinstance(n, ForInStatNode) and any(
-            a.name in loop_vars for a in _iter_target_name_nodes(n.target)
+            _name_from_name_node(a) in loop_vars
+            for a in _iter_target_name_nodes(n.target)
         ):
             continue
         for attr in getattr(n, "child_attrs", ()):
@@ -932,21 +931,21 @@ def _traverse_file(  # noqa: PLR0915,PLR0913
 
         if isinstance(node, ForInStatNode):
             loop_vars: frozenset[str] = frozenset(
-                n.name for n in _iter_target_name_nodes(node.target)
+                _name_from_name_node(n) for n in _iter_target_name_nodes(node.target)
             )
             if loop_vars:
                 for _child in _traverse_loop_body(node.body, loop_vars):
                     if isinstance(_child, ForInStatNode):
                         for _name_node in _iter_target_name_nodes(_child.target):
-                            if (
-                                _name_node.name in loop_vars
-                                and not _name_node.name.startswith("_")
+                            _inner_name = _name_from_name_node(_name_node)
+                            if _inner_name in loop_vars and not _inner_name.startswith(
+                                "_"
                             ):
                                 violations.append(
                                     (
                                         _name_node.pos[1],
                                         _name_node.pos[2] + 1,
-                                        f"Outer for loop variable '{_name_node.name}' "
+                                        f"Outer for loop variable '{_inner_name}' "
                                         "overwritten by inner for-loop target",
                                     ),
                                 )
@@ -955,21 +954,22 @@ def _traverse_file(  # noqa: PLR0915,PLR0913
             _target_nodes = list(_iter_target_name_nodes(node.target))
             if _target_nodes:
                 _body_names: frozenset[str] = frozenset(
-                    _child.node.name
+                    _name_from_name_node(_child.node)
                     for _root in filter(None, [node.body, node.else_clause])
                     for _child in traverse(_root)
                     if isinstance(_child.node, NameNode)
                 )
                 for _target_node in _target_nodes:
+                    _target_name = _name_from_name_node(_target_node)
                     if (
-                        not _target_node.name.startswith("_")
-                        and _target_node.name not in _body_names
+                        not _target_name.startswith("_")
+                        and _target_name not in _body_names
                     ):
                         violations.append(
                             (
                                 _target_node.pos[1],
                                 _target_node.pos[2] + 1,
-                                f"Loop control variable '{_target_node.name}' not used "
+                                f"Loop control variable '{_target_name}' not used "
                                 "within the loop body (if this is intended, start the "
                                 "name with an underscore)",
                             ),
