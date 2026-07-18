@@ -911,7 +911,7 @@ def _traverse_file(  # noqa: PLR0915,PLR0913
                                     index_node.base.pos[1],
                                     index_node.base.pos[2] + 1,
                                     "unnecessary list index lookup: use "
-                                    f"`{_name_from_name_node(node.target.args[1])}` instead of "
+                                    f"`{_name_from_name_node(node.target.args[1]).lstrip('_')}` instead of "
                                     f"`{_name_from_name_node(index_node.base)}"
                                     f"[{_name_from_name_node(index_node.index)}]`",
                                 ),
