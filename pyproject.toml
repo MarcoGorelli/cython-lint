@@ -99,3 +99,5 @@ exclude_also = [
 [tool.mypy]
 strict = true
 
+[tool.pyrefly]
+project-includes=['cython_lint']
