@@ -840,73 +840,63 @@ def _traverse_file(  # noqa: PLR0915,PLR0913
             and len(node.target.args) == 2
             and isinstance(node.target.args[0], NameNode)
             and isinstance(node.target.args[1], NameNode)
+            and isinstance(
+                (sequence := cast("IteratorNode", node.iterator).sequence),
+                SimpleCallNode,
+            )
+            and isinstance(sequence.function, NameNode)
+            and _name_from_name_node(sequence.function) == "enumerate"
+            and (args := cast("list[ExprNode]", sequence.args))
+            and len(args) == 1
+            and isinstance(args[0], NameNode)
         ):
-            iterator: IteratorNode = node.iterator  # type: ignore[assignment]
-            sequence: ExprNode = iterator.sequence  # type: ignore[assignment]
-            if isinstance(sequence, SimpleCallNode) and isinstance(
-                sequence.function, NameNode
-            ):
-                function: NameNode = sequence.function  # type: ignore[assignment]
-                args: list[ExprNode] = sequence.args  # type: ignore[assignment]
-                if (
-                    _name_from_name_node(function) == "enumerate"
-                    and len(args) == 1
-                    and isinstance(args[0], NameNode)
+            for _child in traverse(node.body):
+                if isinstance(_child.node, SingleAssignmentNode) and isinstance(
+                    _rhs_from_single_assignment_node(_child.node), IndexNode
                 ):
-                    body: StatNode = node.body  # type: ignore[assignment]
-                    for _child in traverse(body):
-                        if isinstance(_child.node, SingleAssignmentNode) and isinstance(
-                            _rhs_from_single_assignment_node(_child.node), IndexNode
-                        ):
-                            index_node: IndexNode = _child.node.rhs  # type: ignore[assignment]
-                        elif isinstance(_child.node, PrimaryCmpNode) and (
-                            isinstance(
-                                _operand1_from_primary_cmp_node(_child.node), IndexNode
-                            )
-                        ):
-                            index_node = _child.node.operand1  # type: ignore[assignment]
-                        elif isinstance(_child.node, PrimaryCmpNode) and (
-                            isinstance(
-                                _operand2_from_primary_cmp_node(_child.node), IndexNode
-                            )
-                        ):
-                            index_node = _child.node.operand2  # type: ignore[assignment]
-                        elif (
-                            isinstance(_child.node, SimpleCallNode)
-                            and isinstance(_child.node.function, AttributeNode)
-                            and isinstance(_child.node.function.obj, NameNode)
-                            and _child.node.function.attribute == "append"
-                            and len(_args_from_simple_call_node(_child.node)) == 1
-                            and isinstance(
-                                _args_from_simple_call_node(_child.node)[0], IndexNode
-                            )
-                        ):
-                            index_node = _args_from_simple_call_node(_child.node)[0]  # type: ignore[assignment]
-                        else:  # pragma: no cover
-                            # This branch is definitely hit - bug in coverage?
-                            continue
-                        if (
-                            isinstance(index_node.base, NameNode)
-                            and isinstance(index_node.index, NameNode)
-                            and (
-                                (_base_name := _name_from_name_node(index_node.base))
-                                == _name_from_name_node(args[0])
-                            )
-                            and (
-                                (_index_name := _name_from_name_node(index_node.index))
-                                == _name_from_name_node(node.target.args[0])
-                            )
-                        ):
-                            _target_name = _name_from_name_node(node.target.args[1])
-                            violations.append(
-                                (
-                                    index_node.base.pos[1],
-                                    index_node.base.pos[2] + 1,
-                                    "unnecessary list index lookup: use "
-                                    f"`{_target_name.lstrip('_')}` instead of "
-                                    f"`{_base_name}[{_index_name}]`",
-                                ),
-                            )
+                    index_node: IndexNode = _child.node.rhs  # type: ignore[assignment]
+                elif isinstance(_child.node, PrimaryCmpNode) and (
+                    isinstance(_operand1_from_primary_cmp_node(_child.node), IndexNode)
+                ):
+                    index_node = _child.node.operand1  # type: ignore[assignment]
+                elif isinstance(_child.node, PrimaryCmpNode) and (
+                    isinstance(_operand2_from_primary_cmp_node(_child.node), IndexNode)
+                ):
+                    index_node = _child.node.operand2  # type: ignore[assignment]
+                elif (
+                    isinstance(_child.node, SimpleCallNode)
+                    and isinstance(_child.node.function, AttributeNode)
+                    and isinstance(_child.node.function.obj, NameNode)
+                    and _child.node.function.attribute == "append"
+                    and len(_args_from_simple_call_node(_child.node)) == 1
+                    and isinstance(_args_from_simple_call_node(_child.node)[0], IndexNode)
+                ):
+                    index_node = _args_from_simple_call_node(_child.node)[0]  # type: ignore[assignment]
+                else:  # pragma: no cover
+                    # This branch is definitely hit - bug in coverage?
+                    continue
+                if (
+                    isinstance(index_node.base, NameNode)
+                    and isinstance(index_node.index, NameNode)
+                    and (
+                        (_base_name := _name_from_name_node(index_node.base))
+                        == _name_from_name_node(args[0])
+                    )
+                    and (
+                        (_index_name := _name_from_name_node(index_node.index))
+                        == _name_from_name_node(node.target.args[0])
+                    )
+                ):
+                    _target_name = _name_from_name_node(node.target.args[1])
+                    violations.append(
+                        (
+                            index_node.base.pos[1],
+                            index_node.base.pos[2] + 1,
+                            "unnecessary list index lookup: use "
+                            f"`{_target_name.lstrip('_')}` instead of "
+                            f"`{_base_name}[{_index_name}]`",
+                        ),
+                    )
 
         if (
             isinstance(node, SingleAssignmentNode)
