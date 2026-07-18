@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "cython-lint"
-version = "0.19.0"
+version = "0.21.0"
 authors = [
   { name="Marco Gorelli", email="33491632+MarcoGorelli@users.noreply.github.com" },
 ]
@@ -34,10 +34,10 @@ double-quote-cython-strings = "cython_lint.string_fixer:main"
 [tool.ruff]
 line-length = 90
 fix = true
-target-version = "py38"
+target-version = "py310"
 
 lint.select = [
-  "ALL",
+  "ALL", "UP"
 ]
 lint.ignore = [
   'A001',

@@ -5,7 +5,10 @@ import io
 import re
 import sys
 import tokenize
-from typing import Sequence
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 
 def handle_match(token_text: str, *, never: bool) -> str:
