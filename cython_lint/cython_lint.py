@@ -808,26 +808,24 @@ def _traverse_file(  # noqa: PLR0915,PLR0913
             and hasattr(node.function, "name")
         ):
             args: list[ExprNode] = node.args  # type: ignore[assignment]
+            _func_name = _name_from_name_node(node.function)
             if (
                 args
                 and len(args) == 1
                 and isinstance(args[0], (GeneratorExpressionNode, ComprehensionNode))
                 and (
-                    _name_from_name_node(node.function) in {"list", "set"}
+                    _func_name in {"list", "set"}
                     or (
-                        _name_from_name_node(node.function) == "dict"
+                        _func_name == "dict"
                         and isinstance(
-                            _target_from_for_in_stat_node(_loop_from_loop_node(args[0])),
-                            TupleNode,
-                        )
-                        and len(
-                            _args_from_sequence_node(
-                                _target_from_for_in_stat_node(
+                            (
+                                _target := _target_from_for_in_stat_node(
                                     _loop_from_loop_node(args[0])
                                 )
-                            )
+                            ),
+                            TupleNode,
                         )
-                        == 2
+                        and len(_args_from_sequence_node(_target)) == 2
                     )
                 )
             ):
@@ -835,7 +833,8 @@ def _traverse_file(  # noqa: PLR0915,PLR0913
                     (
                         node.pos[1],
                         node.pos[2] + 1,
-                        f"unnecessary {_name_from_name_node(node.function)} + generator (just use a {_name_from_name_node(node.function)} comprehension)",
+                        f"unnecessary {_func_name} + generator (just use a "
+                        f"{_func_name} comprehension)",
                     ),
                 )
 
@@ -894,22 +893,22 @@ def _traverse_file(  # noqa: PLR0915,PLR0913
                             isinstance(index_node.base, NameNode)
                             and isinstance(index_node.index, NameNode)
                             and (
-                                _name_from_name_node(index_node.base)
+                                (_base_name := _name_from_name_node(index_node.base))
                                 == _name_from_name_node(args[0])
                             )
                             and (
-                                _name_from_name_node(index_node.index)
+                                (_index_name := _name_from_name_node(index_node.index))
                                 == _name_from_name_node(node.target.args[0])
                             )
                         ):
+                            _target_name = _name_from_name_node(node.target.args[1])
                             violations.append(
                                 (
                                     index_node.base.pos[1],
                                     index_node.base.pos[2] + 1,
                                     "unnecessary list index lookup: use "
-                                    f"`{_name_from_name_node(node.target.args[1]).lstrip('_')}` instead of "
-                                    f"`{_name_from_name_node(index_node.base)}"
-                                    f"[{_name_from_name_node(index_node.index)}]`",
+                                    f"`{_target_name.lstrip('_')}` instead of "
+                                    f"`{_base_name}[{_index_name}]`",
                                 ),
                             )
 
