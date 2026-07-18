@@ -806,37 +806,33 @@ def _traverse_file(  # noqa: PLR0915,PLR0913
             isinstance(node, SimpleCallNode)
             and isinstance(node.function, NameNode)
             and hasattr(node.function, "name")
-        ):
-            args: list[ExprNode] = node.args  # type: ignore[assignment]
-            _func_name = _name_from_name_node(node.function)
-            if (
-                args
-                and len(args) == 1
-                and isinstance(args[0], (GeneratorExpressionNode, ComprehensionNode))
-                and (
-                    _func_name in {"list", "set"}
-                    or (
-                        _func_name == "dict"
-                        and isinstance(
-                            (
-                                _target := _target_from_for_in_stat_node(
-                                    _loop_from_loop_node(args[0])
-                                )
-                            ),
-                            TupleNode,
-                        )
-                        and len(_args_from_sequence_node(_target)) == 2
+            and (args := cast("list[ExprNode]", node.args))
+            and len(args) == 1
+            and isinstance(args[0], (GeneratorExpressionNode, ComprehensionNode))
+            and (
+                (_func_name := _name_from_name_node(node.function)) in {"list", "set"}
+                or (
+                    _func_name == "dict"
+                    and isinstance(
+                        (
+                            _target := _target_from_for_in_stat_node(
+                                _loop_from_loop_node(args[0])
+                            )
+                        ),
+                        TupleNode,
                     )
+                    and len(_args_from_sequence_node(_target)) == 2
                 )
-            ):
-                violations.append(
-                    (
-                        node.pos[1],
-                        node.pos[2] + 1,
-                        f"unnecessary {_func_name} + generator (just use a "
-                        f"{_func_name} comprehension)",
-                    ),
-                )
+            )
+        ):
+            violations.append(
+                (
+                    node.pos[1],
+                    node.pos[2] + 1,
+                    f"unnecessary {_func_name} + generator (just use a "
+                    f"{_func_name} comprehension)",
+                ),
+            )
 
         if (
             isinstance(node, ForInStatNode)
