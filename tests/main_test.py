@@ -713,6 +713,7 @@ def test_pycodestyle_when_ast_parsing_fails(
         "for i, _v in enumerate(values):\n    a == values[[i]]\n",
         "for i, _v in enumerate(values):\n    pass\n    arr.extend(values[i])\n    pass\n",
         "for i, _v in enumerate(values):\n    b = t[i]\n",
+        "for i, v in zip(range(10), values):\n    a = values[i]\n    use(v)\n",
         "import numpy as np\n\n\ndef foo() -> np.ndarray:\n    pass\n",
         "dict([x for x in foo])\n",
         "current_notification = 3\n"
