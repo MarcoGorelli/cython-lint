@@ -102,6 +102,69 @@ else:  # pragma: no cover
         pass
 
 
+# If necessary, include fixes from https://github.com/cython/cython/pull/7832
+# so pxd files can be parsed.
+if CYTHON_VERSION > ("3",) and CYTHON_VERSION < ("3", "3", "0"):
+    # The following code is copyright by the Cython authors under the Apache 2.0
+    # license, see https://github.com/cython/cython/blob/master/LICENSE.txt
+    def parse_from_strings(  # type: ignore  # noqa
+        name,  # noqa
+        code,  # noqa
+        pxds=None,  # noqa
+        level=None,  # noqa
+        initial_pos=None,  # noqa
+        context=None,  # noqa
+        allow_struct_enum_decorator=False,  # noqa
+        in_utility_code=False,  # noqa
+    ):
+        from io import StringIO  # noqa: PLC0415
+
+        from Cython.Compiler import Parsing  # noqa: PLC0415
+        from Cython.Compiler.Scanning import PyrexScanner  # noqa: PLC0415
+        from Cython.Compiler.Scanning import StringSourceDescriptor  # noqa: PLC0415
+
+        if context is None:
+            context = StringParseContext(name)
+        # Since source files carry an encoding, it makes sense in this context
+        # to use a unicode string so that code fragments don't have to bother
+        # with encoding. This means that test code passed in should not have an
+        # encoding header.
+        assert isinstance(code, str), "unicode code snippets only please"
+        encoding = "UTF-8"
+
+        module_name = name
+        if initial_pos is None:
+            initial_pos = (name, 1, 0)
+        code_source = StringSourceDescriptor(name, code)
+        if in_utility_code:
+            code_source.in_utility_code = True
+
+        scope = context.find_module(module_name, pos=initial_pos, need_pxd=False)
+
+        buf = StringIO(code)
+
+        scanner = PyrexScanner(
+            buf,
+            code_source,
+            source_encoding=encoding,
+            scope=scope,
+            context=context,
+            initial_pos=initial_pos,
+        )
+        ctx = Parsing.Ctx(allow_struct_enum_decorator=allow_struct_enum_decorator)
+
+        if level is None or level == "module_pxd":
+            in_pxd = level == "module_pxd"
+            tree = Parsing.p_module(scanner, in_pxd, module_name, ctx=ctx)
+            tree.is_pxd = in_pxd
+        else:
+            scanner.parse_comments = False
+            tree = Parsing.p_code(scanner, level=level, ctx=ctx)
+
+        tree.scope = scope
+        return tree
+
+
 PRAGMA = r"#\s+no-cython-lint"
 
 # generate these with python generate_pycodestyle_codes.py
@@ -520,7 +583,10 @@ def _traverse_file(  # noqa: PLR0915,PLR0913
         context = StringParseContext(filename)
         context.set_language_level(3)
         init_thread()
-        tree = parse_from_strings(filename, code, context=context)
+        extra_kwargs = {}
+        if filename.endswith(".pxd"):
+            extra_kwargs["level"] = "module_pxd"
+        tree = parse_from_strings(filename, code, context=context, **extra_kwargs)
     except Exception as exp:  # pragma: no cover
         # If Cython can't parse this file, just skip it.
         print(
