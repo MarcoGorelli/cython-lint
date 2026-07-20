@@ -900,35 +900,65 @@ def test_unnecessary_dict_list_set(
 
 
 def test_inline_pxd(tmp_path: Path, capsys: Any) -> None:
-    pyx = str(tmp_path / "example.pyx")
     pxd = str(tmp_path / "example.pxd")
-
     with open(pxd, "w") as f:
         f.write("""\
-cdef int not_inline(int a)
+cdef int not_inline(self, int a)
 
-cdef int is_inline(int a)
+cdef int is_inline(self, int a)
 
-cdef inline int inline_in_pxd(int a):
+cdef inline int inline_in_pxd(self, int a):
     return a
+
+cdef class X:
+    cdef int inline_method(self, int a)
+
+    cdef int inline_final_method(self, int a)
+
+cdef class X2:
+    cdef int inline_in_final_class(self, int a)
 """)
 
+    pyx = str(tmp_path / "example.pyx")
     with open(pyx, "w") as f:
         f.write("""
-cdef int not_inline(int a):
+import cython
+
+cdef int not_inline(self, int a):
     return a
 
-cdef inline int is_inline(int a):
+cdef inline int is_inline(self, int a):
     return a
+
+cdef class X:
+    cdef inline int inline_method(self, int a):
+        return a
+
+    @cython.final
+    cdef inline int inline_final_method(self, int a):
+        return a
+
+@cython.final
+cdef class X2:
+    cdef inline int inline_in_final_class(self, int a):
+        return a
 """)
 
-    for ordered_files, lineno in [((pyx, pxd), 3), ((pxd, pyx), 5)]:
+    for ordered_files, lineno in [((pyx, pxd), 3), ((pxd, pyx), 7)]:
         main(ordered_files)
         out, _ = capsys.readouterr()
+        # Fully defined inline in the .pxd, so not a problem:
         assert "inline_in_pxd" not in out
+        # Not inlined anywhere, so not a problem:
         assert "not_inline" not in out
+        # We don't check methods, due to false positives because of
+        # inheritance; final isn't enforced across extension modules
+        # so can't rely on it, unfortunately.
+        assert "inline_method" not in out
+        assert "inline_final_method" not in out
+        assert "inline_method_final_class" not in out
         assert (
             f"{ordered_files[1]}:{lineno}:0: C function 'is_inline' "
             f"is declared in {pxd}:3, and implemented and marked inline in "
-            f"{pyx}:5."
+            f"{pyx}:7."
         ) in out

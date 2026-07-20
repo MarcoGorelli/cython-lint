@@ -57,6 +57,7 @@ from Cython.Compiler.ExprNodes import TupleNode
 from Cython.Compiler.ExprNodes import UnicodeNode
 from Cython.Compiler.Nodes import AssertStatNode
 from Cython.Compiler.Nodes import CArgDeclNode
+from Cython.Compiler.Nodes import CClassDefNode
 from Cython.Compiler.Nodes import CDeclaratorNode
 from Cython.Compiler.Nodes import CFuncDeclaratorNode
 from Cython.Compiler.Nodes import CFuncDefNode
@@ -399,7 +400,15 @@ def visit_funcdef(  # noqa: PLR0913
         _declarator: CDeclaratorNode = node.declarator  # type: ignore[assignment]
         func = _func_from_base(_declarator)
         func_name = _name_from_name_node(_name_from_base(func.base))  # type: ignore[attr-defined]
-        if "inline" in node.modifiers:
+        # Record inline stand-alone functions:
+        is_method = False
+        parent = node._cl_parent
+        while parent is not None:
+            if isinstance(parent, CClassDefNode):
+                is_method = True
+                break
+            parent = parent._cl_parent
+        if "inline" in node.modifiers and not is_method:
             shared_state.register_inline_cfunction(
                 filename, func_name, node.pos[1], violations
             )
@@ -679,6 +688,7 @@ def _traverse_file(  # noqa: PLR0915,PLR0913
     names: list[Token] = []
     for node_parent in nodes:
         node = node_parent.node
+        node._cl_parent = node_parent.parent
         imported_names.extend(_record_imports(node))
         if isinstance(node, GlobalNode):
             _names: list[str] = node.names  # type: ignore[assignment]
