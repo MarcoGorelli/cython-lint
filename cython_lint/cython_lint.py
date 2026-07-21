@@ -110,7 +110,7 @@ else:  # pragma: no cover
 
 # If necessary, include fixes from https://github.com/cython/cython/pull/7832
 # so pxd files can be parsed.
-if CYTHON_VERSION > ("3",) and CYTHON_VERSION < ("3", "3", "0"):
+if CYTHON_VERSION > ("3", "2") and CYTHON_VERSION[-1] != "0a1":
     # The following code is copyright by the Cython authors under the Apache 2.0
     # license, see https://github.com/cython/cython/blob/master/LICENSE.txt
     def parse_from_strings(  # type: ignore  # noqa
@@ -129,8 +129,6 @@ if CYTHON_VERSION > ("3",) and CYTHON_VERSION < ("3", "3", "0"):
         from Cython.Compiler.Scanning import PyrexScanner  # noqa: PLC0415
         from Cython.Compiler.Scanning import StringSourceDescriptor  # noqa: PLC0415
 
-        if context is None:
-            context = StringParseContext(name)
         # Since source files carry an encoding, it makes sense in this context
         # to use a unicode string so that code fragments don't have to bother
         # with encoding. This means that test code passed in should not have an
@@ -159,13 +157,10 @@ if CYTHON_VERSION > ("3",) and CYTHON_VERSION < ("3", "3", "0"):
         )
         ctx = Parsing.Ctx(allow_struct_enum_decorator=allow_struct_enum_decorator)
 
-        if level is None or level == "module_pxd":
-            in_pxd = level == "module_pxd"
-            tree = Parsing.p_module(scanner, in_pxd, module_name, ctx=ctx)
-            tree.is_pxd = in_pxd
-        else:
-            scanner.parse_comments = False
-            tree = Parsing.p_code(scanner, level=level, ctx=ctx)
+        assert level is None or level == "module_pxd"
+        in_pxd = level == "module_pxd"
+        tree = Parsing.p_module(scanner, in_pxd, module_name, ctx=ctx)
+        tree.is_pxd = in_pxd
 
         tree.scope = scope
         return tree
@@ -268,6 +263,7 @@ class SharedState:
         self, filename: str, func_name: str, lineno: int, violations: Violations
     ) -> None:
         """Register a ``cdef inline`` in a .pyx/.py file."""
+        # This can sometimes happen from a .pxd.
         if filename.endswith(".pyx"):
             self._register_inline_cfunction_or_declaration(
                 True, filename, func_name, lineno, violations
@@ -676,9 +672,14 @@ def _traverse_file(  # noqa: PLR0915,PLR0913
     global_names: list[str] = []
     exported_imports: list[str] = []
 
-    _body: ExprNode = tree.body  # type: ignore[assignment]
+    if hasattr(tree, "body"):
+        # Older versions of Cython:
+        _body: ExprNode = tree.body  # type: ignore[assignment]
+    else:
+        # Cython 3.3.0a1 and later:
+        _body: ExprNode = tree
     if isinstance(_body, StatListNode):
-        _stats: list[StatNode] = tree.body.stats  # type: ignore[assignment]
+        _stats: list[StatNode] = _body.stats  # type: ignore[assignment]
         for node in _stats:
             if isinstance(node, StatListNode):
                 for _node in node.stats:
