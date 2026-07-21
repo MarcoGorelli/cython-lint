@@ -112,18 +112,15 @@ else:  # pragma: no cover
 
 # If necessary, include fixes from https://github.com/cython/cython/pull/7832
 # so pxd files can be parsed.
-if CYTHON_VERSION > ("3", "2") and CYTHON_VERSION[-1] != "0a1":
+if CYTHON_VERSION > ("3", "2") and CYTHON_VERSION[-1] != "0a1":  # pragma: no cover
     # The following code is copyright by the Cython authors under the Apache 2.0
     # license, see https://github.com/cython/cython/blob/master/LICENSE.txt
     def parse_from_strings(  # type: ignore  # noqa
         name,  # noqa
         code,  # noqa
-        pxds=None,  # noqa
         level=None,  # noqa
-        initial_pos=None,  # noqa
         context=None,  # noqa
         allow_struct_enum_decorator=False,  # noqa
-        in_utility_code=False,  # noqa
     ):
         from io import StringIO  # noqa: PLC0415
 
@@ -139,11 +136,8 @@ if CYTHON_VERSION > ("3", "2") and CYTHON_VERSION[-1] != "0a1":
         encoding = "UTF-8"
 
         module_name = name
-        if initial_pos is None:
-            initial_pos = (name, 1, 0)
+        initial_pos = (name, 1, 0)
         code_source = StringSourceDescriptor(name, code)
-        if in_utility_code:
-            code_source.in_utility_code = True
 
         assert context is not None
         scope = context.find_module(module_name, pos=initial_pos, need_pxd=False)
@@ -677,10 +671,10 @@ def _traverse_file(  # noqa: PLR0915,PLR0913
 
     if hasattr(tree, "body"):
         # Older versions of Cython:
-        _body: ExprNode = tree.body  # type: ignore[assignment]
+        _body: ExprNode = tree.body  # type: ignore[assignment]   # pragma: no cover
     else:
         # Cython 3.3.0a1 and later:
-        _body: ExprNode = tree  # type: ignore[assignment]
+        _body: ExprNode = tree  # type: ignore[assignment]   # pragma: no cover
     if isinstance(_body, StatListNode):
         _stats: list[StatNode] = _body.stats  # type: ignore[assignment]
         for node in _stats:
