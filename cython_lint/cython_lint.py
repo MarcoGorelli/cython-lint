@@ -77,7 +77,9 @@ from Cython.Compiler.Nodes import Node
 from Cython.Compiler.Nodes import SingleAssignmentNode
 from Cython.Compiler.Nodes import StatListNode
 from Cython.Compiler.Nodes import StatNode
-from Cython.Compiler.TreeFragment import parse_from_strings
+from Cython.Compiler.TreeFragment import (
+    parse_from_strings,  # type: ignore[reportAssignmentType]
+)
 from tokenize_rt import src_to_tokens
 from tokenize_rt import tokens_to_src
 
@@ -143,6 +145,7 @@ if CYTHON_VERSION > ("3", "2") and CYTHON_VERSION[-1] != "0a1":
         if in_utility_code:
             code_source.in_utility_code = True
 
+        assert context is not None
         scope = context.find_module(module_name, pos=initial_pos, need_pxd=False)
 
         buf = StringIO(code)
@@ -159,10 +162,10 @@ if CYTHON_VERSION > ("3", "2") and CYTHON_VERSION[-1] != "0a1":
 
         assert level is None or level == "module_pxd"
         in_pxd = level == "module_pxd"
-        tree = Parsing.p_module(scanner, in_pxd, module_name, ctx=ctx)
-        tree.is_pxd = in_pxd
+        tree = Parsing.p_module(scanner, in_pxd, module_name, ctx=ctx)  # type: ignore[type]
+        tree.is_pxd = in_pxd  # type: ignore[missing-attribute]
 
-        tree.scope = scope
+        tree.scope = scope  # type: ignore[missing-attribute]
         return tree
 
 
@@ -398,7 +401,7 @@ def visit_funcdef(  # noqa: PLR0913
         func_name = _name_from_name_node(_name_from_base(func.base))  # type: ignore[attr-defined]
         # Record inline stand-alone functions:
         is_method = False
-        parent = node._cl_parent
+        parent = node._cl_parent  # type: ignore[missing-attribute]
         while parent is not None:
             if isinstance(parent, CClassDefNode):
                 is_method = True
@@ -677,7 +680,7 @@ def _traverse_file(  # noqa: PLR0915,PLR0913
         _body: ExprNode = tree.body  # type: ignore[assignment]
     else:
         # Cython 3.3.0a1 and later:
-        _body: ExprNode = tree
+        _body: ExprNode = tree  # type: ignore[assignment]
     if isinstance(_body, StatListNode):
         _stats: list[StatNode] = _body.stats  # type: ignore[assignment]
         for node in _stats:
@@ -689,7 +692,7 @@ def _traverse_file(  # noqa: PLR0915,PLR0913
     names: list[Token] = []
     for node_parent in nodes:
         node = node_parent.node
-        node._cl_parent = node_parent.parent
+        node._cl_parent = node_parent.parent  # type: ignore[assignment]
         imported_names.extend(_record_imports(node))
         if isinstance(node, GlobalNode):
             _names: list[str] = node.names  # type: ignore[assignment]
