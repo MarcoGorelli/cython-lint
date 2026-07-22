@@ -650,7 +650,7 @@ def _traverse_file(  # noqa: PLR0915,PLR0913
     skip_check: only for when traversing an included file
     """
     try:
-        context = StringParseContext(filename)
+        context = StringParseContext(filename, cpp=True)
         context.set_language_level(3)
         init_thread()
         extra_kwargs = {}

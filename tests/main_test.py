@@ -962,3 +962,26 @@ cdef class X2:
             f"is declared in {pxd}:3, and implemented and marked inline in "
             f"{pyx}:7."
         ) in out
+
+
+def test_cpp_pxd(capsys: Any, tmp_path: Path) -> None:
+    """Ensure parsing C++ pxd files doesn't result in a parsing error."""
+    pxd = str(tmp_path / "example.pxd")
+    with open(pxd, "w") as f:
+        f.write("""
+cdef extern from "arrow/util/iterator.h" namespace "arrow" nogil:
+    cdef cppclass CIterator" arrow::Iterator"[T]:
+        CResult[T] Next()
+        CStatus Visit[Visitor](Visitor&& visitor)
+        cppclass RangeIterator:
+            CResult[T] operator*()
+            RangeIterator& operator++()
+            c_bool operator!=(RangeIterator) const
+        RangeIterator begin()
+        RangeIterator end()
+    CIterator[T] MakeVectorIterator[T](vector[T] v)
+""")
+    main([pxd])
+    out, err = capsys.readouterr()
+    assert out == ""
+    assert err == ""
