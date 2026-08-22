@@ -77,15 +77,19 @@ from Cython.Compiler.Nodes import SingleAssignmentNode
 from Cython.Compiler.Nodes import StatListNode
 from Cython.Compiler.Nodes import StatNode
 from Cython.Compiler.TreeFragment import parse_from_strings
-from packaging.version import Version
 from tokenize_rt import src_to_tokens
 from tokenize_rt import tokens_to_src
 
 from cython_lint import __version__
 
-CYTHON_VERSION = Version(Cython.__version__)  # type: ignore[attr-defined]
-CYTHON_3 = Version("3")
-CYTHON_3_3 = Version("3.3")
+# non-numeric parts (e.g. the 'b1' of '3.1.0b1') are dropped
+CYTHON_VERSION = tuple(
+    int(part)
+    for part in Cython.__version__.split(".")  # type: ignore[attr-defined]
+    if part.isdigit()
+)
+CYTHON_3 = (3,)
+CYTHON_3_3 = (3, 3)
 if TYPE_CHECKING:
     from collections.abc import Hashable
     from collections.abc import Iterator
