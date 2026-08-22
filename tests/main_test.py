@@ -556,6 +556,22 @@ def test_late_binding_closure(
 
 
 @pytest.mark.parametrize(
+    "src",
+    [
+        "def f(seq):\n    return [x for x in seq]\n",
+        "def f(seq):\n    return {x for x in seq}\n",
+        "def f(seq):\n    return {x: x for x in seq}\n",
+        "def f(seq):\n    return {k: v for k, v in seq}\n",
+    ],
+)
+def test_comprehension_without_late_binding_closure(capsys: Any, src: str) -> None:
+    ret = _main(src, "t.py", ext=".pyx", no_pycodestyle=True)
+    out, _ = capsys.readouterr()
+    assert out == ""
+    assert ret == 0
+
+
+@pytest.mark.parametrize(
     ("ignore", "expected", "exp_ret"),
     [
         (
