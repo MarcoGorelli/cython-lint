@@ -346,7 +346,7 @@ def _args_from_sequence_node(node: SequenceNode) -> list[ExprNode]:
 def _value_from_dict_comprehension_append_node(
     node: DictComprehensionAppendNode,
 ) -> ExprNode:
-    if CYTHON_VERSION >= CYTHON_3_3:  # pragma: no cover
+    if CYTHON_VERSION >= CYTHON_3_3:
         # Cython 3.3 replaced key_expr/value_expr with a single DictItemNode
         return node.dict_item.value  # type: ignore[attr-defined]
     return node.value_expr  # type: ignore[attr-defined]  # pragma: no cover
