@@ -106,7 +106,7 @@ EXCLUDES = (
     r")/"
 )
 
-if CYTHON_VERSION >= CYTHON_3:  # pragma: no cover
+if CYTHON_VERSION >= CYTHON_3:
     from Cython.Compiler.ExprNodes import AnnotationNode  # type: ignore[assignment]
 else:  # pragma: no cover
 
