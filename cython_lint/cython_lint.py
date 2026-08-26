@@ -82,7 +82,14 @@ from tokenize_rt import tokens_to_src
 
 from cython_lint import __version__
 
-CYTHON_VERSION = tuple(Cython.__version__.split("."))  # type: ignore[attr-defined]
+# non-numeric parts (e.g. the 'b1' of '3.1.0b1') are dropped
+CYTHON_VERSION = tuple(
+    int(part)
+    for part in Cython.__version__.split(".")  # type: ignore[attr-defined]
+    if part.isdigit()
+)
+CYTHON_3 = (3,)
+CYTHON_3_3 = (3, 3)
 if TYPE_CHECKING:
     from collections.abc import Hashable
     from collections.abc import Iterator
@@ -99,7 +106,7 @@ EXCLUDES = (
     r")/"
 )
 
-if CYTHON_VERSION > ("3",):  # pragma: no cover
+if CYTHON_VERSION >= CYTHON_3:
     from Cython.Compiler.ExprNodes import AnnotationNode  # type: ignore[assignment]
 else:  # pragma: no cover
 
@@ -334,6 +341,15 @@ def _target_from_for_in_stat_node(node: ForInStatNode) -> SequenceNode:
 
 def _args_from_sequence_node(node: SequenceNode) -> list[ExprNode]:
     return node.args  # type: ignore[attr-defined]
+
+
+def _value_from_dict_comprehension_append_node(
+    node: DictComprehensionAppendNode,
+) -> ExprNode:
+    if CYTHON_VERSION >= CYTHON_3_3:
+        # Cython 3.3 replaced key_expr/value_expr with a single DictItemNode
+        return node.dict_item.value  # type: ignore[attr-defined]
+    return node.value_expr  # type: ignore[attr-defined]  # pragma: no cover
 
 
 def _rhs_from_single_assignment_node(node: SingleAssignmentNode) -> ExprNode:
@@ -629,7 +645,7 @@ def _traverse_file(  # noqa: PLR0915,PLR0913
             )
 
         if isinstance(node, (IfClauseNode, AssertStatNode)):
-            if CYTHON_VERSION > ("3",) or isinstance(
+            if CYTHON_VERSION >= CYTHON_3 or isinstance(
                 node, IfClauseNode
             ):  # pragma: no cover
                 test = isinstance(node.condition, TupleNode)
@@ -683,13 +699,13 @@ def _traverse_file(  # noqa: PLR0915,PLR0913
             and isinstance(node.loop.body, ComprehensionAppendNode)
         ):
             if isinstance(node.loop.body, DictComprehensionAppendNode):
-                expr = node.loop.body.value_expr
+                _expr = _value_from_dict_comprehension_append_node(node.loop.body)
             else:
-                expr = node.loop.body.expr
-            if isinstance(expr, LambdaNode) and not hasattr(expr, "loop"):
+                _expr = node.loop.body.expr
+            if isinstance(_expr, LambdaNode) and not hasattr(_expr, "loop"):
                 # GeneratorExpressionNode is a LambdaNode, and has a loop
                 # attribute, so need to exclude it.
-                _children = [j.node for j in traverse(expr)]
+                _children = [j.node for j in traverse(_expr)]
                 _names = [
                     _name_from_name_node(_child)
                     for _child in _children
