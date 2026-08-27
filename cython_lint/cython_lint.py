@@ -57,6 +57,7 @@ from Cython.Compiler.ExprNodes import TupleNode
 from Cython.Compiler.ExprNodes import UnicodeNode
 from Cython.Compiler.Nodes import AssertStatNode
 from Cython.Compiler.Nodes import CArgDeclNode
+from Cython.Compiler.Nodes import CClassDefNode
 from Cython.Compiler.Nodes import CDeclaratorNode
 from Cython.Compiler.Nodes import CFuncDeclaratorNode
 from Cython.Compiler.Nodes import CFuncDefNode
@@ -76,7 +77,9 @@ from Cython.Compiler.Nodes import Node
 from Cython.Compiler.Nodes import SingleAssignmentNode
 from Cython.Compiler.Nodes import StatListNode
 from Cython.Compiler.Nodes import StatNode
-from Cython.Compiler.TreeFragment import parse_from_strings
+from Cython.Compiler.TreeFragment import (
+    parse_from_strings,  # type: ignore[reportAssignmentType]
+)
 from tokenize_rt import src_to_tokens
 from tokenize_rt import tokens_to_src
 
@@ -112,6 +115,59 @@ else:  # pragma: no cover
 
     class AnnotationNode:  # type: ignore[no-redef]
         pass
+
+
+# If necessary, include fixes from https://github.com/cython/cython/pull/7832
+# so pxd files can be parsed.
+if CYTHON_VERSION > ("3", "2") and CYTHON_VERSION[-1] != "0a1":  # pragma: no cover
+    # The following code is copyright by the Cython authors under the Apache 2.0
+    # license, see https://github.com/cython/cython/blob/master/LICENSE.txt
+    def parse_from_strings(  # type: ignore  # noqa
+        name,  # noqa
+        code,  # noqa
+        level=None,  # noqa
+        context=None,  # noqa
+        allow_struct_enum_decorator=False,  # noqa
+    ):
+        from io import StringIO  # noqa: PLC0415
+
+        from Cython.Compiler import Parsing  # noqa: PLC0415
+        from Cython.Compiler.Scanning import PyrexScanner  # noqa: PLC0415
+        from Cython.Compiler.Scanning import StringSourceDescriptor  # noqa: PLC0415
+
+        # Since source files carry an encoding, it makes sense in this context
+        # to use a unicode string so that code fragments don't have to bother
+        # with encoding. This means that test code passed in should not have an
+        # encoding header.
+        assert isinstance(code, str), "unicode code snippets only please"
+        encoding = "UTF-8"
+
+        module_name = name
+        initial_pos = (name, 1, 0)
+        code_source = StringSourceDescriptor(name, code)
+
+        assert context is not None
+        scope = context.find_module(module_name, pos=initial_pos, need_pxd=False)
+
+        buf = StringIO(code)
+
+        scanner = PyrexScanner(
+            buf,
+            code_source,
+            source_encoding=encoding,
+            scope=scope,
+            context=context,
+            initial_pos=initial_pos,
+        )
+        ctx = Parsing.Ctx(allow_struct_enum_decorator=allow_struct_enum_decorator)
+
+        assert level is None or level == "module_pxd"
+        in_pxd = level == "module_pxd"
+        tree = Parsing.p_module(scanner, in_pxd, module_name, ctx=ctx)  # type: ignore[type]
+        tree.is_pxd = in_pxd  # type: ignore[missing-attribute]
+
+        tree.scope = scope  # type: ignore[missing-attribute]
+        return tree
 
 
 PRAGMA = r"#\s+no-cython-lint"
@@ -193,10 +249,72 @@ def err_msg(node: Node, expected: str) -> NoReturn:
     )
 
 
+Violations = list[tuple[int, int, str]]
+
+
+class SharedState:
+    """Track state that involves multiple files."""
+
+    def __init__(self) -> None:
+        # Map (filename without extension, function_name) to
+        #     (filename, line number):
+        self._declared_functions: dict[tuple[str, str], tuple[str, int]] = {}
+        # Map (filename without extension, function_name) to
+        #     (filename, line number):
+        self._inline_cfunctions: dict[tuple[str, str], tuple[str, int]] = {}
+
+    def register_inline_cfunction(
+        self, filename: str, func_name: str, lineno: int, violations: Violations
+    ) -> None:
+        """Register a ``cdef inline`` in a .pyx/.py file."""
+        # This can sometimes happen from a .pxd.
+        if filename.endswith(".pyx"):
+            self._register_inline_cfunction_or_declaration(
+                True, filename, func_name, lineno, violations
+            )
+
+    def register_declaration(
+        self, filename: str, func_name: str, lineno: int, violations: Violations
+    ) -> None:
+        """Register a ``cdef`` declaration in a .pxd file."""
+        if filename.endswith(".pxd"):
+            self._register_inline_cfunction_or_declaration(
+                False, filename, func_name, lineno, violations
+            )
+
+    def _register_inline_cfunction_or_declaration(
+        self,
+        is_inline_cfunction: bool,  # noqa: FBT001
+        filename: str,
+        func_name: str,
+        lineno: int,
+        violations: Violations,
+    ) -> None:
+        filename_without_ext, _ = os.path.splitext(filename)
+        if is_inline_cfunction:
+            to_add = self._inline_cfunctions
+        else:
+            to_add = self._declared_functions
+        key = (filename_without_ext, func_name)
+        to_add[key] = (filename, lineno)
+        if key in self._declared_functions and key in self._inline_cfunctions:
+            decl_filename, decl_lineno = self._declared_functions[key]
+            impl_filename, impl_lineno = self._inline_cfunctions[key]
+            message = (
+                f"C function '{func_name}' is declared in "
+                f"{decl_filename}:{decl_lineno}, and implemented "
+                f"and marked inline in {impl_filename}:{impl_lineno}. Inlining "
+                "will NOT happen across modules, the inline will be ignored. "
+                "If you want inlining, move the full implementation into "
+                f"{decl_filename}, instead of just declaring it there."
+            )
+            violations.append((lineno, 0, message))
+
+
 def visit_cvardef(
     node: CVarDefNode,
     lines: Mapping[int, str],
-    violations: list[tuple[int, int, str]],
+    violations: Violations,
 ) -> None:
     _base = lines[node.pos[1]][node.pos[2] :]
     round_parens = 0
@@ -224,11 +342,13 @@ def visit_cvardef(
         )
 
 
-def visit_funcdef(
+def visit_funcdef(  # noqa: PLR0913
     node: CFuncDefNode | DefNode,
+    filename: str,
     global_names: list[str],
     global_imports: list[Token],
-    violations: list[tuple[int, int, str]],
+    shared_state: SharedState,
+    violations: Violations,
 ) -> None:
     children = [i.node for i in traverse(node)][1:]
 
@@ -280,6 +400,19 @@ def visit_funcdef(
         _declarator: CDeclaratorNode = node.declarator  # type: ignore[assignment]
         func = _func_from_base(_declarator)
         func_name = _name_from_name_node(_name_from_base(func.base))  # type: ignore[attr-defined]
+        # Record inline stand-alone functions:
+        is_method = False
+        parent = node._cl_parent  # type: ignore[missing-attribute]
+        while parent is not None:
+            if isinstance(parent, CClassDefNode):
+                is_method = True
+                break
+            parent = parent._cl_parent
+        if "inline" in node.modifiers and not is_method:
+            shared_state.register_inline_cfunction(
+                filename, func_name, node.pos[1], violations
+            )
+
     else:
         func_name = _name_from_name_node(node)
 
@@ -439,7 +572,7 @@ def _record_imports(node: Node) -> Iterator[Token]:
 
 def visit_dict_node(
     node: DictNode,
-    violations: list[tuple[int, int, str]],
+    violations: Violations,
 ) -> None:
     literal_counts: MutableMapping[
         Hashable,
@@ -523,19 +656,23 @@ def _traverse_file(  # noqa: PLR0915,PLR0913
     code: str,
     filename: str,
     lines: Mapping[int, str],
+    shared_state: SharedState,
     *,
     skip_check: bool,
-    violations: list[tuple[int, int, str]] | None,
+    violations: Violations | None,
     ban_relative_imports: bool,
 ) -> tuple[list[Token], list[Token], list[str]]:
     """
     skip_check: only for when traversing an included file
     """
     try:
-        context = StringParseContext(filename)
+        context = StringParseContext(filename, cpp=True)
         context.set_language_level(3)
         init_thread()
-        tree = parse_from_strings(filename, code, context=context)
+        extra_kwargs = {}
+        if filename.endswith(".pxd"):
+            extra_kwargs["level"] = "module_pxd"
+        tree = parse_from_strings(filename, code, context=context, **extra_kwargs)
     except Exception as exp:  # pragma: no cover
         # If Cython can't parse this file, just skip it.
         print(
@@ -548,9 +685,14 @@ def _traverse_file(  # noqa: PLR0915,PLR0913
     global_names: list[str] = []
     exported_imports: list[str] = []
 
-    _body: ExprNode = tree.body  # type: ignore[assignment]
+    if hasattr(tree, "body"):
+        # Older versions of Cython:
+        _body: ExprNode = tree.body  # type: ignore[assignment]   # pragma: no cover
+    else:
+        # Cython 3.3.0a1 and later:
+        _body: ExprNode = tree  # type: ignore[assignment]   # pragma: no cover
     if isinstance(_body, StatListNode):
-        _stats: list[StatNode] = tree.body.stats  # type: ignore[assignment]
+        _stats: list[StatNode] = _body.stats  # type: ignore[assignment]
         for node in _stats:
             if isinstance(node, StatListNode):
                 for _node in node.stats:
@@ -560,6 +702,7 @@ def _traverse_file(  # noqa: PLR0915,PLR0913
     names: list[Token] = []
     for node_parent in nodes:
         node = node_parent.node
+        node._cl_parent = node_parent.parent  # type: ignore[assignment]
         imported_names.extend(_record_imports(node))
         if isinstance(node, GlobalNode):
             _names: list[str] = node.names  # type: ignore[assignment]
@@ -587,9 +730,16 @@ def _traverse_file(  # noqa: PLR0915,PLR0913
         if isinstance(node, (CFuncDefNode, DefNode)):
             visit_funcdef(
                 node,
+                filename,
                 global_names,
                 global_imports,
+                shared_state,
                 violations=violations,
+            )
+
+        if isinstance(node, CFuncDeclaratorNode):
+            shared_state.register_declaration(
+                filename, node.declared_name(), node.pos[1], violations
             )
 
         if isinstance(node, CVarDefNode):
@@ -1020,7 +1170,8 @@ def sanitise_input(
 def run_ast_checks(
     code: str,
     filename: str,
-    violations: list[tuple[int, int, str]],
+    shared_state: SharedState,
+    violations: Violations,
     *,
     ban_relative_imports: bool,
 ) -> dict[int, str]:
@@ -1029,6 +1180,7 @@ def run_ast_checks(
         code,
         filename,
         lines,
+        shared_state,
         violations=violations,
         ban_relative_imports=ban_relative_imports,
         skip_check=False,
@@ -1041,6 +1193,7 @@ def run_ast_checks(
             _code,
             filename,
             _lines,
+            shared_state,
             skip_check=True,
             violations=None,
             ban_relative_imports=False,
@@ -1058,6 +1211,7 @@ def run_ast_checks(
             _import[0] not in [_name[0] for _name in names if _import != _name]
             and _import[0] not in [_name[0] for _name in included_names]
             and _import[0] not in exported_imports
+            and not filename.endswith(".pxd")
         ):
             violations.append(
                 (
@@ -1072,7 +1226,7 @@ def run_ast_checks(
 def run_pycodestyle(
     line_length: int,
     filename: str,
-    violations: list[tuple[int, int, str]],
+    violations: Violations,
     ignore: set[str],
 ) -> None:
     output = subprocess.run(
@@ -1099,6 +1253,7 @@ def run_pycodestyle(
 def _main(  # noqa: PLR0913
     code: str,
     filename: str,
+    shared_state: SharedState,
     *,
     ext: str,
     line_length: int = 88,
@@ -1109,15 +1264,19 @@ def _main(  # noqa: PLR0913
     if ignore is None:
         ignore = set()
     assert ignore is not None  # help mypy
-    violations: list[tuple[int, int, str]] = []
+    violations: Violations = []
     if not no_pycodestyle:
         run_pycodestyle(line_length, filename, violations, ignore)
 
     lines = {}
-    if ext == ".pyx":
+    if ext in (".pyx", ".pxd"):
         with contextlib.suppress(CythonParseError):
             lines = run_ast_checks(
-                code, filename, violations, ban_relative_imports=ban_relative_imports
+                code,
+                filename,
+                shared_state,
+                violations,
+                ban_relative_imports=ban_relative_imports,
             )
 
     ret = 0
@@ -1223,6 +1382,8 @@ def main(argv: Sequence[str] | None = None) -> int:  # pragma: no cover
         args.ignore = [args.ignore]
     ignore: set[str] = {code.strip() for s in args.ignore for code in s.split(",")}
 
+    shared_state = SharedState()
+
     for path in paths:
         if path.is_file():
             filepaths = iter((path,))
@@ -1246,6 +1407,7 @@ def main(argv: Sequence[str] | None = None) -> int:  # pragma: no cover
             ret |= _main(
                 content,
                 str(filepath),
+                shared_state,
                 line_length=args.max_line_length,
                 no_pycodestyle=args.no_pycodestyle,
                 ext=ext,
