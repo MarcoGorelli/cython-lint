@@ -92,6 +92,7 @@ CYTHON_VERSION = tuple(
     if part.isdigit()
 )
 CYTHON_3 = (3,)
+CYTHON_3_2 = (3, 2)
 CYTHON_3_3 = (3, 3)
 if TYPE_CHECKING:
     from collections.abc import Hashable
@@ -119,7 +120,7 @@ else:  # pragma: no cover
 
 # If necessary, include fixes from https://github.com/cython/cython/pull/7832
 # so pxd files can be parsed.
-if CYTHON_VERSION > ("3", "2") and CYTHON_VERSION[-1] != "0a1":  # pragma: no cover
+if CYTHON_3_2 <= CYTHON_VERSION < CYTHON_3_3:  # pragma: no cover
     # The following code is copyright by the Cython authors under the Apache 2.0
     # license, see https://github.com/cython/cython/blob/master/LICENSE.txt
     def parse_from_strings(  # type: ignore  # noqa

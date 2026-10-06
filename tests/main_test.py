@@ -586,7 +586,7 @@ def test_late_binding_closure(
     ],
 )
 def test_comprehension_without_late_binding_closure(capsys: Any, src: str) -> None:
-    ret = _main(src, "t.py", ext=".pyx", no_pycodestyle=True)
+    ret = _main(src, "t.py", SharedState(), ext=".pyx", no_pycodestyle=True)
     out, _ = capsys.readouterr()
     assert out == ""
     assert ret == 0
