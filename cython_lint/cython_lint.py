@@ -77,9 +77,7 @@ from Cython.Compiler.Nodes import Node
 from Cython.Compiler.Nodes import SingleAssignmentNode
 from Cython.Compiler.Nodes import StatListNode
 from Cython.Compiler.Nodes import StatNode
-from Cython.Compiler.TreeFragment import (
-    parse_from_strings,  # type: ignore[reportAssignmentType]
-)
+from Cython.Compiler.TreeFragment import parse_from_strings  # type: ignore[reportAssignmentType]
 from tokenize_rt import src_to_tokens
 from tokenize_rt import tokens_to_src
 
