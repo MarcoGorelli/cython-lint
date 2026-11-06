@@ -9,6 +9,7 @@ import pathlib
 import re
 import subprocess
 import sys
+import tomllib
 import warnings
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
@@ -18,11 +19,6 @@ from typing import NoReturn
 from typing import cast
 
 from Cython.Compiler.Errors import init_thread
-
-if sys.version_info >= (3, 11):  # pragma: no cover
-    import tomllib
-else:  # pragma: no cover
-    import tomli as tomllib
 
 with warnings.catch_warnings():
     # DeprecationWarning: 'cgi' is deprecated and slated for
