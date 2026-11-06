@@ -47,6 +47,7 @@ lint.ignore = [
   'ARG003',  # todo: enable
   'C901',
   'COM812',
+  'CPY001',
   'D',
   'DTZ',
   'E501',
@@ -56,6 +57,7 @@ lint.ignore = [
   'FIX',
   'ICN001',
   'ISC001',
+  'ISC004',
   'PD',
   'PGH004',
   'PLR0911',

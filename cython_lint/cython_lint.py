@@ -343,7 +343,7 @@ def visit_cvardef(
         )
 
 
-def visit_funcdef(  # noqa: PLR0913
+def visit_funcdef(  # noqa: PLR0913,PLR0917
     node: CFuncDefNode | DefNode,
     filename: str,
     global_names: list[str],
