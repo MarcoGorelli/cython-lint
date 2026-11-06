@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import sys
 from typing import TYPE_CHECKING
 from typing import Any
 
@@ -9,6 +10,11 @@ if TYPE_CHECKING:
 
 import Cython
 import pytest
+
+if sys.version_info >= (3, 11):  # pragma: no cover
+    import tomllib
+else:  # pragma: no cover
+    import tomli as tomllib
 
 from cython_lint.cython_lint import SharedState
 from cython_lint.cython_lint import _main
@@ -1001,3 +1007,13 @@ cdef extern from "arrow/util/iterator.h" namespace "arrow" nogil:
     out, err = capsys.readouterr()
     assert out == ""
     assert err == ""
+
+
+def test_version(capsys: Any) -> None:
+    # https://github.com/MarcoGorelli/cython-lint/issues/194
+    with open("pyproject.toml", "rb") as fd:
+        expected = tomllib.load(fd)["project"]["version"]
+    with pytest.raises(SystemExit):
+        main(["--version"])
+    out, _ = capsys.readouterr()
+    assert out.strip() == expected
