@@ -1380,6 +1380,10 @@ def main(argv: Sequence[str] | None = None) -> int:  # pragma: no cover
     shared_state = SharedState()
 
     for path in paths:
+        if not path.exists():
+            print(f"{path}: no such file or directory")
+            ret |= 1
+            continue
         if path.is_file():
             filepaths = iter((path,))
         else:
