@@ -1012,3 +1012,10 @@ def test_version(capsys: Any) -> None:
         main(["--version"])
     out, _ = capsys.readouterr()
     assert out.strip() == expected
+
+
+def test_missing_path(capsys: Any, tmp_path: Path) -> None:
+    ret = main([str(tmp_path / "does-not-exist.pyx")])
+    out, _ = capsys.readouterr()
+    assert ret == 1
+    assert "no such file or directory" in out
