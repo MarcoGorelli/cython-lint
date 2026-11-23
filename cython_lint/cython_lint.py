@@ -656,6 +656,8 @@ def _traverse_file(  # noqa: PLR0915,PLR0913
     skip_check: bool,
     violations: Violations | None,
     ban_relative_imports: bool,
+    ignore_unused_imports: bool = False,
+    ignore_unused_cimports: bool = False,
 ) -> tuple[list[Token], list[Token], list[str]]:
     """
     skip_check: only for when traversing an included file
@@ -698,7 +700,11 @@ def _traverse_file(  # noqa: PLR0915,PLR0913
     for node_parent in nodes:
         node = node_parent.node
         node._cl_parent = node_parent.parent  # type: ignore[assignment]
-        imported_names.extend(_record_imports(node))
+        if isinstance(node, (CImportStatNode, FromCImportStatNode)):
+            if not ignore_unused_cimports:
+                imported_names.extend(_record_imports(node))
+        elif not ignore_unused_imports:
+            imported_names.extend(_record_imports(node))
         if isinstance(node, GlobalNode):
             _names: list[str] = node.names  # type: ignore[assignment]
             global_names.extend(_names)
@@ -1162,13 +1168,15 @@ def sanitise_input(
     return code, lines, included_texts
 
 
-def run_ast_checks(
+def run_ast_checks(  # noqa: PLR0913
     code: str,
     filename: str,
     shared_state: SharedState,
     violations: Violations,
     *,
     ban_relative_imports: bool,
+    ignore_unused_imports: bool = False,
+    ignore_unused_cimports: bool = False,
 ) -> dict[int, str]:
     code, lines, included_texts = sanitise_input(code, filename)
     names, imported_names, exported_imports = _traverse_file(
@@ -1178,6 +1186,8 @@ def run_ast_checks(
         shared_state,
         violations=violations,
         ban_relative_imports=ban_relative_imports,
+        ignore_unused_imports=ignore_unused_imports,
+        ignore_unused_cimports=ignore_unused_cimports,
         skip_check=False,
     )
 
@@ -1254,6 +1264,8 @@ def _main(  # noqa: PLR0913
     line_length: int = 88,
     no_pycodestyle: bool = False,
     ban_relative_imports: bool = False,
+    ignore_unused_imports: bool = False,
+    ignore_unused_cimports: bool = False,
     ignore: set[str] | None = None,
 ) -> int:
     if ignore is None:
@@ -1272,6 +1284,8 @@ def _main(  # noqa: PLR0913
                 shared_state,
                 violations,
                 ban_relative_imports=ban_relative_imports,
+                ignore_unused_imports=ignore_unused_imports,
+                ignore_unused_cimports=ignore_unused_cimports,
             )
 
     ret = 0
@@ -1357,6 +1371,8 @@ def main(argv: Sequence[str] | None = None) -> int:  # pragma: no cover
     parser.add_argument("--no-pycodestyle", action="store_true")
     parser.add_argument("--version", action="version", version=__version__)
     parser.add_argument("--ban-relative-imports", action="store_true")
+    parser.add_argument("--ignore-unused-imports", action="store_true")
+    parser.add_argument("--ignore-unused-cimports", action="store_true")
     parser.add_argument(
         "--ignore",
         nargs="*",
@@ -1407,6 +1423,8 @@ def main(argv: Sequence[str] | None = None) -> int:  # pragma: no cover
                 no_pycodestyle=args.no_pycodestyle,
                 ext=ext,
                 ban_relative_imports=args.ban_relative_imports,
+                ignore_unused_imports=args.ignore_unused_imports,
+                ignore_unused_cimports=args.ignore_unused_cimports,
                 ignore=ignore,
             )
     return ret

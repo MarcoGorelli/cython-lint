@@ -113,6 +113,38 @@ def test_imported_unused(capsys: Any, src: str, expected: str) -> None:
     assert ret == 1
 
 
+@pytest.mark.parametrize(
+    ("options", "expected"),
+    [
+        (["--ignore-unused-imports"], ["c_module", "c_name"]),
+        (["--ignore-unused-cimports"], ["py_module", "py_name"]),
+        (["--ignore-unused-imports", "--ignore-unused-cimports"], []),
+    ],
+)
+def test_ignore_unused_imports(
+    tmp_path: Path, capsys: Any, options: list[str], expected: list[str]
+) -> None:
+    source = tmp_path / "imports.pyx"
+    source.write_text(
+        "import a as py_module\nfrom b import py_name\n"
+        "cimport c as c_module\nfrom d cimport c_name\n"
+    )
+    assert main([str(source), *options]) == bool(expected)
+    assert [
+        line.split("'")[1] for line in capsys.readouterr().out.splitlines()
+    ] == expected
+
+
+def test_ignore_unused_imports_from_config(tmp_path: Path, capsys: Any) -> None:
+    (tmp_path / "pyproject.toml").write_text(
+        "[tool.cython-lint]\nignore-unused-imports = true\n"
+    )
+    source = tmp_path / "imports.pyx"
+    source.write_text("import a\nfrom .b cimport c\n")
+    assert main([str(source), "--ignore-unused-cimports", "--ban-relative-imports"]) == 1
+    assert capsys.readouterr().out == f"{source}:2:0: Found relative import\n"
+
+
 @pytest.mark.parametrize("suffix", [".pxd", ".pxi"])
 def test_imported_unused_not_checked_in_pxd_and_pxi(capsys: Any, suffix: str) -> None:
     src = "from foo import bar, bar2\n"
